@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Migration — Deep Pocket CRM</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0A1830; --s1:#0F2140; --s2:#132848; --border:#2E5C8A;
+  --accent:#FFFFFF; --text:#FFFFFF; --t2:#8FB4DC; --t3:#5D7A9E;
+  --green:#4C9A6A; --orange:#C08A3E; --red:#C1553D; --r:12px; --r2:8px;
+  --page-w:640px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+.wrap{max-width:var(--page-w);margin:0 auto;padding:0 0 60px}
+.hdr{padding:26px 18px 18px;text-align:center;border-bottom:1px solid var(--border)}
+.hdr .logo{font-size:32px;margin-bottom:8px}
+.hdr h1{font-size:18px;font-weight:800;margin:0 0 4px}
+.hdr p{font-size:11.5px;color:var(--t3);margin:0}
+
+.disclaimer{margin:18px 16px;background:rgba(192,138,62,.1);border:1.5px solid var(--orange);border-radius:var(--r);padding:18px 20px}
+.disclaimer .dt{font-size:13px;font-weight:800;color:var(--orange);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.disclaimer p{font-size:12px;color:var(--text);line-height:1.65;margin:0 0 10px}
+.disclaimer p:last-child{margin-bottom:0}
+.disclaimer b{color:var(--orange)}
+.disclaimer ul{margin:8px 0 10px;padding-left:20px}
+.disclaimer li{font-size:12px;color:var(--text);line-height:1.6;margin-bottom:5px}
+
+.card{margin:14px 16px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.section-t{font-size:12px;font-weight:800;color:var(--t2);letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px}
+
+.dropzone{border:2px dashed var(--border);border-radius:var(--r);padding:36px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.dropzone:hover,.dropzone.drag{border-color:var(--accent);background:rgba(255,255,255,.03)}
+.dropzone .di{font-size:34px;margin-bottom:10px}
+.dropzone .dt{font-size:13px;font-weight:700;margin-bottom:5px}
+.dropzone .ds{font-size:11px;color:var(--t3)}
+input[type=file]{display:none}
+
+.radiorow{display:flex;gap:8px;margin-bottom:16px}
+.radiorow button{flex:1;padding:11px;font-size:12.5px;font-weight:700;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--t2)}
+.radiorow button.sel{border-color:var(--accent);background:rgba(255,255,255,.1);color:var(--text)}
+
+.filepill{display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.filepill .fi{font-size:20px}
+.filepill .fn{flex:1;font-size:12.5px;font-weight:700}
+.filepill .fs{font-size:10.5px;color:var(--t3)}
+.filepill .fx{cursor:pointer;color:var(--red);font-weight:700;font-size:16px;padding:2px 6px}
+
+.progress{text-align:center;padding:30px 20px}
+.spin{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 14px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.progress .pt{font-size:12.5px;color:var(--t2)}
+
+.maprow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.maprow:last-child{border-bottom:none}
+.maprow .mt{flex:0 0 150px;font-size:12px;font-weight:700}
+.maprow select{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 10px;color:var(--text);font-size:12px;outline:none}
+.conf{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.conf.high{background:var(--green)}
+.conf.medium{background:var(--orange)}
+.conf.low{background:var(--t3)}
+.conf.none{background:transparent;border:1px solid var(--border)}
+.reason{font-size:10px;color:var(--t3);margin-top:2px}
+
+.btn{width:100%;padding:13px;font-size:13.5px;font-weight:700;border:none;border-radius:9px;cursor:pointer;margin-top:6px}
+.btn-primary{background:var(--accent);color:#000}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn:disabled{opacity:.45;cursor:default}
+
+.resultbox{text-align:center;padding:34px 20px}
+.resultbox .ri{font-size:40px;margin-bottom:12px}
+.resultbox h2{font-size:15px;margin:0 0 8px}
+.resultbox p{font-size:12px;color:var(--t2);line-height:1.6;margin:0 0 18px}
+.stat{display:inline-block;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin:0 5px 8px;font-size:11.5px}
+.stat b{color:var(--accent)}
+
+.msg{font-size:11.5px;text-align:center;margin:10px 16px 0;padding:10px;border-radius:8px}
+.msg.err{background:rgba(193,85,61,.12);color:var(--red);border:1px solid var(--red)}
+.msg.warn{background:rgba(192,138,62,.12);color:var(--orange);border:1px solid var(--orange)}
+
+.footer{text-align:center;padding:20px 24px 4px;font-size:10px;color:var(--t3);line-height:1.6}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="logo">📊</div>
+    <h1>Data Migration Tool</h1>
+    <p>Convert your existing client/lead spreadsheet into Deep Pocket CRM format</p>
+  </div>
+
+  <div class="disclaimer">
+    <div class="dt">🔒 How your data is handled — please read this</div>
+    <p><b>Your file never leaves this browser tab.</b> The spreadsheet you upload is read and processed entirely on your own device — it is never uploaded to any server, by Deep Pocket or anyone else.</p>
+    <p><b>What we DO use AI for:</b> matching your column headers (e.g. "Client Name", "Mob No") to the right field in Deep Pocket CRM. To do this, we send only:</p>
+    <ul>
+      <li>Your column header text (the labels you chose — not client data)</li>
+      <li>An anonymized statistical summary of each column — for example, "78% filled, average 10 characters, 92% match a 10-digit mobile number pattern." This describes the <i>shape</i> of the data, never the data itself.</li>
+    </ul>
+    <p><b>What we never send, ever:</b> no client name, phone number, PAN, email, date of birth, or any other actual value from your file is transmitted to any AI service, at any point in this process.</p>
+    <p><b>Nothing is stored.</b> This AI request is stateless — it isn't logged, saved, or kept anywhere after it responds with a suggested mapping. It won't be reused, reviewed, or referenced again in the future, by us or anyone else.</p>
+    <p>The suggested mapping is <b>only a starting point — please review and correct it yourself</b> before downloading, especially for sensitive fields like PAN, mobile, and financial figures. You remain responsible for confirming the final mapping is correct.</p>
+  </div>
+
+  <div class="card" id="step-upload">
+    <div class="section-t">Step 1 — What are you importing?</div>
+    <div class="radiorow" id="target-type">
+      <button class="sel" data-v="clients">Existing Clients</button>
+      <button data-v="leads">Leads / Prospects</button>
+      <button data-v="mixed">Mixed File</button>
+    </div>
+    <div id="mixedNote" class="hidden" style="font-size:11px;color:var(--t3);margin:-10px 0 14px;line-height:1.6">Use this if your file has BOTH clients and leads together, with a column that tells them apart (e.g. a "Type" or "Status" column). You'll confirm which column, and which values mean what, before anything is split.</div>
+    <div class="section-t">Step 2 — Upload your file</div>
+    <div class="dropzone" id="dropzone">
+      <div class="di">📁</div>
+      <div class="dt">Click to choose a file, or drag it here</div>
+      <div class="ds">.xlsx, .xls, or .csv</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    <div id="filepill-area"></div>
+    <button class="btn btn-primary" id="analyzeBtn" disabled>Analyze Columns</button>
+  </div>
+
+  <div class="card hidden" id="step-progress">
+    <div class="progress">
+      <div class="spin"></div>
+      <div class="pt" id="progressText">Reading your file…</div>
+    </div>
+  </div>
+
+  <div class="card hidden" id="step-segregate">
+    <div class="section-t">Separate Your Leads From Your Clients</div>
+    <div style="font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:16px">Your file has both together. Pick the column that shows which is which — everything here is read directly from your own file, on your own device, nothing is sent anywhere for this step.</div>
+    <div style="margin-bottom:16px">
+      <select id="segColumnSelect" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;outline:none">
+        <option value="">— My file doesn't have a column like this —</option>
+      </select>
+    </div>
+    <div id="segValuesArea"></div>
+    <button class="btn btn-primary" id="confirmSegBtn">Confirm & Continue</button>
+  </div>
+
+  <div class="card hidden" id="step-review">
+    <div class="section-t">Review the Suggested Mapping</div>
+    <div style="font-size:11px;color:var(--t3);margin-bottom:14px;line-height:1.6">Green = confident match · Amber = worth double-checking · Grey = no match found, please choose manually if this field exists in your file.</div>
+    <div id="mapRows"></div>
+    <button class="btn btn-primary" id="confirmBtn">Looks Good — Convert My Data</button>
+    <button class="btn btn-ghost" id="backBtn">Start Over</button>
+  </div>
+
+  <div class="card hidden" id="step-result">
+    <div class="resultbox">
+      <div class="ri">✅</div>
+      <h2>Your file is ready</h2>
+      <p id="resultSummary"></p>
+      <button class="btn btn-primary" id="downloadBtn">Download Converted File</button>
+      <button class="btn btn-ghost" id="restartBtn">Convert Another File</button>
+    </div>
+  </div>
+
+  <div id="msgArea"></div>
+
+  <div class="footer">Deep Pocket Fintech Pvt Ltd. · This tool runs entirely in your browser · Nothing is uploaded or stored</div>
+</div>
+
+<script>
+// ⚠️ Deep Pocket's own AI-mapping backend — receives ONLY anonymized column
+// fingerprints, never raw data. See DeepPocket-Migration-Backend.gs.
+var MIGRATION_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbw4AUZF5mq-G1osIudh6S8UxroH8diAYNhtQ6X8zMQ8Ky1UXL4rkHTjcSvMoZVzswYJ/exec';
+
+// ── Target schemas — must match LEAD_HDRS / CLIENT_HDRS in crm.html exactly ──
+var TARGETS = {
+  leads: {
+    hdrs: ['Name','Mobile','Email','Age','Country','Status','Source','Referred By','Potential SIP','Next Follow-up','Investment Products','Mode of Contact','Remarks','Modified Date','Created Date','Geo Tag','Potential AUM','Record ID','Family Name','Folder ID','Upload Token','User ID'],
+    // Only fields realistically found in an external export get an AI-mappable slot;
+    // the rest (Record ID, Folder ID, Upload Token, etc.) are left blank — the app
+    // generates those itself, they should never come from an import.
+    mappable: ['name','mobile','email','age','country','status','source','referral','potentialSip','nextFollowUp','products','contactMode','remarks','potentialAum','familyName'],
+    colIndex: { name:0, mobile:1, email:2, age:3, country:4, status:5, source:6, referral:7, potentialSip:8, nextFollowUp:9, products:10, contactMode:11, remarks:12, potentialAum:16, familyName:18 }
+  },
+  clients: {
+    hdrs: ['Name','Mobile','Email','Country','Source','Referred By','Next Follow up date','Age','Gender','Remarks','Created date','PAN','DOB','Spouse DOB','Anniversary','Converted Date','Review Date','1st Anniversary','App Installed','Broadcast Added','SIP date','Health insurance','Life insurance','WILL','Due date Health','Due date Life','AUM','Potential AUM','Welcome Message send','Products','Last Contacted','Stage','Upload Token','Potential SIP','Folder ID','Family Name','Record ID','SIP date 2','Modified Date','Health Insurance Coverage','Life Insurance Coverage','User ID'],
+    mappable: ['name','mobile','email','country','age','gender','pan','dob','spouseDob','anniversary','source','referral','sipDate','healthInsurance','lifeInsurance','aum','potentialAum','products','stage','potentialSip','familyName','remarks'],
+    colIndex: { name:0, mobile:1, email:2, country:3, source:4, referral:5, age:7, gender:8, remarks:9, pan:11, dob:12, spouseDob:13, anniversary:14, sipDate:20, healthInsurance:21, lifeInsurance:22, aum:26, potentialAum:27, products:29, stage:31, potentialSip:33, familyName:35 }
+  }
+};
+var FIELD_LABELS = {
+  name:'Name', mobile:'Mobile', email:'Email', age:'Age', country:'Country', status:'Status', source:'Source',
+  referral:'Referred By', potentialSip:'Potential SIP', nextFollowUp:'Next Follow-up', products:'Products',
+  contactMode:'Mode of Contact', remarks:'Remarks', potentialAum:'Potential AUM', familyName:'Family Name',
+  gender:'Gender', pan:'PAN', dob:'DOB', spouseDob:'Spouse DOB', anniversary:'Anniversary', sipDate:'SIP Date',
+  healthInsurance:'Health Insurance', lifeInsurance:'Life Insurance', aum:'AUM', stage:'Stage'
+};
+
+// "mixed" has no output schema of its own — a mixed file's rows eventually
+// go to the real leads or clients schema after splitting. Its mappable list
+// is a computed, deduplicated union of both, so it can never silently drift
+// out of sync with the two real lists above.
+(function(){
+  var seen = {}, union = [];
+  TARGETS.leads.mappable.concat(TARGETS.clients.mappable).forEach(function(k){
+    if(!seen[k]){ seen[k]=true; union.push(k); }
+  });
+  TARGETS.mixed = { mappable: union };
+})();
+
+var targetType = 'clients';
+var sourceRows = null;      // full parsed data — stays in browser memory only, NEVER sent anywhere
+var sourceHeaders = null;
+var confirmedMapping = {};  // { targetKey: sourceColumnIndex | null }
+
+function showMsg(text, cls){
+  document.getElementById('msgArea').innerHTML = '<div class="msg '+cls+'">'+text.replace(/</g,'&lt;')+'</div>';
+}
+function clearMsg(){ document.getElementById('msgArea').innerHTML=''; }
+function showStep(id){
+  ['step-upload','step-progress','step-segregate','step-review','step-result'].forEach(function(s){
+    document.getElementById(s).classList.toggle('hidden', s!==id);
+  });
+}
+
+// ── Target type toggle ──
+document.querySelectorAll('#target-type button').forEach(function(b){
+  b.onclick = function(){
+    document.querySelectorAll('#target-type button').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel');
+    targetType = b.dataset.v;
+    document.getElementById('mixedNote').classList.toggle('hidden', targetType!=='mixed');
+  };
+});
+
+// ── File selection ──
+var dropzone = document.getElementById('dropzone');
+var fileInput = document.getElementById('fileInput');
+dropzone.onclick = function(){ fileInput.click(); };
+dropzone.ondragover = function(e){ e.preventDefault(); dropzone.classList.add('drag'); };
+dropzone.ondragleave = function(){ dropzone.classList.remove('drag'); };
+dropzone.ondrop = function(e){
+  e.preventDefault(); dropzone.classList.remove('drag');
+  if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+};
+fileInput.onchange = function(){ if(fileInput.files.length) handleFile(fileInput.files[0]); };
+
+var pendingFile = null;
+function handleFile(file){
+  clearMsg();
+  pendingFile = file;
+  var sizeKb = Math.round(file.size/1024);
+  document.getElementById('filepill-area').innerHTML =
+    '<div class="filepill"><div class="fi">📄</div><div style="flex:1"><div class="fn">'+esc(file.name)+'</div><div class="fs">'+sizeKb+' KB</div></div><div class="fx" onclick="clearFile()">✕</div></div>';
+  document.getElementById('analyzeBtn').disabled = false;
+}
+function clearFile(){
+  pendingFile = null;
+  document.getElementById('filepill-area').innerHTML = '';
+  document.getElementById('analyzeBtn').disabled = true;
+  fileInput.value = '';
+}
+function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+// ── Analyze: parse locally, compute fingerprints locally, THEN call backend with fingerprints only ──
+var pendingColumns = null; // fingerprints computed once, reused whether we go straight to mapping or via segregation first
+var segregationTags = null; // { value: 'lead'|'client'|'ignore' } once confirmed, or null if not using this / not applicable
+
+document.getElementById('analyzeBtn').onclick = async function(){
+  if(!pendingFile) return;
+  clearMsg();
+  showStep('step-progress');
+  document.getElementById('progressText').textContent = 'Reading your file…';
+
+  try{
+    var data = await pendingFile.arrayBuffer();
+    var wb = XLSX.read(data, { type:'array', cellDates:true });
+    var firstSheet = wb.Sheets[wb.SheetNames[0]];
+    var rows = XLSX.utils.sheet_to_json(firstSheet, { header:1, defval:'', raw:false });
+
+    if(!rows.length || rows.length < 2){
+      showStep('step-upload');
+      showMsg('This file has no data rows to import.', 'err');
+      return;
+    }
+
+    sourceHeaders = rows[0].map(function(h){ return String(h||'').trim(); });
+    sourceRows = rows.slice(1).filter(function(r){ return r.some(function(c){ return String(c||'').trim(); }); });
+
+    if(!sourceHeaders.length || sourceHeaders.every(function(h){ return !h; })){
+      showStep('step-upload');
+      showMsg('Could not find column headers in the first row of this file.', 'err');
+      return;
+    }
+
+    document.getElementById('progressText').textContent = 'Analyzing column patterns (locally, on your device)…';
+    await sleep(200); // let the message render before the (fast) local computation
+
+    pendingColumns = sourceHeaders.map(function(h, i){
+      var colValues = sourceRows.map(function(r){ return r[i]; });
+      return { header: h, fingerprint: computeFingerprint(colValues) };
+    });
+
+    if(targetType === 'mixed'){
+      showSegregationStep();
+    } else {
+      await proceedToMapping();
+    }
+
+  }catch(err){
+    showStep('step-upload');
+    showMsg('Could not read this file: '+err.message, 'err');
+  }
+};
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+async function proceedToMapping(){
+  showStep('step-progress');
+  document.getElementById('progressText').textContent = 'Asking Deep Pocket to suggest a mapping (headers + statistics only)…';
+  var mapping = await requestMapping(pendingColumns, targetType);
+  renderReview(sourceHeaders, mapping);
+  showStep('step-review');
+}
+
+// ── Segregation (Mixed mode only) ──
+function showSegregationStep(){
+  var sel = document.getElementById('segColumnSelect');
+  sel.innerHTML = '<option value="">— My file doesn\u2019t have a column like this —</option>' +
+    sourceHeaders.map(function(h,i){ return '<option value="'+i+'">'+esc(h||'(column '+(i+1)+')')+'</option>'; }).join('');
+  sel.value = '';
+  document.getElementById('segValuesArea').innerHTML = '';
+  showStep('step-segregate');
+}
+
+document.getElementById('segColumnSelect').onchange = function(){
+  var idx = this.value;
+  var area = document.getElementById('segValuesArea');
+  if(idx===''){ area.innerHTML=''; return; }
+
+  // Distinct values, computed and shown ENTIRELY locally — this is the
+  // user's own file, displayed back to them, never transmitted anywhere.
+  var colIdx = parseInt(idx,10);
+  var counts = {};
+  sourceRows.forEach(function(r){
+    var v = String(r[colIdx]||'').trim();
+    if(v) counts[v] = (counts[v]||0)+1;
+  });
+  var values = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; });
+
+  if(!values.length){
+    area.innerHTML = '<div class="msg warn" style="margin:0 0 14px">No values found in that column.</div>';
+    return;
+  }
+  if(values.length > 12){
+    area.innerHTML = '<div class="msg warn" style="margin:0 0 14px">That column has '+values.length+' different values — that doesn\u2019t look like a Lead/Client type column. Pick a different one, or choose "My file doesn\u2019t have a column like this."</div>';
+    return;
+  }
+
+  area.innerHTML = '<div style="font-size:11.5px;color:var(--t2);margin-bottom:10px">Tell us what each value means:</div>' +
+    values.map(function(v){
+      var guess = /lead|prospect|enquir/i.test(v) ? 'lead' : /client|invest|active/i.test(v) ? 'client' : '';
+      return '<div class="maprow"><div class="mt" style="flex:0 0 auto;max-width:180px" title="'+esc(v)+'">'+esc(v)+' <span style="color:var(--t3);font-weight:400">('+counts[v]+')</span></div>'
+        + '<div style="flex:1"><select data-segval="'+esc(v)+'">'
+        + '<option value="lead"'+(guess==='lead'?' selected':'')+'>= Lead</option>'
+        + '<option value="client"'+(guess==='client'?' selected':'')+'>= Client</option>'
+        + '<option value="ignore">Ignore these rows</option>'
+        + '</select></div></div>';
+    }).join('');
+};
+
+document.getElementById('confirmSegBtn').onclick = async function(){
+  var colIdx = document.getElementById('segColumnSelect').value;
+
+  if(colIdx===''){
+    // No segregation column identified — exactly the fallback required:
+    // explain clearly, then import everything as clients.
+    alert('Since no clear way to separate leads from clients was identified, all records in this file will be imported as Clients.');
+    segregationTags = null;
+    targetType = 'clients'; // proceed exactly as the single-type flow does from here
+    await proceedToMapping();
+    return;
+  }
+
+  var selects = document.querySelectorAll('#segValuesArea select[data-segval]');
+  if(!selects.length){
+    showMsg('Please choose a column with recognizable values first, or select "My file doesn\u2019t have a column like this."', 'warn');
+    return;
+  }
+
+  var tags = {};
+  selects.forEach(function(s){ tags[s.dataset.segval] = s.value; });
+  segregationTags = { columnIndex: parseInt(colIdx,10), tags: tags };
+
+  await proceedToMapping();
+};
+
+// ── The ONLY function that computes anything from real values — and it never
+// returns a real value, only aggregate statistics and percentages. This is
+// the entire privacy boundary of the tool: everything past this function
+// only ever sees the fingerprint STRING it produces, never the column it was
+// computed from. ──
+function computeFingerprint(values){
+  var total = values.length;
+  var nonEmpty = values.filter(function(v){ return v!==null && v!==undefined && String(v).trim()!==''; });
+  if(!nonEmpty.length) return 'entirely empty column, 0 of '+total+' rows have a value';
+
+  var strs = nonEmpty.map(function(v){ return String(v).trim(); });
+  var nonEmptyPct = Math.round((nonEmpty.length/total)*100);
+  var avgLen = Math.round(strs.reduce(function(a,s){ return a+s.length; },0)/strs.length);
+  var uniquePct = Math.round((new Set(strs).size/strs.length)*100);
+
+  function pct(regex){ return Math.round((strs.filter(function(s){ return regex.test(s); }).length/strs.length)*100); }
+
+  var numericPct = pct(/^[\d.,\s]+$/);
+  var panPct = pct(/^[A-Za-z]{5}[0-9]{4}[A-Za-z]$/);
+  var emailPct = pct(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+  var mobilePct = pct(/^[6-9]\d{9}$/);
+  var datePct = pct(/^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}$/) + pct(/^\d{4}-\d{2}-\d{2}/);
+  var yesNoPct = pct(/^(yes|no|y|n|true|false)$/i);
+
+  var digitOnly = strs.filter(function(s){ return /^\d+$/.test(s); });
+  var typicalDigits = null;
+  if(digitOnly.length > strs.length*0.5){
+    var counts = {};
+    digitOnly.forEach(function(s){ counts[s.length] = (counts[s.length]||0)+1; });
+    typicalDigits = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; })[0];
+  }
+
+  var parts = [nonEmptyPct+'% filled', 'avg '+avgLen+' chars', uniquePct+'% unique'];
+  if(typicalDigits) parts.push('typically '+typicalDigits+'-digit numbers');
+  else if(numericPct>60) parts.push(numericPct+'% numeric');
+  if(panPct>25) parts.push(panPct+'% match PAN format (5 letters+4 digits+1 letter)');
+  if(emailPct>25) parts.push(emailPct+'% match email format');
+  if(mobilePct>25) parts.push(mobilePct+'% match 10-digit Indian mobile format');
+  if(datePct>25) parts.push(datePct+'% look like dates');
+  if(yesNoPct>50) parts.push(yesNoPct+'% are Yes/No-style values');
+
+  return parts.join(', ');
+}
+
+// ── The ONLY network call in this tool. Payload is headers + fingerprint
+// STRINGS only — verified by construction, since `columns` here only ever
+// contains what computeFingerprint() returned, never sourceRows/sourceHeaders
+// raw values directly. ──
+async function requestMapping(columns, type){
+  if(MIGRATION_BACKEND_URL.indexOf('PASTE_')===0){
+    showMsg('The AI mapping service is not configured yet for this tool — you can still map every column manually below.', 'warn');
+    return {};
+  }
+  try{
+    var res = await fetch(MIGRATION_BACKEND_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain'},
+      body: JSON.stringify({ action:'suggestColumnMapping', targetType:type, columns:columns })
+    });
+    var json = await res.json();
+    if(!json.success){
+      showMsg('Automatic suggestion unavailable ('+(json.error||'unknown error')+') — please map columns manually below.', 'warn');
+      return {};
+    }
+    return json.mapping || {};
+  }catch(e){
+    showMsg('Could not reach the mapping service — please map columns manually below.', 'warn');
+    return {};
+  }
+}
+
+// ── Review UI ──
+function renderReview(headers, mapping){
+  var t = TARGETS[targetType];
+  var html = '';
+  t.mappable.forEach(function(key){
+    var m = mapping[key] || {};
+    var conf = (m.columnIndex!==null && m.columnIndex!==undefined) ? (m.confidence||'medium') : 'none';
+    var selIdx = (m.columnIndex!==null && m.columnIndex!==undefined) ? m.columnIndex : '';
+    html += '<div class="maprow">'
+      + '<div><div class="conf '+conf+'"></div></div>'
+      + '<div class="mt">'+esc(FIELD_LABELS[key]||key)+'</div>'
+      + '<div style="flex:1">'
+      + '<select data-key="'+key+'" onchange="updateMapping(this)">'
+      + '<option value="">— No match, leave blank —</option>'
+      + headers.map(function(h,i){ return '<option value="'+i+'" '+(String(i)===String(selIdx)?'selected':'')+'>'+esc(h||'(column '+(i+1)+')')+'</option>'; }).join('')
+      + '</select>'
+      + (m.reason ? '<div class="reason">'+esc(m.reason)+'</div>' : '')
+      + '</div></div>';
+    confirmedMapping[key] = (selIdx!=='') ? parseInt(selIdx,10) : null;
+  });
+  document.getElementById('mapRows').innerHTML = html;
+}
+function updateMapping(sel){
+  var key = sel.dataset.key;
+  confirmedMapping[key] = sel.value!=='' ? parseInt(sel.value,10) : null;
+}
+
+document.getElementById('backBtn').onclick = function(){
+  sourceRows = null; sourceHeaders = null; confirmedMapping = {}; pendingColumns = null; segregationTags = null;
+  clearFile(); clearMsg();
+  showStep('step-upload');
+};
+
+// ── Convert: happens entirely client-side, using the mapping the user just confirmed ──
+function buildOutputRows(rows, targetKey){
+  var t = TARGETS[targetKey];
+  var outRows = [t.hdrs.slice()];
+  rows.forEach(function(srcRow){
+    var outRow = new Array(t.hdrs.length).fill('');
+    Object.keys(confirmedMapping).forEach(function(key){
+      var srcIdx = confirmedMapping[key];
+      var outIdx = t.colIndex[key];
+      if(srcIdx!==null && srcIdx!==undefined && outIdx!==undefined){
+        var val = srcRow[srcIdx];
+        outRow[outIdx] = (val===null||val===undefined) ? '' : String(val).trim();
+      }
+    });
+    if(outRow[0] || outRow[1]) outRows.push(outRow); // needs at least a name or mobile to be usable
+  });
+  return outRows;
+}
+
+document.getElementById('confirmBtn').onclick = function(){
+  var wbOut = XLSX.utils.book_new();
+  var summary;
+
+  if(targetType==='mixed' && segregationTags){
+    // Split sourceRows by the tagged column, then build each target's sheet
+    // from its own share of the rows, using the one shared mapping confirmed
+    // above — the mapping itself doesn't change per row, only which target
+    // schema (and therefore which column layout) each row's data lands in.
+    var colIdx = segregationTags.columnIndex, tags = segregationTags.tags;
+    var leadRows = [], clientRows = [], ignoredCount = 0;
+    sourceRows.forEach(function(r){
+      var v = String(r[colIdx]||'').trim();
+      var tag = tags[v];
+      if(tag==='lead') leadRows.push(r);
+      else if(tag==='client') clientRows.push(r);
+      else ignoredCount++; // untagged value, or explicitly marked "ignore"
+    });
+
+    var leadOut = buildOutputRows(leadRows, 'leads');
+    var clientOut = buildOutputRows(clientRows, 'clients');
+    XLSX.utils.book_append_sheet(wbOut, XLSX.utils.aoa_to_sheet(clientOut), 'CLIENTS');
+    XLSX.utils.book_append_sheet(wbOut, XLSX.utils.aoa_to_sheet(leadOut), 'LEADS');
+
+    window._migrationOutput = { wb: wbOut, leadCount: leadOut.length-1, clientCount: clientOut.length-1 };
+    summary = 'Separated into '+(clientOut.length-1)+' clients and '+(leadOut.length-1)+' leads, each in their own sheet tab matching your Google Sheet\u2019s own layout.'
+      + (ignoredCount ? ' '+ignoredCount+' row(s) were skipped (untagged or marked to ignore).' : '')
+      + ' Review both tabs before importing — this tool does not verify individual records, only the column layout and the split.';
+  } else {
+    // Single type — either "clients"/"leads" chosen directly, or "mixed"
+    // with no segregation column identified, already redirected to 'clients'.
+    var outRows = buildOutputRows(sourceRows, targetType);
+    XLSX.utils.book_append_sheet(wbOut, XLSX.utils.aoa_to_sheet(outRows), targetType==='clients' ? 'CLIENTS' : 'LEADS');
+    window._migrationOutput = { wb: wbOut, count: outRows.length-1 };
+    summary = 'Converted '+(outRows.length-1)+' '+(targetType==='clients'?'clients':'leads')+' into Deep Pocket CRM format. Review the file once more before importing it — this tool does not verify individual records, only the column layout.';
+  }
+
+  document.getElementById('resultSummary').textContent = summary;
+  showStep('step-result');
+};
+
+document.getElementById('downloadBtn').onclick = function(){
+  if(!window._migrationOutput) return;
+  var fname = 'deep-pocket-'+targetType+'-import-'+new Date().toISOString().slice(0,10)+'.xlsx';
+  XLSX.writeFile(window._migrationOutput.wb, fname);
+};
+
+document.getElementById('restartBtn').onclick = function(){
+  sourceRows = null; sourceHeaders = null; confirmedMapping = {}; pendingColumns = null; segregationTags = null; window._migrationOutput = null;
+  clearFile(); clearMsg();
+  showStep('step-upload');
+};
+</script>
+</body>
+</html>

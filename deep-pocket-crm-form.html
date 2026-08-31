@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Let's Get Your CRM Set Up</title>
+<style>
+:root{
+  --bg:#0A1830; --s1:#0F2140; --s2:#132848; --border:#2E5C8A;
+  --accent:#FFFFFF; --text:#FFFFFF; --t2:#8FB4DC; --t3:#5D7A9E;
+  --green:#4C9A6A; --orange:#C08A3E; --red:#C1553D; --r:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+.wrap{max-width:660px;margin:0 auto;padding:30px 16px 60px}
+.hdr{text-align:center;margin-bottom:24px}
+.brandline{font-size:10.5px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.mark{width:44px;height:44px;background:linear-gradient(145deg,#4A8FC7,#2E5C8A);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-weight:800;color:#fff;font-size:16px;user-select:none}
+.hdr h1{font-size:19px;font-weight:800;margin:0}
+.hdr .sub{font-size:12px;color:var(--t2);margin-top:6px;line-height:1.6;max-width:490px;margin-left:auto;margin-right:auto}
+.hdr .note{font-size:10.5px;color:var(--t3);margin-top:8px;line-height:1.6}
+
+.section{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
+.section-hdr{display:flex;align-items:center;gap:10px;padding:16px 20px;cursor:pointer;user-select:none}
+.section-icn{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.section-t{flex:1}
+.section-t .title{font-size:14px;font-weight:800;color:#fff}
+.section-t .subtitle{font-size:11px;color:var(--t3);margin-top:2px;line-height:1.5}
+.chev{color:var(--t3);font-size:12px;transition:transform .15s}
+.section.open .chev{transform:rotate(180deg)}
+.section-body{display:none;padding:0 20px 18px 60px}
+.section.open .section-body{display:block}
+
+label{font-size:11.5px;font-weight:700;color:var(--t2);display:block;margin-bottom:5px}
+.field{margin-bottom:12px}
+input[type=text],textarea{
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 11px;color:#fff;font-size:13px;outline:none;box-sizing:border-box;font-family:inherit
+}
+textarea{resize:vertical}
+.help{font-size:10.5px;color:var(--t3);margin-top:4px;line-height:1.5}
+.help.warn{color:var(--orange);background:rgba(192,138,62,.1);padding:9px 11px;border-radius:8px;margin-bottom:10px}
+
+.radio-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.radio-btn{flex:1 1 auto;min-width:90px;padding:9px 10px;font-size:12px;font-weight:700;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--t2);text-align:center}
+.radio-btn.sel{border-color:#fff;background:rgba(255,255,255,.1);color:#fff}
+
+.colour-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.colour-row input[type=color]{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:none;cursor:pointer;flex-shrink:0;padding:0}
+.colour-info{flex:1}
+.colour-info .name{font-size:12px;font-weight:700;color:#fff}
+.colour-info .val{font-size:10px;color:var(--t3);font-family:monospace}
+
+.feature-row{padding:10px 0;border-bottom:1px solid #1A2E4A}
+.feature-row:last-child{border-bottom:none}
+.feature-row .label{font-size:12.5px;font-weight:700;color:#fff}
+.feature-row .desc{font-size:10.5px;color:var(--t3);margin:3px 0 7px;line-height:1.5}
+.feature-modes{display:flex;gap:6px}
+.fm-btn{flex:1;padding:6px 8px;font-size:10.5px;font-weight:700;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--t3)}
+.fm-btn.sel-keep{border-color:#fff;background:rgba(255,255,255,.1);color:#fff}
+.fm-btn.sel-customize{border-color:var(--orange);background:rgba(192,138,62,.15);color:var(--orange)}
+.fm-btn.sel-remove{border-color:var(--red);background:rgba(193,85,61,.15);color:var(--red)}
+.feature-note{width:100%;margin-top:7px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 9px;color:#fff;font-size:11.5px;outline:none;box-sizing:border-box;display:none}
+.feature-note.show{display:block}
+
+.icon-drop{border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer}
+.icon-drop:hover{border-color:var(--accent);background:rgba(255,255,255,.03)}
+.icon-preview{display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px}
+.icon-preview img{width:48px;height:48px;border-radius:10px;flex-shrink:0;background:var(--bg)}
+.icon-info{flex:1;min-width:0}
+.icon-info .nm{font-size:12px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-info .sz{font-size:10.5px;color:var(--green);margin-top:2px}
+.icon-x{cursor:pointer;color:var(--red);font-weight:700;font-size:15px;padding:2px 6px;flex-shrink:0}
+
+.actions{display:flex;gap:8px;margin-top:8px}
+.btn-submit{flex:1;padding:14px;font-size:14px;font-weight:800;color:#000;background:#fff;border:none;border-radius:10px;cursor:pointer}
+.btn-submit:disabled{opacity:.6;cursor:default}
+.btn-reset{padding:14px 16px;font-size:12px;font-weight:700;color:var(--t2);background:transparent;border:1px solid var(--border);border-radius:10px;cursor:pointer}
+
+#thankyou{display:none;min-height:100vh;align-items:center;justify-content:center;padding:24px;text-align:center}
+#thankyou .check{width:56px;height:56px;background:linear-gradient(145deg,var(--green),#3A7A52);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:26px}
+#thankyou h2{font-size:19px;font-weight:800;margin:0 0 10px}
+#thankyou p{font-size:13px;color:var(--t2);line-height:1.7;max-width:380px}
+
+.msg{font-size:12px;text-align:center;margin:10px 0;padding:10px;border-radius:8px}
+.msg.err{background:rgba(193,85,61,.12);color:var(--red);border:1px solid var(--red)}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="formWrap">
+  <div class="hdr">
+    <div class="brandline">Deep Pocket Fintech Pvt Ltd.</div>
+    <div class="mark">DP</div>
+    <h1>Let's Get Your CRM Set Up</h1>
+    <div class="sub">A few details about your firm so we can set everything up correctly — your branding, colours, and how you work with clients. Takes about 10 minutes.</div>
+    <div class="note">Your answers save as you type, so you can close this and come back anytime.<br>Not sure about something? Leave it blank — we'll follow up if we need it.</div>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="actions">
+    <button class="btn-submit" id="submitBtn" onclick="handleSubmit()">Submit</button>
+    <button class="btn-reset" onclick="resetForm()">Reset</button>
+  </div>
+  <div id="msgArea"></div>
+</div>
+
+<div id="thankyou">
+  <div>
+    <div class="check">✓</div>
+    <h2>Thank you!</h2>
+    <p>We've received your details and will be in touch soon to get your CRM set up and ready to go.</p>
+  </div>
+</div>
+
+<script>
+// Deep Pocket's own submission-notification backend. Same one used by the
+// artifact version — receives the generated setup prompts and emails them.
+var SCRIPT_URL = 'PASTE_DEEP_POCKET_SCRIPT_URL_HERE';
+
+var REF = {
+  firmFull: 'Wealth Matrix Finserv LLP', firmBare: 'Wealth Matrix Finserv', firmShort: 'Wealth Matrix',
+  productName: 'Wealth Matrix CRM', ownerName: 'Arjun K T M', ownerShort: 'Arjun',
+  address: '8th Floor, Alappat Heritage, MG Road, Ernakulam', phone: '9745014475', email: 'arjun.wealthmatrix@gmail.com',
+  logoInitials: 'WM', iosTitle: 'Wealth Matrix', sheetId: '1oPQMj6KB39M20RnEoix9PCvSA8RFhVhOV4BG2M4TXlQ',
+  backupFolder: 'Wealth Matrix CRM Backups', docsFolder: 'Wealth Matrix Client Documents',
+  stages: 'KYC PENDING, DOCUMENT PENDING, PROFILE CREATION PENDING, MANDATE PENDING, INVESTMENT PENDING, GRATITUDE CALL PENDING',
+  playStoreUrl: 'https://play.google.com/store/apps/details?id=com.wealthmetrics.app&pcampaignid=web_share',
+  appStoreUrl: 'https://apps.apple.com/in/app/wealth-matrix/id6748309181', playStoreId: 'com.wealthmetrics.app'
+};
+var DEFAULT_THEME = { bg:'#0A1830', s1:'#0F2140', s2:'#132848', border:'#2E5C8A', accent:'#FFFFFF', text:'#FFFFFF', t2:'#8FB4DC', t3:'#5D7A9E', green:'#4C9A6A', orange:'#C08A3E', red:'#C1553D' };
+var THEME_LABELS = { bg:'Main background', s1:'Cards and boxes', s2:'Alternating rows in lists', border:'Thin dividing lines', accent:'Main buttons and highlights', text:'Main text colour', t2:'Secondary text', t3:'Faint captions', green:'Success messages', orange:'Warnings', red:'Errors and urgent items' };
+var DEFAULT_FEATURES = [
+  { key:'pipeline', label:'Lead-to-Client Pipeline', desc:'Status tracking, conversion, sequential Record IDs' },
+  { key:'family', label:'Family Relationship Tracking', desc:'Family-name linking across household members' },
+  { key:'documents', label:'Document Upload & Drive Folders', desc:'Per-client folder auto-creation, client-facing upload page' },
+  { key:'gatherinfo', label:'Gather Info Page', desc:'Client-facing insurance/product status form' },
+  { key:'findoc', label:'Fin Doc — Family Financial Organizer', desc:'12-section family financial inventory, generates a PDF to Drive' },
+  { key:'feedback', label:'Client Feedback + Referral Capture', desc:'Anonymous-capable feedback form; referrals auto-create leads' },
+  { key:'reviewreport', label:'AI Client Review Report', desc:'Warm client-facing portfolio letter, shared by link' },
+  { key:'casanalysis', label:'CAS Portfolio Analysis (AI)', desc:'ARN-aware portfolio summary from an uploaded CAS PDF' },
+  { key:'meetinginsights', label:'Meeting Insights (AI)', desc:'Pre-meeting AI briefing from client history' },
+  { key:'practicechat', label:'AI Practice Chat (Insights tab)', desc:'Ask-anything chatbot grounded in the firm\u2019s live CRM data' },
+  { key:'topinsights', label:'Top 10 Business Insights (AI)', desc:'Ranked daily opportunities' },
+  { key:'contemporary', label:'Market / RBI Insight (AI + web search)', desc:'Live Budget/RBI/GCC briefing via web search' },
+  { key:'whatsappdrafts', label:'AI WhatsApp Message Drafting', desc:'Human-toned drafts for leads and clients' },
+  { key:'sip', label:'SIP Reminders & Bounce Check', desc:'5/2-day reminders, 7-day debit verification' },
+  { key:'tasks', label:'Tasks + Maker/Checker Review', desc:'Task workflow with Pending Review → approve / send back' },
+  { key:'multiuser', label:'Multi-User Roles & Data Isolation', desc:'Maker/Checker/Authorizer/Admin, Makers see only own records' },
+  { key:'applock', label:'App Lock (PIN / Biometric)', desc:'Device-level lock on reopen or resume' },
+  { key:'appinstalled', label:'Mobile App Install Tracking', desc:'"App Installed" field + install-link WhatsApp template' },
+  { key:'specialdays', label:'Special Days & Birthday Reminders', desc:'Built-in occasion list plus firm-specific custom dates' },
+  { key:'dpdp', label:'DPDP Consent & Privacy Policy', desc:'Consent logging, gated forms, statutory privacy notice' }
+];
+
+var STORAGE_KEY = 'dp_crm_intake_draft';
+var openSectionNum = 1; // only one section is ever expanded at a time
+var form = {
+  identity: { firmName:'', productName:'', ownerName:'', ownerTitle:'', address:'', phone:'', email:'', insightsEmail:'', welcomePhone:'' },
+  brand: { theme: Object.assign({}, DEFAULT_THEME), logoMode:'initials', logoInitials:'', logoUrl:'', typographyMode:'default', displayFont:'', bodyFont:'', iconMode:'auto', iconBase64:'', iconName:'' },
+  business: { modelType:'MFD', sebiReg:'', arn:'', gstNumber:'', stages:'', products:'' },
+  features: DEFAULT_FEATURES.map(function(f){ return { key:f.key, label:f.label, desc:f.desc, mode:'keep', notes:'' }; }),
+  comms: { tone:'warm', hasOwnApp:true, playStoreLink:'', appStoreLink:'', websiteLink:'', customWelcome:'' },
+  compliance: { grievanceName:'', grievanceTitle:'', grievanceEmail:'', grievancePhone:'', extraDisclosures:'' },
+  technical: { sheetId:'', calendarId:'', followUpDays:'', sipReminderDays:'', sipBounceDays:'', goalLeads:'', goalConversions:'' }
+};
+
+function saveDraft(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(form)); }catch(e){}
+}
+function loadDraft(){
+  try{
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) form = JSON.parse(raw);
+  }catch(e){}
+}
+function or(v, fallback){ return (v && v.trim()) ? v.trim() : fallback; }
+
+function prompt1(){
+  var id = form.identity, cm = form.comms, tc = form.technical;
+  var firm = or(id.firmName, '[FIRM NAME NOT PROVIDED]');
+  var prod = or(id.productName, firm + ' CRM');
+  var owner = or(id.ownerName, '[OWNER NAME NOT PROVIDED]');
+  var s = 'STEP 1 of 5 — IDENTITY REPLACEMENT\n\n'
+    + 'I have an existing, working CRM platform (Deep Pocket CRM, built by Deep Pocket Fintech Pvt Ltd.). The reference files I\'m providing are its first real-world deployment, currently white-labeled for "Wealth Matrix Finserv LLP" — that name, its logo, and its colours are simply the first client\'s own branding, not the underlying product identity. This is a rebranding pass to white-label the same platform for a NEW firm — NOT a rebuild. Apply only the literal replacements below to the files I provide (crm.html, Code.gs, upload.html, gatherinfo.html, review.html, findoc.html, feedback.html, privacy-policy.html, manifest.json). Every feature, function and fix must remain exactly as it is.\n\n'
+    + 'Do not assume each string appears only once — most appear many times across multiple files, including inside WhatsApp message templates, email bodies, page titles and AI system prompts.\n\n'
+    + 'FIND \u2192 REPLACE\n'
+    + '"' + REF.firmFull + '" \u2192 "' + firm + '"\n'
+    + '"' + REF.firmBare + '" (the bare form, without "LLP" — appears independently ~20 times, including inside the AI chatbot\'s own system prompt) \u2192 "' + firm + '"\n'
+    + '"' + REF.productName + '" (the PRODUCT name, deliberately separate from the firm name) \u2192 "' + prod + '"\n'
+    + '"' + REF.ownerName + '" \u2192 "' + owner + '"\n'
+    + '"' + REF.ownerShort + '" (bare first name, used in some message signatures) \u2192 "' + owner + '"\n'
+    + '"' + REF.address + '" \u2192 "' + or(id.address, '[OFFICE ADDRESS NOT PROVIDED]') + '"\n'
+    + '"' + REF.phone + '" \u2192 "' + or(id.phone, '[PHONE NOT PROVIDED]') + '"\n'
+    + '"' + REF.email + '" \u2192 "' + or(id.email, '[EMAIL NOT PROVIDED]') + '"\n'
+    + (id.ownerTitle.trim() ? 'Signature/title lines referring to the owner\'s role \u2192 "' + id.ownerTitle.trim() + ', ' + firm + '"\n' : '')
+    + '\nTECHNICAL IDENTITY (not cosmetic — these have real consequences)\n'
+    + '- Code.gs: MailApp.sendEmail(\'' + REF.email + '\', ...) is the WEEKLY AI INSIGHTS recipient. Replace with "' + or(id.insightsEmail, id.email || '[NOT PROVIDED]') + '". If this is missed, the new firm\'s weekly business insights get emailed to the ORIGINAL firm\'s owner. Treat this as the highest-priority replacement in this whole step.\n'
+    + '- crm.html: the new-client welcome WhatsApp template contains "Ph: ' + REF.phone + '" \u2192 "' + or(id.welcomePhone, id.phone || '[NOT PROVIDED]') + '"\n'
+    + '- Code.gs: BACKUP_FOLDER_NAME=\'' + REF.backupFolder + '\' \u2192 \'' + firm + ' Backups\'\n'
+    + '- Code.gs: parent Drive folder \'' + REF.docsFolder + '\' \u2192 \'' + firm + ' Client Documents\'\n'
+    + '- crm.html: the "Send App Install Link" WhatsApp template contains the ORIGINAL firm\'s own investment-app store links. These are NOT this CRM. If left unchanged, the new firm would be sending their own clients a link to a competitor\'s product. Replace both:\n'
+    + '  "' + REF.playStoreUrl + '" \u2192 ' + (cm.hasOwnApp && cm.playStoreLink.trim() ? '"' + cm.playStoreLink.trim() + '"' : '[SEE NOTE BELOW]') + '\n'
+    + '  "' + REF.appStoreUrl + '" \u2192 ' + (cm.hasOwnApp && cm.appStoreLink.trim() ? '"' + cm.appStoreLink.trim() + '"' : '[SEE NOTE BELOW]') + '\n'
+    + (!cm.hasOwnApp
+        ? '  NOTE: this firm has NO investment app of their own. Do not substitute anything — instead remove that entire WhatsApp template, and flag that the related "App Installed" field and status badge should also be removed in Step 3.\n'
+        : (!cm.playStoreLink.trim() || !cm.appStoreLink.trim())
+          ? '  NOTE: this firm HAS an app but one or both links were not provided. Replace any missing one with the placeholder text FIRM_APP_LINK_NEEDED and state plainly which is missing.\n'
+          : '')
+    + '- crm.html: <meta name="apple-mobile-web-app-title" content="' + REF.iosTitle + '"> \u2192 a SHORT form of "' + prod + '" (iOS truncates past ~12 characters)\n'
+    + '- manifest.json: "name" \u2192 "' + prod + '", "short_name" \u2192 the same short form as above\n'
+    + '- Code.gs: const SHEET_ID=\'' + REF.sheetId + '\' \u2192 ' + (tc.sheetId.trim() ? '\'' + tc.sheetId.trim() + '\'' : 'leave as a clearly-marked placeholder and state plainly it must be set before the app will work') + '\n\n'
+    + 'VERIFICATION — do this before reporting back, and treat it as part of the task\n'
+    + 'Search every file again for each of these: "Wealth Matrix", "Arjun", "' + REF.phone + '", "arjun.wealthmatrix", "Alappat Heritage", "' + REF.sheetId + '", "' + REF.playStoreId + '", "apps.apple.com/in/app/wealth-matrix".\n'
+    + 'Report the exact count of remaining matches for each. The expected result is zero for all of them. If any remain, fix them and re-run the search before replying.\n\n'
+    + 'Separately, confirm the PRODUCT_FEEDBACK_URL constant in crm.html is still present and unchanged — this one should NOT be zero or replaced.\n\n'
+    + 'Then confirm back: every file you changed, and what was replaced in each.\n\n'
+    + 'DO NOT proceed to any other changes yet. Wait for the next prompt.';
+  return s;
+}
+
+function prompt2(){
+  var br = form.brand;
+  var changed = Object.keys(DEFAULT_THEME).filter(function(k){ return br.theme[k] !== DEFAULT_THEME[k]; });
+  var s = 'STEP 2 of 5 — VISUAL IDENTITY\n\nApply only what is listed here. Do not change layout, spacing or component structure.\n\nCOLOURS';
+  if(!changed.length){
+    s += '\n(No colour changes requested — leave the existing theme exactly as is.)';
+  } else {
+    s += '\nIn the :root{} block of EVERY file (crm.html and all 5 client-facing pages), replace:';
+    changed.forEach(function(k){ s += '\n  --' + k + ': ' + DEFAULT_THEME[k] + '  \u2192  --' + k + ': ' + br.theme[k] + '   (' + THEME_LABELS[k] + ')'; });
+    s += '\n(Leave every other colour variable untouched.)';
+    if(br.theme.bg !== DEFAULT_THEME.bg){
+      s += '\n\nTwo places hold the background colour OUTSIDE the CSS variable system:\n- crm.html: <meta name="theme-color" content="' + DEFAULT_THEME.bg + '"> \u2192 content="' + br.theme.bg + '"\n- manifest.json: "theme_color" and "background_color" \u2192 "' + br.theme.bg + '"';
+    }
+  }
+  s += '\n\nLOGO\n';
+  if(br.logoMode === 'image' && br.logoUrl.trim()){
+    s += 'Replace the "' + REF.logoInitials + '" text-initials logo (top bar, desktop sidebar, login screen, lock screen) with a real image:\n<img src="' + br.logoUrl.trim() + '" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" alt="logo">\nKeep each container\'s existing size and shape.';
+  } else if(br.logoMode === 'initials' && br.logoInitials.trim()){
+    s += 'Replace the logo initials "' + REF.logoInitials + '" with "' + br.logoInitials.trim().toUpperCase() + '" — keep it as text with identical styling.';
+  } else {
+    s += '(No logo change requested — leave "' + REF.logoInitials + '" as is.)';
+  }
+  s += '\n\nTYPOGRAPHY\n';
+  if(br.typographyMode === 'custom' && (br.displayFont.trim() || br.bodyFont.trim())){
+    s += 'Replace the Google Fonts <link> in crm.html\'s <head> (currently Fraunces + Inter) and update --font-display / --font-body:\n'
+      + (br.displayFont.trim() ? '- Display font (page titles ONLY): ' + br.displayFont.trim() + '\n' : '')
+      + (br.bodyFont.trim() ? '- Body font (all data, labels, buttons): ' + br.bodyFont.trim() + '\n' : '')
+      + 'Keep the existing usage pattern.';
+  } else {
+    s += '(No typography change — keep the existing Fraunces + Inter pairing.)';
+  }
+  s += '\n\nAlso note: crm.html and manifest.json reference icon-192.png, a real image file that cannot be generated from a text prompt. State explicitly that this firm must supply their own 192\u00d7192 PNG logo at that path.\n\nConfirm what you changed, then STOP. Wait for the next prompt.';
+  return s;
+}
+
+function prompt3(){
+  var bz = form.business;
+  var keep = form.features.filter(function(f){ return f.mode === 'keep'; });
+  var custom = form.features.filter(function(f){ return f.mode === 'customize'; });
+  var remove = form.features.filter(function(f){ return f.mode === 'remove'; });
+  var s = 'STEP 3 of 5 — FEATURE SCOPE\n\nOnly now, after identity and branding are done and verified, adjust which features this firm actually gets.\n\n'
+    + 'KEEP AS-IS (' + keep.length + '):\n' + (keep.length ? keep.map(function(f){ return '- ' + f.label; }).join('\n') : '(none)') + '\n\n'
+    + 'CUSTOMIZE (' + custom.length + '):\n' + (custom.length ? custom.map(function(f){ return '- ' + f.label + ' — ' + f.desc + '\n  Requested change: ' + (f.notes.trim() || '[NO NOTE GIVEN — ask before changing anything here]'); }).join('\n') : '(none)') + '\n\n'
+    + 'REMOVE ENTIRELY (' + remove.length + '):\n' + (remove.length ? remove.map(function(f){ return '- ' + f.label + ' — ' + f.desc; }).join('\n') : '(none)') + '\n\n'
+    + 'When removing a feature, remove it cleanly and completely: the UI entry point, the backend action(s) in Code.gs, any client-facing page it owns, and any sheet columns only it used. Do not leave dead buttons or orphaned links. If removing something would break another feature that depends on it, STOP and flag it rather than guessing.\n';
+  if(bz.stages.trim()){
+    s += '\nPIPELINE STAGES — replace the current stages (' + REF.stages + ') with exactly:\n' + bz.stages.trim() + '\nUpdate all three places these appear: the Stage dropdown options in crm.html, the stage-colour group mapping, and the Google Sheet\'s Stage column data validation.';
+  }
+  if(bz.products.trim()){
+    s += '\n\nPRODUCTS — set the product toggle options on BOTH the Lead form and the Client form to exactly:\n' + bz.products.trim() + '\nRemove any toggle not on this list; add any that is missing.';
+  }
+  s += '\n\nBUSINESS MODEL — this firm operates as ' + (bz.modelType === 'RIA' ? 'a SEBI-Registered Investment Adviser (fee-only, no commission)' : bz.modelType === 'MFD' ? 'a Mutual Fund Distributor (commission-based)' : 'both an RIA and an MFD') + '.'
+    + (bz.sebiReg.trim() ? ' SEBI Registration: ' + bz.sebiReg.trim() + '.' : '')
+    + (bz.arn.trim() ? ' AMFI ARN: ' + bz.arn.trim() + '.' : '')
+    + (bz.gstNumber.trim() ? ' GST: ' + bz.gstNumber.trim() + '.' : '')
+    + '\nIf any part of the app assumes the other model, flag it rather than resolving it independently.'
+    + (bz.arn.trim() ? '\n\nNote: the CAS analysis feature attributes portfolio growth only to funds under the firm\'s own ARN. Set OUR_ARN_CODE in Apps Script Script Properties to ' + bz.arn.trim() + ' — mention this as a manual step.' : '')
+    + '\n\nConfirm what was removed, what was customized, and anything unclear. Then STOP and wait for the next prompt.';
+  return s;
+}
+
+function prompt4(){
+  var id = form.identity, cm = form.comms, cp = form.compliance;
+  var firm = or(id.firmName, '[FIRM NAME]');
+  var appRemoved = (form.features.filter(function(f){return f.key==='appinstalled';})[0]||{}).mode === 'remove';
+  var casKept = (form.features.filter(function(f){return f.key==='casanalysis';})[0]||{}).mode !== 'remove';
+  var dpdpKept = (form.features.filter(function(f){return f.key==='dpdp';})[0]||{}).mode !== 'remove';
+  var s = 'STEP 4 of 5 — COMMUNICATION TEMPLATES & COMPLIANCE\n\nCOMMUNICATION TONE\n'
+    + (cm.tone === 'warm' ? 'Keep the existing warm, personal register — messages should read as if quickly typed by the advisor, never corporate.' : cm.tone === 'formal' ? 'This firm wants a more formal, professional register than the reference. Adjust templates AND AI drafting instructions accordingly, but keep the "must not read as AI-generated" guidance intact.' : 'Keep the reference tone as-is except where exact wording is given below.') + '\n';
+  if(cm.hasOwnApp && (cm.playStoreLink.trim() || cm.appStoreLink.trim())){
+    s += '\nThis firm HAS its own mobile app. Update the app-install WhatsApp template links:\n' + (cm.playStoreLink.trim() ? '- Play Store: ' + cm.playStoreLink.trim() + '\n' : '') + (cm.appStoreLink.trim() ? '- App Store: ' + cm.appStoreLink.trim() + '\n' : '');
+  } else if(!cm.hasOwnApp || appRemoved){
+    s += '\nThis firm has NO mobile app of its own. Remove the "App Installed" tracking field, the app-install WhatsApp template, and any status badge criteria that depend on it.';
+  }
+  if(cm.websiteLink.trim()) s += '\n\nFirm website (use wherever the reference copy references a site): ' + cm.websiteLink.trim();
+  if(cm.customWelcome.trim()) s += '\n\nUse this EXACT wording for the new-client welcome message:\n\n' + cm.customWelcome.trim();
+
+  if(dpdpKept){
+    s += '\n\n\u2500\u2500\u2500\u2500\u2500\nPRIVACY POLICY (privacy-policy.html)\n\n'
+      + 'Rewrite it for this firm, keeping the same DPDP Act 2023 structure and rigour as the reference.\n\n'
+      + 'Firm: ' + firm + '\nGrievance Officer: ' + or(cp.grievanceName, id.ownerName || '[NAME]') + '\nTitle: ' + or(cp.grievanceTitle, id.ownerTitle || '[TITLE]') + '\nEmail: ' + or(cp.grievanceEmail, id.email || '[EMAIL]') + '\nPhone: ' + or(cp.grievancePhone, id.phone || '[PHONE]') + '\nAddress: ' + or(id.address, '[ADDRESS]') + '\n'
+      + (cp.extraDisclosures.trim() ? 'Additional firm-specific disclosures: ' + cp.extraDisclosures.trim() + '\n' : '')
+      + '\n' + (casKept
+        ? 'This firm KEEPS the CAS AI-analysis feature, so the policy must retain the specific PAN/CAS disclosure: PAN is used only to isolate this investor\'s holdings within a shared CAS document, is never reproduced in AI output, and this processing involves a third-party AI service outside India.'
+        : 'This firm has REMOVED the CAS AI-analysis feature — drop the PAN-specific disclosure, but still disclose whichever AI-assisted processing remains.')
+      + '\n\nAlso list, accurately and specifically, every client-facing page that collects personal data in THIS build.\n\nUpdate the consent checkbox wording on upload.html and gatherinfo.html to match. Set "Last updated" and "Effective from" to today\'s date.\n\nFlag clearly that this must be reviewed by a qualified legal/compliance professional before publishing.';
+  } else {
+    s += '\n\nThis firm has removed the DPDP consent feature. Confirm whether privacy-policy.html should be removed entirely or kept as a simplified notice.';
+  }
+  s += '\n\nConfirm the final wording of each updated template and the policy. Then STOP and wait for the last prompt.';
+  return s;
+}
+
+function prompt5(){
+  var tc = form.technical, bz = form.business;
+  var s = 'STEP 5 of 5 — TECHNICAL SETTINGS & HANDOVER\n\nOPERATIONAL DEFAULTS';
+  var ops = [];
+  if(tc.calendarId.trim()) ops.push('- Google Calendar / Meet sync: this app syncs appointments to Google Calendar and auto-generates a Google Meet link for client meetings. Locate wherever the calendar ID is configured (likely a CALENDAR_ID constant in Code.gs, or a Script Property of the same name) and set it to \u2192 ' + tc.calendarId.trim() + '. Confirm the Calendar service/scope is enabled for this to work, and flag it to me if you can\u2019t find where this is wired up rather than guessing.');
+  else ops.push('- Google Calendar / Meet sync: no Calendar ID was provided. Leave the CALENDAR_ID placeholder as-is (or default to the deploying account\u2019s own calendar), and tell me plainly this must be set before Calendar/Meet sync will work for this firm.');
+  if(tc.followUpDays.trim()) ops.push('- Lead follow-up window: find "cfg_.followUpDays=14" in crm.html \u2192 ' + tc.followUpDays.trim() + '. Also check Code.gs for the matching "daysSince>=14" threshold and keep the two consistent.');
+  if(tc.sipReminderDays.trim()) ops.push('- SIP due reminders: in crm.html find "d1days===5||d1days===2" (appears twice) \u2192 use ' + tc.sipReminderDays.trim() + '.');
+  if(tc.sipBounceDays.trim()) ops.push('- SIP bounce/verification check: in crm.html find "daysSince!==7" \u2192 ' + tc.sipBounceDays.trim() + '.');
+  if(tc.goalLeads.trim()) ops.push('- Default monthly leads goal in Settings: value="30" \u2192 "' + tc.goalLeads.trim() + '".');
+  if(tc.goalConversions.trim()) ops.push('- Default monthly conversions goal in Settings: value="5" \u2192 "' + tc.goalConversions.trim() + '".');
+  s += ops.length ? '\n' + ops.join('\n') : '\n(No operational changes — keep all current defaults.)';
+  s += '\n\nDO NOT TOUCH\n- The SCRIPT_URL constant in each of the 5 client-facing pages — leave as a placeholder until deployed.\n- The PRODUCT_FEEDBACK_URL constant in crm.html — the same URL across every deployment, never replace it.\n- Anything not explicitly named across these five prompts.\n\n'
+    + 'FINAL HANDOVER — end the reply with a specific checklist covering at minimum:\n'
+    + '1. Create the new Google Sheet; add the Admin tab (Name, Username, User Type, User ID, Password, Timestamp) and seed one Admin row.\n'
+    + '2. Apps Script Script Properties: GEMINI_API_KEY' + (bz.arn.trim() ? ', OUR_ARN_CODE' : '') + (tc.calendarId.trim() ? ', CALENDAR_ID' : '') + '.\n'
+    + '3. Deploy Code.gs as a Web App (Execute as: Me, Access: Anyone) and copy the URL.\n'
+    + '4. Paste that URL into the SCRIPT_URL placeholder in all 5 client-facing pages, then re-upload them.\n'
+    + '5. Supply a 192\u00d7192 PNG logo as icon-192.png.\n'
+    + '6. Run Settings \u2192 System Checking \u2192 Full Health Check and confirm every check passes.\n\n'
+    + 'Also state plainly which self-healing sheet tabs/columns are created automatically, and which genuinely need manual setup.';
+  return s;
+}
+
+function fieldHtml(labelText, path, opts){
+  opts = opts || {};
+  var val = getPath(path);
+  var id = 'f_' + path.replace(/\./g,'_');
+  var tag = opts.multiline
+    ? '<textarea id="' + id + '" rows="3" oninput="setPath(\'' + path + '\',this.value)" placeholder="' + esc(opts.placeholder||'') + '">' + esc(val) + '</textarea>'
+    : '<input type="text" id="' + id + '" value="' + esc(val) + '" oninput="setPath(\'' + path + '\',this.value)" placeholder="' + esc(opts.placeholder||'') + '">';
+  return '<div class="field"><label>' + esc(labelText) + '</label>' + tag + (opts.help ? '<div class="help">' + opts.help + '</div>' : '') + '</div>';
+}
+function radioHtml(path, options){
+  var val = getPath(path);
+  return '<div class="radio-row">' + options.map(function(o){
+    return '<div class="radio-btn' + (val===o.value?' sel':'') + '" onclick="setPath(\'' + path + '\',\'' + o.value + '\');render()">' + esc(o.label) + '</div>';
+  }).join('') + '</div>';
+}
+function getPath(path){
+  var parts = path.split('.'); var obj = form;
+  for(var i=0;i<parts.length;i++) obj = obj[parts[i]];
+  return obj===undefined||obj===null ? '' : obj;
+}
+function baseSetPath(path, val){
+  var parts = path.split('.'); var obj = form;
+  for(var i=0;i<parts.length-1;i++) obj = obj[parts[i]];
+  obj[parts[parts.length-1]] = val;
+  saveDraft();
+}
+function setPath(path, val){
+  if(path === 'comms.hasOwnApp_radio'){
+    form.comms.hasOwnApp = (val === 'yes');
+    saveDraft();
+    openSectionNum = 6;
+    render();
+    return;
+  }
+  if(path === 'brand.iconMode'){
+    form.brand.iconMode = val;
+    // Switching to auto discards any previously uploaded image, so a
+    // half-finished upload can't be silently submitted when the firm has
+    // since chosen to have one designed instead.
+    if(val === 'auto'){ form.brand.iconBase64 = ''; form.brand.iconName = ''; }
+    saveDraft();
+    openSectionNum = 3;
+    render();
+    return;
+  }
+  baseSetPath(path, val);
+}
+function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+function render(){
+  var html = '';
+
+  html += section(1,'\uD83C\uDFE2','About the Firm','Basic details about your firm', openSectionNum===1,
+    fieldHtml('Firm\'s full legal name','identity.firmName',{placeholder:'Sunrise Wealth Advisors LLP', help:'Exactly as it should appear to clients — including LLP, Pvt Ltd, etc.'})
+    + fieldHtml('What should the app be called?','identity.productName',{placeholder:'Sunrise CRM', help:'Leave blank and we\u2019ll use the firm name plus \u2018CRM\u2019.'})
+    + fieldHtml('Main advisor\'s name','identity.ownerName',{placeholder:'Priya Sharma'})
+    + fieldHtml('Their job title','identity.ownerTitle',{placeholder:'Managing Partner'})
+    + fieldHtml('Office address','identity.address',{placeholder:'2nd Floor, Prestige Towers, MG Road, Bengaluru 560001', multiline:true, help:'Goes into your privacy policy.'})
+    + fieldHtml('Phone number clients can call','identity.phone',{placeholder:'9876543210'})
+    + fieldHtml('Email address clients can write to','identity.email',{placeholder:'priya@sunrisewealth.com'})
+    + fieldHtml('Who should receive the weekly summary email?','identity.insightsEmail',{placeholder:'Leave blank to use the email above'})
+    + fieldHtml('Office number in the welcome message','identity.welcomePhone',{placeholder:'Leave blank to use the phone number above'})
+  );
+
+  var colourRows = Object.keys(DEFAULT_THEME).map(function(k){
+    return '<div class="colour-row"><input type="color" value="' + form.brand.theme[k] + '" onchange="setPath(\'brand.theme.' + k + '\',this.value.toUpperCase());render()">'
+      + '<div class="colour-info"><div class="name">' + THEME_LABELS[k] + '</div><div class="val">' + form.brand.theme[k] + (form.brand.theme[k]===DEFAULT_THEME[k]?' (unchanged)':'') + '</div></div></div>';
+  }).join('');
+  html += section(2,'\uD83C\uDFA8','Colours','Optional — skip if you have no particular brand colours', openSectionNum===2,
+    '<div class="help" style="margin-bottom:14px">The app already looks good as-is. Only change colours here if you have specific brand colours you\u2019d like used.</div>' + colourRows
+  );
+
+  var br = form.brand;
+  html += section(3,'\uD83D\uDDBC\uFE0F','Logo & App Icon','How your firm\u2019s mark appears in the app', openSectionNum===3,
+    radioHtml('brand.logoMode', [{value:'initials',label:'Use initials'},{value:'image',label:'Use a logo image'}])
+    + (br.logoMode==='initials'
+        ? fieldHtml('Firm\'s initials','brand.logoInitials',{placeholder:'SW'})
+        : fieldHtml('Web link to the logo image','brand.logoUrl',{placeholder:'https://sunrisewealth.com/logo.png', help:'Must be a direct link to the image file (ending .png or .jpg).'}))
+    + '<div style="height:14px"></div>'
+    + '<label>App icon</label>'
+    + '<div class="help" style="margin-bottom:8px">This is the icon shown when someone saves the app to their phone\u2019s home screen or desktop.</div>'
+    + radioHtml('brand.iconMode', [{value:'auto',label:'Create one for me'},{value:'upload',label:'Upload my logo'}])
+    + (br.iconMode === 'auto'
+        ? '<div class="help" style="background:rgba(255,255,255,.04);padding:10px 12px;border-radius:8px">We\u2019ll design a simple icon using your firm\u2019s initials and colours. Most firms are happy with this \u2014 you can always send us a logo later to replace it.</div>'
+        : '<div id="iconArea">'
+          + (br.iconBase64
+              ? '<div class="icon-preview"><img src="data:image/png;base64,' + br.iconBase64 + '" alt="icon preview">'
+                + '<div class="icon-info"><div class="nm">' + esc(br.iconName || 'Uploaded image') + '</div><div class="sz">Ready \u2014 resized to 192\u00d7192</div></div>'
+                + '<div class="icon-x" onclick="clearIcon()">\u2715</div></div>'
+              : '<div class="icon-drop" onclick="document.getElementById(\'iconInput\').click()">'
+                + '<div style="font-size:22px;margin-bottom:6px">\uD83D\uDCF1</div>'
+                + '<div style="font-size:12px;font-weight:700">Tap to upload your logo</div>'
+                + '<div style="font-size:10.5px;color:var(--t3);margin-top:3px">PNG or JPG \u2014 any size, we\u2019ll resize it</div></div>')
+          + '</div>'
+          + '<input type="file" id="iconInput" accept="image/*" style="display:none" onchange="handleIconUpload(this)">')
+    + '<div style="height:14px"></div>'
+    + radioHtml('brand.typographyMode', [{value:'default',label:'Keep as is (recommended)'},{value:'custom',label:'Use different fonts'}])
+    + (br.typographyMode==='custom'
+        ? fieldHtml('Font for page headings','brand.displayFont',{placeholder:'Playfair Display'}) + fieldHtml('Font for everything else','brand.bodyFont',{placeholder:'Source Sans Pro'})
+        : '')
+  );
+
+  var featHtml = form.features.map(function(f,i){
+    return '<div class="feature-row"><div class="label">' + esc(f.label) + '</div><div class="desc">' + esc(f.desc) + '</div>'
+      + '<div class="feature-modes">'
+      + ['keep','customize','remove'].map(function(m){
+          var lbl = m==='keep'?'Keep':m==='customize'?'Change':'Remove';
+          return '<div class="fm-btn' + (f.mode===m?' sel-'+m:'') + '" onclick="setFeatureMode(' + i + ',\'' + m + '\')">' + lbl + '</div>';
+        }).join('')
+      + '</div>'
+      + '<input class="feature-note' + (f.mode==='customize'?' show':'') + '" id="fn_' + i + '" value="' + esc(f.notes) + '" oninput="setFeatureNote(' + i + ',this.value)" placeholder="What should be different?">'
+      + '</div>';
+  }).join('');
+  html += section(4,'\uD83D\uDCCB','Which Features Do You Want?','Leave everything on \u2018Keep\u2019 unless you specifically don\u2019t want something', openSectionNum===4,
+    '<div class="help" style="margin-bottom:14px"><b>Keep</b> — works exactly as it does now.<br><b>Change</b> — describe what should be different.<br><b>Remove</b> — taken out completely.<br><br>If unsure, leave it on Keep.</div>' + featHtml
+  );
+
+  var bz = form.business;
+  html += section(5,'\uD83D\uDCC4','Business Details','How your firm operates', openSectionNum===5,
+    '<div class="help" style="margin-bottom:10px"><b>An MFD</b> earns commission from fund houses. <b>An RIA</b> charges clients a fee directly.</div>'
+    + radioHtml('business.modelType', [{value:'MFD',label:'MFD (commission)'},{value:'RIA',label:'RIA (fee-only)'},{value:'BOTH',label:'Both'}])
+    + fieldHtml('SEBI Registration Number','business.sebiReg',{placeholder:'INA000012345', help:'Only if you\u2019re an RIA.'})
+    + fieldHtml('AMFI ARN code','business.arn',{placeholder:'ARN-12345', help:'Only if you\u2019re an MFD.'})
+    + fieldHtml('GST number','business.gstNumber',{placeholder:'Leave blank if not registered'})
+    + fieldHtml('Your client onboarding steps','business.stages',{placeholder:REF.stages, multiline:true, help:'Leave blank to keep the default steps.'})
+    + fieldHtml('What products do you offer?','business.products',{placeholder:'Mutual Funds, Life Insurance, Health Insurance, NPS', multiline:true})
+  );
+
+  var cm = form.comms;
+  html += section(6,'\uD83D\uDCAC','Messages to Clients','How the app writes WhatsApp and email messages', openSectionNum===6,
+    radioHtml('comms.tone', [{value:'warm',label:'Warm & personal'},{value:'formal',label:'More formal'},{value:'custom',label:'I\u2019ll write my own'}])
+    + '<div class="help" style="margin:-4px 0 14px">"Warm & personal" reads like the advisor typed it quickly — this suits most advisory firms.</div>'
+    + radioHtml('comms.hasOwnApp_radio', [{value:'yes',label:'Yes, we have an app'},{value:'no',label:'No, we don\u2019t'}])
+    + (cm.hasOwnApp ? (
+        '<div class="help warn">Please fill both in — the app sends these to clients directly.</div>'
+        + fieldHtml('Google Play link','comms.playStoreLink',{placeholder:'https://play.google.com/store/apps/details?id=...'})
+        + fieldHtml('Apple App Store link','comms.appStoreLink',{placeholder:'https://apps.apple.com/in/app/...'})
+      ) : '')
+    + fieldHtml('Firm website','comms.websiteLink',{placeholder:'https://sunrisewealth.com'})
+    + fieldHtml('Custom welcome message','comms.customWelcome',{placeholder:'Leave blank unless you have exact wording you want used', multiline:true})
+  );
+
+  html += section(7,'\uD83D\uDEE1\uFE0F','Privacy & Complaints Contact','Required by law (DPDP Act)', openSectionNum===7,
+    '<div class="help" style="margin-bottom:12px">Indian data protection law requires a named contact for data-related questions — usually the main advisor. Leave blank to reuse Section 1\u2019s details.</div>'
+    + fieldHtml('Name of the person handling data complaints','compliance.grievanceName',{placeholder:'Leave blank to use the advisor\u2019s name'})
+    + fieldHtml('Their title','compliance.grievanceTitle',{placeholder:'e.g. Grievance Officer'})
+    + fieldHtml('Email for data-related complaints','compliance.grievanceEmail',{placeholder:'Leave blank to use the firm\u2019s main email'})
+    + fieldHtml('Phone for data-related complaints','compliance.grievancePhone',{placeholder:'Leave blank to use the firm\u2019s main phone'})
+    + fieldHtml('Anything else for the privacy policy?','compliance.extraDisclosures',{placeholder:'Most firms leave this blank', multiline:true})
+  );
+
+  var tc = form.technical;
+  html += section(8,'\u2699\uFE0F','Technical Settings','Most of this can be left blank', openSectionNum===8,
+    '<div class="help" style="margin-bottom:14px">Everything here is optional — leave blank and the app keeps working exactly as it does now.</div>'
+    + fieldHtml('Google Sheet ID','technical.sheetId',{placeholder:'From the Sheet URL, between /d/ and /edit', help:'Leave blank if the sheet doesn\u2019t exist yet.'})
+    + fieldHtml('Google Calendar ID','technical.calendarId',{placeholder:'yourname@gmail.com or xxxx@group.calendar.google.com', help:'Lets the CRM sync appointments and auto-generate Google Meet links. Find it in Google Calendar \u2192 Settings \u2192 (your calendar) \u2192 Integrate calendar \u2192 Calendar ID. Leave blank to use your own calendar for now.'})
+    + fieldHtml('Days before a lead counts as \u2018gone quiet\u2019','technical.followUpDays',{placeholder:'14'})
+    + fieldHtml('SIP reminder — how many days ahead?','technical.sipReminderDays',{placeholder:'5, 2'})
+    + fieldHtml('SIP check — how many days after?','technical.sipBounceDays',{placeholder:'7'})
+    + fieldHtml('Monthly target — new leads','technical.goalLeads',{placeholder:'30'})
+    + fieldHtml('Monthly target — conversions','technical.goalConversions',{placeholder:'5'})
+  );
+
+  document.getElementById('sections').innerHTML = html;
+}
+
+function section(num, icon, title, subtitle, open, body){
+  return '<div class="section' + (open?' open':'') + '" id="sec' + num + '">'
+    + '<div class="section-hdr" onclick="toggleSection(' + num + ')">'
+    + '<div class="section-icn">' + icon + '</div>'
+    + '<div class="section-t"><div class="title">' + num + '. ' + esc(title) + '</div><div class="subtitle">' + esc(subtitle) + '</div></div>'
+    + '<div class="chev">\u25BE</div></div>'
+    + '<div class="section-body">' + body + '</div></div>';
+}
+function toggleSection(num){
+  openSectionNum = (openSectionNum === num) ? null : num;
+  render();
+}
+function setFeatureMode(i, mode){
+  form.features[i].mode = mode;
+  saveDraft();
+  openSectionNum = 4;
+  render();
+}
+function setFeatureNote(i, val){
+  form.features[i].notes = val;
+  saveDraft();
+}
+
+// ── Icon upload. Resizes whatever the firm uploads to exactly 192x192 PNG
+// in the browser, so they never have to know the requirement existed. The
+// image is letterboxed onto a square canvas rather than stretched, so a
+// non-square logo keeps its proportions instead of being distorted. ──
+function handleIconUpload(input){
+  var file = input.files && input.files[0];
+  if(!file) return;
+  if(!file.type.indexOf || file.type.indexOf('image/') !== 0){
+    alert('Please choose an image file (PNG or JPG).');
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var canvas = document.createElement('canvas');
+      canvas.width = 192; canvas.height = 192;
+      var ctx = canvas.getContext('2d');
+
+      // Fit the image inside the square, preserving aspect ratio, centred.
+      var scale = Math.min(192 / img.width, 192 / img.height);
+      var w = img.width * scale, h = img.height * scale;
+      var x = (192 - w) / 2, y = (192 - h) / 2;
+      ctx.drawImage(img, x, y, w, h);
+
+      // toDataURL returns "data:image/png;base64,XXXX" — strip the prefix so
+      // only the raw base64 is stored and sent.
+      var dataUrl = canvas.toDataURL('image/png');
+      form.brand.iconBase64 = dataUrl.split(',')[1];
+      form.brand.iconName = file.name;
+      saveDraft();
+      openSectionNum = 3;
+      render();
+    };
+    img.onerror = function(){ alert('That image could not be read — please try a different file.'); };
+    img.src = e.target.result;
+  };
+  reader.onerror = function(){ alert('Could not read that file — please try again.'); };
+  reader.readAsDataURL(file);
+}
+
+function clearIcon(){
+  form.brand.iconBase64 = '';
+  form.brand.iconName = '';
+  saveDraft();
+  openSectionNum = 3;
+  render();
+}
+
+function resetForm(){
+  if(!confirm('Clear all entered details and start over?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+async function handleSubmit(){
+  document.getElementById('msgArea').innerHTML = '';
+  if(!form.identity.firmName.trim()){
+    document.getElementById('msgArea').innerHTML = '<div class="msg err">Please enter your firm name before submitting.</div>';
+    return;
+  }
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting\u2026';
+
+  try{
+    if(SCRIPT_URL.indexOf('PASTE_')!==0){
+      await fetch(SCRIPT_URL, {
+        method:'POST', headers:{'Content-Type':'text/plain'},
+        body: JSON.stringify({
+          action:'notifySubmission',
+          firmName: form.identity.firmName.trim(),
+          iconMode: form.brand.iconMode || 'auto',
+          iconBase64: (form.brand.iconMode === 'upload' ? (form.brand.iconBase64 || '') : ''),
+          prompts: [
+            { title:'Step 1 — Identity Replacement', text: prompt1() },
+            { title:'Step 2 — Visual Identity', text: prompt2() },
+            { title:'Step 3 — Feature Scope', text: prompt3() },
+            { title:'Step 4 — Communications & Compliance', text: prompt4() },
+            { title:'Step 5 — Technical & Handover', text: prompt5() }
+          ]
+        })
+      });
+    }
+  }catch(e){ /* silent — storage already retained locally either way */ }
+
+  localStorage.removeItem(STORAGE_KEY);
+  document.getElementById('formWrap').style.display = 'none';
+  document.getElementById('thankyou').style.display = 'flex';
+}
+
+loadDraft();
+render();
+</script>
+</body>
+</html>
