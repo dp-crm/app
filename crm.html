@@ -339,7 +339,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .cd-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 4px;border-radius:9px;cursor:pointer}.cd-icon{font-size:18px}.cd-btn span:last-child{font-size:10px;font-weight:700}.cd-wa{background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.3)}.cd-wa span:last-child{color:#25D366}.cd-call{background:rgba(52,152,219,.08);border:1px solid rgba(52,152,219,.3)}.cd-call span:last-child{color:var(--blue)}.cd-meet{background:color-mix(in srgb, var(--purple) 8%, transparent);border:1px solid color-mix(in srgb, var(--purple) 30%, transparent)}.cd-meet span:last-child{color:var(--purple)}.cd-mail{background:rgba(241,196,15,.08);border:1px solid rgba(241,196,15,.3)}.cd-mail span:last-child{color:#f1c40f}
 .qwa-btn{display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 2px;border-radius:10px;cursor:pointer;border:none;background:none;transition:transform .12s ease}
 .qwa-btn:active{transform:scale(.92)}
-.qwa-ico{width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:17px;border-radius:12px;color:#fff;box-shadow:0 3px 8px -2px var(--qwa-shadow,rgba(0,0,0,.35)),0 1px 2px rgba(0,0,0,.2);transition:box-shadow .12s ease}
+.qwa-ico{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:19px;border-radius:13px;color:#fff;box-shadow:0 3px 8px -2px var(--qwa-shadow,rgba(0,0,0,.35)),0 1px 2px rgba(0,0,0,.2);transition:box-shadow .12s ease}
 .qwa-btn:active .qwa-ico{box-shadow:0 1px 3px -1px var(--qwa-shadow,rgba(0,0,0,.3))}
 .qwa-lbl{font-size:8.5px;font-weight:700;line-height:1.2;text-align:center;color:var(--t2)}
 .qwa-green .qwa-ico{background:linear-gradient(150deg,#2FE884,#1FAE63);--qwa-shadow:rgba(37,211,102,.4)}
@@ -1414,6 +1414,11 @@ function leadToRow(l){
 // able to) redirect this to somewhere else.
 var PRODUCT_FEEDBACK_URL = 'PASTE_DEEP_POCKET_FEEDBACK_ENDPOINT_URL_HERE';
 
+// ── App store links — per-firm configurable. Replace both when rebranding
+// for a new firm; these are the ONLY two places these URLs live. ──
+var APP_LINK_ANDROID = 'https://play.google.com/store/apps/details?id=com.wealthmetrics.app&pcampaignid=web_share';
+var APP_LINK_IOS = 'https://apps.apple.com/in/app/wealth-matrix/id6748309181';
+
 var DEFMSG={
   PROSPECT:'Hi {name},\nHope you are doing great.\nI have started my own Financial Advisory / Wealth Management Firm - Wealth Matrix Finserv LLP. Office at Ernakulam.\nRegards\nArjun',
   CONTACTED:'Dear {name},\nThank you for your time earlier. I wanted to follow up on our conversation. Looking forward to helping you with {products}.\nRegards\nArjun',
@@ -2241,8 +2246,6 @@ function openDetail(mob,type,nameHint){
   var chipsHtml = V17_CHIPS.map(function(c2){
     return '<div class="qlog-chip" style="padding:4px 8px;font-size:11px" data-action="fu-qlog" data-mob="'+mob+'" data-note="'+c2[0]+' '+c2[1]+'">'+c2[0]+' '+c2[1]+'</div>';
   }).join('');
-  var digits = (c.mobile||'').replace(/\D/g,'');
-  var waNum = digits.length===10?'91'+digits:digits;
   var wmsg = encodeURIComponent('Hello '+toTitle(c.name)+', this is Arjun from Wealth Matrix Finserv.');
   // "Client since" stat — days since Modified Date; if Modified Date is blank,
   // fall back to Converted Date, per the confirmed spec.
@@ -2295,17 +2298,17 @@ function openDetail(mob,type,nameHint){
     + '<div id="chip-data-body" style="display:none;padding-top:6px"></div>'
     + '</div>'
     + '<div style="padding:0 14px 8px">'
-    + '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.5px;margin-bottom:6px">QUICK WHATSAPP</div>'
+    + '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.5px;margin-bottom:6px">QUICK LINKS</div>'
     + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px 4px">'
-    + '<button data-waq="app" data-wanum="'+waNum+'" data-mob="'+mob+'" class="qwa-btn qwa-green"><span class="qwa-ico">📲</span><span class="qwa-lbl">App Link</span></button>'
-    + '<button data-waq="cas" data-wanum="'+waNum+'" class="qwa-btn qwa-blue"><span class="qwa-ico">📊</span><span class="qwa-lbl">CAMS CAS</span></button>'
-    + '<button data-waq="welcome" data-wanum="'+waNum+'" data-mob="'+mob+'" class="qwa-btn qwa-green"><span class="qwa-ico">👋</span><span class="qwa-lbl">Welcome</span></button>'
+    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'app\',\'📲 Share App Link\')" class="qwa-btn qwa-green"><span class="qwa-ico">📲</span><span class="qwa-lbl">Share App<br>Link</span></button>'
+    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'cas\',\'📊 Send CAMS CAS\')" class="qwa-btn qwa-blue"><span class="qwa-ico">📊</span><span class="qwa-lbl">CAMS CAS</span></button>'
+    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'welcome\',\'👋 Send Welcome Message\')" class="qwa-btn qwa-green"><span class="qwa-ico">👋</span><span class="qwa-lbl">Welcome</span></button>'
     + '<button data-uploadlink="'+mob+'" class="qwa-btn qwa-amber"><span class="qwa-ico">📤</span><span class="qwa-lbl">Upload</span></button>'
     + '<button onclick="startMeetingInsight(\''+mob+'\')" class="qwa-btn qwa-purple"><span class="qwa-ico">🧠</span><span class="qwa-lbl">Meeting<br>Insights</span></button>'
     + '<button onclick="sendGatherInfoLinkWA(\''+mob+'\')" class="qwa-btn qwa-teal"><span class="qwa-ico">📝</span><span class="qwa-lbl">Gather<br>Info</span></button>'
-    + '<button onclick="sendFinDocLinkWA(\''+mob+'\')" class="qwa-btn qwa-amber"><span class="qwa-ico">🗂️</span><span class="qwa-lbl">Fin Doc</span></button>'
+    + '<button onclick="sendFinDocLinkWA(\''+mob+'\')" class="qwa-btn qwa-amber"><span class="qwa-ico">🗂️</span><span class="qwa-lbl">FinDoc</span></button>'
     + '<button onclick="showFeedbackChoicePopup(\''+mob+'\')" class="qwa-btn qwa-green"><span class="qwa-ico">💬</span><span class="qwa-lbl">Feedback</span></button>'
-    + '<button onclick="startClientReviewReport(\''+mob+'\')" class="qwa-btn qwa-blue"><span class="qwa-ico">💌</span><span class="qwa-lbl">Review<br>Report</span></button>'
+    + '<button onclick="startClientReviewReport(\''+mob+'\')" class="qwa-btn qwa-blue"><span class="qwa-ico">💌</span><span class="qwa-lbl">Review Report</span></button>'
     + '</div>'
     + '<div id="meeting-insight-body-'+mob+'" style="display:none;padding-top:8px"></div>'
     + '</div>'
@@ -7553,7 +7556,6 @@ document.getElementById('ov-detail').addEventListener('click',function(e){
       toast('No email address on file for this client');
     }
   }
-  if(e.target.dataset.waq){ sendWAQuick(e.target.dataset.wanum,e.target.dataset.waq,e.target.dataset.mob); }
   if(e.target.closest('[data-uploadlink]')){ showUploadChoicePopup(e.target.closest('[data-uploadlink]').dataset.uploadlink, 'client'); }
   if(e.target.closest('[data-action="del-log"]')){
     var dlBtn=e.target.closest('[data-action="del-log"]');
@@ -8150,6 +8152,42 @@ function sendWADraft(waNum){
   window.open('https://wa.me/'+waNum+'?text='+text, '_blank');
 }
 
+// ── Shared message text for the three "Quick Links" send types that support
+// both WhatsApp and Email — kept in one place so the wording can never drift
+// between the two channels. ──
+function buildQuickMsgText(type, name){
+  if(type==='app'){
+    return 'Dear '+(name||'Sir/Madam')+','
+      +'\n\nPlease find the link below for downloading the mobile application.'
+      +'\n\nAndroid: '+APP_LINK_ANDROID
+      +'\n\nIOS: '+APP_LINK_IOS
+      +'\n\nAfter installing the App, you can log into your investment account using registered mobile number or mail id. Feel free to contact us for further clarification.'
+      +'\n\nRegards'
+      +'\nArjun K T M';
+  }
+  if(type==='cas'){
+    return 'Dear '+(name||'Sir/Madam')
+      +'\n\nPlease click the following link for generating Combined Mutual fund Account Statement. All mutual investments (only non-demat form) will be shown in this report. Select Detailed option from the menu and select a date (Eg: 01-01-2000) and set a password. You will receive statement to your registered mail id within 3 to 5 minutes.'
+      +'\n\nhttps://www.camsonline.com/InvestorServices/CAMS-Mailback-Services'
+      +'\n\nRegards'
+      +'\nArjun K T M';
+  }
+  if(type==='welcome'){
+    return 'Dear '+(name||'')+','
+      +'\n\nWelcome to Wealth Matrix Finserv — we\'re genuinely glad to have you with us.'
+      +'\n\nAs a boutique wealth management firm, we believe your financial journey deserves more than a one-size-fits-all approach. Every recommendation we make starts with a real understanding of your goals, not a standard checklist.'
+      +'\n\nYou can track your investments anytime through our mobile app, or visit www.wealthmatrix.in to access your account online.'
+      +'\n\nIf there\'s ever anything you need — a question, a concern, or just a second opinion — please don\'t hesitate to reach out to me directly. And if I\'m not immediately available, our office is always just a call away. Ph: 9745014475.'
+      +'\n\nLooking forward to being a trusted part of your financial journey.'
+      +'\n\nWarm regards'
+      +'\nArjun K T M'
+      +'\nPartner, Wealth Matrix'
+      +'\n8th Floor, Alappat Heritage'
+      +'\nMG Road, Ernakulam';
+  }
+  return '';
+}
+
 function sendWAQuick(waNum, type, mob){
   var c=mob?(resolveOpenRecord(mob,'client')||resolveOpenRecord(mob,'lead')):null;
   var name=c?toTitle(c.name):'';
@@ -8161,21 +8199,11 @@ function sendWAQuick(waNum, type, mob){
   var msg='';
 
   if(type==='app'){
-    msg='Dear '+(name||'Sir/Madam')+','
-      +'\n\nPlease find the below mentioned links for installing mobile application.'
-      +'\n\nAndroid-https://play.google.com/store/apps/details?id=com.wealthmetrics.app&pcampaignid=web_share'
-      +'\n\nIOS - https://apps.apple.com/in/app/wealth-matrix/id6748309181'
-      +'\n\nAfter installing the App, you can log into your investment account using registered mobile number or mail id. Feel free to contact us for further clarification.'
-      +'\n\nRegards'
-      +'\nArjun K T M';
+    msg=buildQuickMsgText('app', name);
   } else if(type==='cas'){
-    msg='Dear '+(name||'Sir/Madam')
-      +'\n\nPlease click the following link for generating Combined Mutual fund Account Statement. All mutual investments (only non-demat form) will be shown in this report. Select Detailed option from the menu and select a date (Eg: 01-01-2000) and set a password. You will receive statement to your registered mail id within 3 to 5 minutes.'
-      +'\n\nhttps://www.camsonline.com/InvestorServices/CAMS-Mailback-Services'
-      +'\n\nRegards'
-      +'\nArjun K T M';
+    msg=buildQuickMsgText('cas', name);
   } else if(type==='sip'){
-    msg='Dear Sir/Madam,'
+    msg='Dear '+(name||'Sir/Madam')+','
       +'\n\nA gentle reminder that your SIP is due on '+sipDateText+'.'
       +'\n\nPlease ensure that sufficient funds are available in your bank account to avoid missing this month\'s investment.'
       +'\n\nRegards,'
@@ -8203,16 +8231,7 @@ function sendWAQuick(waNum, type, mob){
       +'\n\nWarm regards'
       +'\nArjun K T M';
   } else if(type==='welcome'){
-    var cName3=c?toTitle(c.name):'';
-    msg='Dear '+cName3+','
-      +'\n\nThank you for choosing Wealth Matrix as your trusted wealth building partner. Being a boutique wealth management firm, we focus on personalized wealth management.'
-      +'\n\nHope you have installed our mobile application. You can access your investment account by visiting to our website www.wealthmatrix.in as well.'
-      +'\n\nGoing forward, feel free to connect with me or my team for any clarification and assistance. If I am not available you can contact our office number as well. Ph: 9745014475.'
-      +'\n\nSincerely'
-      +'\nArjun K T M'
-      +'\nPartner, Wealth Matrix'
-      +'\n8th Floor, Alappat Heritage'
-      +'\nMG Road, Ernakulam';
+    msg=buildQuickMsgText('welcome', name);
   } else if(type==='greet'){
     var gName=c?toTitle(c.name):'';
     msg='Hi '+gName+','
@@ -9837,6 +9856,31 @@ async function sendFeedbackLinkWA(mob){
 
 // ── Channel choice — WhatsApp or Email, shown before the request goes out.
 // Matches the existing showUploadChoicePopup pattern used elsewhere in the app. ──
+// ── Channel choice — WhatsApp, Email, or Cancel — shown before sending one
+// of the three fixed Quick Links messages (App Link, CAMS CAS, Welcome
+// Message). Matches the existing showFeedbackChoicePopup pattern, with an
+// explicit Cancel button added. ──
+function showQuickMsgChoicePopup(mob, type, title){
+  var c=clients.find(function(x){return x.recordId===mob||x.mobile===mob;});
+  var name=c?toTitle(c.name):'this client';
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:340px;overflow:hidden">'
+    +'<div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border)">'+esc(title)+' — '+esc(name)+'</div>'
+    +'<div style="padding:12px 16px;font-size:12px;color:var(--t2);line-height:1.5">How would you like to send this?</div>'
+    +'<div style="display:flex;flex-direction:column;border-top:1px solid var(--border)">'
+    +'<button id="_qm_wa" style="padding:12px;border:none;background:none;color:var(--green);font-weight:700;cursor:pointer;border-bottom:1px solid var(--border)">💬 WhatsApp</button>'
+    +'<button id="_qm_email" style="padding:12px;border:none;background:none;color:var(--blue);font-weight:700;cursor:pointer;border-bottom:1px solid var(--border)">📧 Email</button>'
+    +'<button id="_qm_cancel" style="padding:12px;border:none;background:none;color:var(--t3);font-weight:700;cursor:pointer">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  var digits=c?(c.mobile||'').replace(/\D/g,''):'';
+  var waNum=digits.length===10?'91'+digits:digits;
+  document.getElementById('_qm_wa').onclick=function(){ ov.remove(); sendWAQuick(waNum, type, mob); };
+  document.getElementById('_qm_email').onclick=function(){ ov.remove(); sendQuickMsgEmail(mob, type); };
+  document.getElementById('_qm_cancel').onclick=function(){ ov.remove(); };
+}
+
 function showFeedbackChoicePopup(mob){
   var c=clients.find(function(x){return x.recordId===mob||x.mobile===mob;});
   var name=c?toTitle(c.name):'this client';
@@ -9852,6 +9896,25 @@ function showFeedbackChoicePopup(mob){
   document.body.appendChild(ov);
   document.getElementById('_fb_wa').onclick=function(){ ov.remove(); sendFeedbackLinkWA(mob); };
   document.getElementById('_fb_email').onclick=function(){ ov.remove(); sendFeedbackLinkEmail(mob); };
+}
+
+// ── Email version of the three "Quick Links" send types. If the client has
+// no email on file, the "to" field is deliberately left blank rather than
+// blocking the send — the mail app still opens with subject/body ready,
+// the advisor just fills in the address themselves. ──
+function sendQuickMsgEmail(mob, type){
+  var c=clients.find(function(x){return x.recordId===mob||x.mobile===mob;});
+  var name=c?toTitle(c.name):'';
+  var body=buildQuickMsgText(type, name);
+  if(!body) return;
+  var subject = type==='app' ? 'Mobile App Download Link'
+    : type==='cas' ? 'CAMS Consolidated Account Statement'
+    : type==='welcome' ? 'Welcome to Wealth Matrix Finserv'
+    : 'Wealth Matrix Finserv';
+  var toAddr = (c && c.email) ? encodeURIComponent(c.email) : '';
+  window.open('mailto:'+toAddr+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body),'_blank');
+  var label = type==='app' ? 'App Link' : type==='cas' ? 'CAMS CAS' : type==='welcome' ? 'Welcome Message' : type;
+  logActivity(mob,'client',label+' sent via Email','');
 }
 
 async function sendFeedbackLinkEmail(mob){
