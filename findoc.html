@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family Fin Doc — Wealth Matrix Finserv</title>
+<style>
+:root{
+  --bg:#0A1830; --s1:#0F2140; --s2:#132848; --border:#2E5C8A;
+  --accent:#FFFFFF; --accent2:rgba(255,255,255,.12);
+  --text:#FFFFFF; --t2:#8FB4DC; --t3:#5D7A9E;
+  --green:#4C9A6A; --orange:#C08A3E; --red:#C1553D; --r:12px; --r2:8px;
+  --page-w:460px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+.wrap{max-width:var(--page-w);margin:0 auto;padding:0 0 100px}
+.hdr{padding:22px 18px 16px;text-align:center;border-bottom:1px solid var(--border)}
+.hdr .logo{font-size:34px;margin-bottom:6px}
+.hdr h1{font-size:16px;font-weight:800;margin:0 0 4px}
+.hdr p{font-size:11px;color:var(--t3);margin:0}
+.state{padding:60px 24px;text-align:center}
+.state .ico{font-size:40px;margin-bottom:14px}
+.state h2{font-size:15px;font-weight:800;margin:0 0 8px}
+.state p{font-size:12px;color:var(--t2);line-height:1.6;margin:0}
+.greet{padding:16px 18px 6px}
+.greet .name{font-size:17px;font-weight:800}
+.greet .sub{font-size:11px;color:var(--t2);margin-top:4px;line-height:1.5}
+.savedstamp{font-size:10px;color:var(--green);margin-top:6px}
+
+.acc-section{margin:10px 14px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.acc-header{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.acc-ico{font-size:16px}
+.acc-title{flex:1;font-size:13px;font-weight:800}
+.acc-chevron{font-size:11px;color:var(--t3);transition:transform .2s}
+.acc-section.open .acc-chevron{transform:rotate(180deg)}
+.acc-body{padding:0 14px 14px;display:none}
+.acc-section.open .acc-body{display:block}
+.acc-note{font-size:10px;color:var(--t3);font-style:italic;margin-bottom:10px;line-height:1.5}
+
+.row-block{background:var(--s2);border:1px solid var(--border);border-radius:var(--r2);padding:12px;margin-bottom:8px}
+.row-block .rb-fixed-label{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:8px}
+.fg{margin-bottom:10px}
+.fg:last-child{margin-bottom:0}
+.fl{font-size:11px;font-weight:700;color:var(--t2);margin-bottom:5px;display:block}
+.fi{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-family:inherit;font-size:13px;outline:none}
+.fi:focus{border-color:var(--accent)}
+.fi[readonly]{color:var(--t3);background:var(--s1)}
+.rb-remove{font-size:10px;color:var(--red);text-align:right;cursor:pointer;font-weight:700;margin-top:6px}
+.addrow-btn{width:100%;padding:10px;font-size:12px;font-weight:700;color:var(--accent);background:none;border:1.5px dashed var(--accent);border-radius:var(--r2);cursor:pointer;margin-top:2px}
+
+.stickybar{position:fixed;bottom:0;left:0;right:0;background:rgba(10,10,10,.97);backdrop-filter:blur(10px);border-top:1px solid var(--border);padding:10px 14px;display:flex;gap:8px;max-width:var(--page-w);margin:0 auto}
+.stickybar button{flex:1;padding:12px;font-size:13px;font-weight:700;border-radius:var(--r2);cursor:pointer;border:none}
+.btn-save{background:var(--s1);color:var(--text);border:1.5px solid var(--border)!important}
+.btn-generate{background:var(--accent);color:#fff}
+.stickybar button:disabled{opacity:.5}
+.savemsg{font-size:11px;margin:8px 14px 0;text-align:center}
+.savemsg.ok{color:var(--green)}
+.savemsg.err{color:var(--red)}
+.footer-note{padding:18px 24px 4px;text-align:center;font-size:10px;color:var(--t3);line-height:1.6}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--t3);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:var(--s1);border-radius:var(--r);width:100%;max-width:340px;overflow:hidden}
+.modal-hdr{padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border)}
+.modal-body{padding:14px 16px;font-size:12px;color:var(--t2);line-height:1.6}
+.modal-actions{display:flex;border-top:1px solid var(--border)}
+.modal-actions button{flex:1;padding:12px;border:none;background:none;font-weight:700;cursor:pointer;font-size:13px}
+
+@media (min-width:700px){
+  :root{ --page-w:760px; }
+  .hdr{padding:30px 18px 20px}
+  .hdr .logo{font-size:42px}
+  .hdr h1{font-size:19px}
+  .state{padding:90px 24px}
+  .row-block{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .row-block .rb-fixed-label{grid-column:1/-1}
+  .row-block .rb-remove{grid-column:1/-1}
+  .acc-section{margin:10px 16px}
+}
+@media (min-width:1000px){
+  :root{ --page-w:900px; }
+  .row-block{grid-template-columns:1fr 1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="logo">🗂️</div>
+    <h1>Wealth Matrix Finserv</h1>
+    <p>Family Financial Information &amp; Documents Organizer</p>
+  </div>
+  <div id="app">
+    <div class="state"><div class="spin" style="width:22px;height:22px"></div></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIGURATION ── same Apps Script URL as gatherinfo.html/upload.html — update here if redeployed
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxi1b4DHWFsXuOCO5XTpsCPmhEawBDpC66eVZW7K1Z6aZ7zwLZ7HYhNd--saAv6CdG5/exec';
+
+var token = '';
+var clientName = '';
+var formData = {}; // { sectionKey: [ {field: value, ...}, ... ] }
+
+// Schema — deliberately identical in shape to the backend's PDF-generation
+// sections (same keys, same field names), so whatever gets saved here reads
+// back correctly when the PDF is built server-side.
+var SECTIONS = [
+  {key:'familyMembers', title:'Family Members', icon:'👪', fields:[
+    {name:'coupleName', label:'Couple Name'},
+    {name:'dependentChildren', label:'Dependent Children'},
+    {name:'dependentParents', label:'Dependent Parents'},
+    {name:'dependentRelatives', label:'Dependent Relatives'}
+  ]},
+  {key:'contacts', title:'Important Contacts', icon:'📞',
+    fixedRows:['Family Doctor','Financial Advisor','Lawyer','Chartered Accountant','Office HR','Friend/Colleague','Relative/Neighbour'], fixedField:'particulars',
+    fields:[{name:'particulars', label:'Particulars', readonly:true},{name:'name', label:'Name of Contact'},{name:'mobile', label:'Mobile', type:'tel'},{name:'email', label:'Email', type:'email'}]},
+  {key:'documents', title:'Important Financial Documents', icon:'📄',
+    fixedRows:['PAN Card','Passport','Aadhar Card','Will','Birth Certificate','Marriage Certificate','Locker Key','Insurance Policies','Property Papers','Home Loan Documents','Cheque Books','Other Loan Documents','Income Tax Returns','Investment Documents','Voter ID','ATM/Credit Cards'], fixedField:'document',
+    fields:[{name:'document', label:'Document', readonly:true},{name:'holderName', label:'Holder Name'},{name:'docNumber', label:'Document Number'},{name:'physicalLocation', label:'Physical Location'},{name:'virtualLocation', label:'Virtual Location'}]},
+  {key:'docValidity', title:'Documents Validity', icon:'📅', fields:[
+    {name:'name', label:'Name'},{name:'document', label:'Document'},{name:'number', label:'Number'},{name:'validTill', label:'Valid Till', type:'date'},{name:'changesRequired', label:'Changes Required'}
+  ]},
+  {key:'lockers', title:'Locker Details', icon:'🔐', fields:[
+    {name:'bankBranch', label:'Bank Name & Branch'},{name:'accountNumber', label:'Bank Account Number'},{name:'lockerNo', label:'Locker No.'},{name:'inNameOf', label:'In the Name Of'},{name:'code', label:'Code'},{name:'nominee', label:'Nominee'}
+  ]},
+  {key:'passwords', title:'Online Passwords', icon:'🔑', note:'For security, we only record who knows each password — never the password itself.',
+    fixedRows:['Personal Email','Password Manager','Mobile Phone Unlock'], fixedField:'loginKind',
+    fields:[{name:'loginKind', label:'Login Kind', readonly:true},{name:'personAware', label:'Person Who Is Aware'}]},
+  {key:'lifeInsurance', title:'Life Insurance Policies', icon:'🛡️', fields:[
+    {name:'companyPolicy', label:'Company & Policy Name'},{name:'policyNo', label:'Policy No.'},{name:'amountInsured', label:'Amount Insured', type:'number'},{name:'validTill', label:'Valid Till', type:'date'},{name:'premium', label:'Premium (Rs.)', type:'number'},{name:'nominee', label:'Nominee'},{name:'advisorName', label:'Agent / Advisor Name'},{name:'advisorContact', label:'Advisor Contact No.', type:'tel'}
+  ]},
+  {key:'healthInsurance', title:'Health & Other Insurance', icon:'🏥', fields:[
+    {name:'type', label:'Type of Policy'},{name:'policyName', label:'Name of the Policy'},{name:'policyNo', label:'Policy No.'},{name:'covered', label:'Name of the Covered'},{name:'amount', label:'Amount Insured', type:'number'},{name:'validTill', label:'Valid Till', type:'date'},{name:'premium', label:'Premium (Rs.)', type:'number'},{name:'advisorName', label:'Agent / Advisor Name'},{name:'advisorContact', label:'Advisor Contact No.', type:'tel'}
+  ]},
+  {key:'bankAccounts', title:'Bank Account Details', icon:'🏦', fields:[
+    {name:'holderName', label:'A/C Holder Name'},{name:'bankBranch', label:'Bank Name & Branch'},{name:'accountNumber', label:'Account Number'},{name:'type', label:'Type of Account'},{name:'nominee', label:'Nominee/s'},{name:'email', label:'Registered Email', type:'email'},{name:'mobile', label:'Registered Mobile', type:'tel'},{name:'username', label:'Login Username'}
+  ]},
+  {key:'cards', title:'Debit / Credit Card Details', icon:'💳', fields:[
+    {name:'cardholderName', label:'Cardholder Name'},{name:'cardType', label:'Card Type'},{name:'cardNumber', label:'Card Number'},{name:'linkedAccount', label:'Linked Account'},{name:'atmDebitNo', label:'ATM / Debit Card No.'},{name:'validTill', label:'Valid Till', type:'date'}
+  ]},
+  {key:'investments', title:'Investment Account Details', icon:'📈', fields:[
+    {name:'type', label:'Investment Account Type'},{name:'platform', label:'Platform'},{name:'holderName', label:'Account Holder Name'},{name:'advisor', label:'Agent / Advisor'},{name:'accountNo', label:'Account No.'},{name:'nominee', label:'Nominee/s'}
+  ]},
+  {key:'properties', title:'Property Details', icon:'🏠', fields:[
+    {name:'propertyName', label:'Property Name'},{name:'area', label:'Property Area'},{name:'owners', label:'Name of Owners'},{name:'registrationNo', label:'Registration No.'},{name:'nominee', label:'Nominee (If Any)'},{name:'papersLocation', label:'Property Papers Location'}
+  ]}
+];
+
+function qs(name){ var p=new URLSearchParams(window.location.search); return p.get(name)||''; }
+function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+async function apiPost(data){
+  try{
+    var r=await fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(data) });
+    var t=await r.text();
+    try{ return JSON.parse(t); } catch(e){ return r.ok ? {success:true} : {error:'HTTP '+r.status}; }
+  }catch(e){ return {error:e.message}; }
+}
+
+function renderError(title, msg){
+  document.getElementById('app').innerHTML='<div class="state"><div class="ico">⚠️</div><h2>'+esc(title)+'</h2><p>'+esc(msg)+'</p></div>';
+}
+
+function localKey(){ return 'wm_findoc_local_'+token; }
+// The local draft holds genuinely sensitive data (bank accounts, card
+// numbers, PAN), so it is deliberately NOT kept indefinitely. It exists only
+// to survive an accidental tab close — the SERVER copy, written on Save
+// Progress, is what actually persists across days. Anything older than 24
+// hours is discarded on read rather than sitting in a browser (often a
+// shared or family device) forever.
+var LOCAL_DRAFT_MAX_AGE_MS = 24*60*60*1000;
+function saveLocalSnapshot(){
+  try{ localStorage.setItem(localKey(), JSON.stringify({savedAt:Date.now(), data:formData})); }catch(e){}
+}
+function loadLocalSnapshot(){
+  try{
+    var raw=localStorage.getItem(localKey());
+    if(!raw) return null;
+    var parsed=JSON.parse(raw);
+    // Older format (bare form data, no timestamp) — treat as expired and
+    // clear it, rather than trusting an unknown-age local copy.
+    if(!parsed || !parsed.savedAt || !parsed.data){
+      localStorage.removeItem(localKey());
+      return null;
+    }
+    if(Date.now()-parsed.savedAt > LOCAL_DRAFT_MAX_AGE_MS){
+      localStorage.removeItem(localKey());
+      return null;
+    }
+    return parsed.data;
+  }catch(e){ return null; }
+}
+
+// ── Init: resolve token, load any previously saved server data (this is what
+// makes returning across many separate sessions/days work — the server copy
+// is the one that actually persists, local storage is just a same-session
+// safety net against an accidental tab close mid-typing). ──
+async function init(){
+  token=qs('id');
+  if(!token){ renderError('Invalid Link', 'This link is missing required information. Please ask your advisor for a new link.'); return; }
+  var res=await apiPost({action:'getFinDocData', token:token});
+  if(!res || res.success===false || !res.name){
+    renderError('Link Not Found', 'This link may have expired or is invalid. Please contact your advisor for a fresh link.');
+    return;
+  }
+  clientName=res.name;
+  try{ formData=JSON.parse(res.formData||'{}'); }catch(e){ formData={}; }
+  // If a local snapshot exists and is NEWER than what came from the server
+  // (e.g. they typed something and closed the tab before tapping Save),
+  // prefer the local one — it's the more complete/recent picture.
+  var local=loadLocalSnapshot();
+  if(local) formData=local;
+  ensureFixedRows();
+  renderForm(res.lastUpdated);
+}
+
+// Pre-populate the fixed-category sections (Contacts, Documents, Passwords)
+// with their standard rows, exactly once — never duplicated on repeat visits.
+function ensureFixedRows(){
+  SECTIONS.forEach(function(sec){
+    if(!sec.fixedRows) return;
+    if(!formData[sec.key]) formData[sec.key]=[];
+    sec.fixedRows.forEach(function(label){
+      var exists=formData[sec.key].some(function(r){ return r[sec.fixedField]===label; });
+      if(!exists){
+        var row={}; row[sec.fixedField]=label;
+        formData[sec.key].push(row);
+      }
+    });
+  });
+}
+
+function renderForm(lastUpdated){
+  var html='<div class="greet">'
+    +'<div class="name">Hi '+esc(clientName)+',</div>'
+    +'<div class="sub">Please fill in what you can below. You can save your progress anytime and come back later to finish the rest — nothing is lost between visits.</div>'
+    +'<div class="sub" style="margin-top:8px;font-size:10px;color:var(--t3)">A temporary draft is kept on this device as you type, so nothing is lost if this page closes accidentally. It clears itself within 24 hours — tap <b>Save Progress</b> to store your details securely and keep them beyond that.</div>'
+    +(lastUpdated?'<div class="savedstamp">✓ Last saved: '+esc(lastUpdated)+'</div>':'')
+    +'</div>';
+
+  SECTIONS.forEach(function(sec, si){
+    html+='<div class="acc-section" id="acc-'+sec.key+'">'
+      +'<div class="acc-header" onclick="toggleAcc(\''+sec.key+'\')">'
+      +'<span class="acc-ico">'+sec.icon+'</span><span class="acc-title">'+esc(sec.title)+'</span><span class="acc-chevron">▾</span>'
+      +'</div>'
+      +'<div class="acc-body" id="body-'+sec.key+'">'
+      +(sec.note?'<div class="acc-note">'+esc(sec.note)+'</div>':'')
+      +'<div id="rows-'+sec.key+'"></div>'
+      +(sec.fixedRows?'':'<button type="button" class="addrow-btn" onclick="addRow(\''+sec.key+'\')">+ Add Another</button>')
+      +'</div></div>';
+  });
+
+  document.getElementById('app').innerHTML=html;
+  SECTIONS.forEach(function(sec){ renderRows(sec.key); });
+  // First section open by default so the page doesn't look empty on load
+  document.getElementById('acc-'+SECTIONS[0].key).classList.add('open');
+
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="stickybar">'
+    +'<button class="btn-save" id="btn-save" onclick="saveProgress()">Save Progress</button>'
+    +'<button class="btn-generate" id="btn-generate" onclick="confirmGenerate()">Generate Fin Doc</button>'
+    +'</div>'
+    +'<div class="savemsg" id="savemsg"></div>'
+    +'<div class="footer-note">Wealth Matrix Finserv LLP · Your information is stored securely and used only to prepare your personal Fin Doc.</div>'
+  );
+}
+
+function toggleAcc(key){
+  document.getElementById('acc-'+key).classList.toggle('open');
+}
+
+function fieldSchema(secKey, fieldName){
+  var sec=SECTIONS.find(function(s){return s.key===secKey;});
+  return sec.fields.find(function(f){return f.name===fieldName;});
+}
+
+function renderRows(secKey){
+  var sec=SECTIONS.find(function(s){return s.key===secKey;});
+  var rows=formData[secKey]||[];
+  if(!rows.length && !sec.fixedRows){ rows=[{}]; formData[secKey]=rows; } // start with one blank row for freeform sections
+  var container=document.getElementById('rows-'+secKey);
+  container.innerHTML=rows.map(function(row, ri){
+    var fixedLabel = sec.fixedField ? row[sec.fixedField] : null;
+    return '<div class="row-block">'
+      +(fixedLabel?'<div class="rb-fixed-label">'+esc(fixedLabel)+'</div>':'')
+      +sec.fields.filter(function(f){ return !(sec.fixedField && f.name===sec.fixedField); }).map(function(f){
+        var val=row[f.name]||'';
+        return '<div class="fg"><label class="fl">'+esc(f.label)+'</label>'
+          +'<input class="fi" type="'+(f.type||'text')+'" value="'+esc(val)+'" '
+          +'oninput="updateField(\''+secKey+'\','+ri+',\''+f.name+'\',this.value)"></div>';
+      }).join('')
+      +(sec.fixedRows?'':'<div class="rb-remove" onclick="removeRow(\''+secKey+'\','+ri+')">🗑 Remove this entry</div>')
+      +'</div>';
+  }).join('');
+}
+
+function updateField(secKey, rowIdx, fieldName, value){
+  formData[secKey][rowIdx][fieldName]=value;
+  saveLocalSnapshot(); // continuous local safety net, silent, no network call
+}
+
+function addRow(secKey){
+  if(!formData[secKey]) formData[secKey]=[];
+  formData[secKey].push({});
+  renderRows(secKey);
+  saveLocalSnapshot();
+}
+function removeRow(secKey, rowIdx){
+  formData[secKey].splice(rowIdx,1);
+  if(!formData[secKey].length) formData[secKey]=[{}];
+  renderRows(secKey);
+  saveLocalSnapshot();
+}
+
+async function saveProgress(){
+  var btn=document.getElementById('btn-save');
+  var msgEl=document.getElementById('savemsg');
+  btn.disabled=true; btn.textContent='Saving…';
+  var res=await apiPost({action:'saveFinDocProgress', token:token, formData:JSON.stringify(formData)});
+  btn.disabled=false; btn.textContent='Save Progress';
+  if(res && res.success){
+    msgEl.textContent='✅ Progress saved — you can close this and come back anytime.';
+    msgEl.className='savemsg ok';
+    try{ localStorage.removeItem(localKey()); }catch(e){} // server now has the authoritative copy
+  } else {
+    msgEl.textContent='⚠️ Could not save right now: '+(res&&res.error||'please check your connection and try again.');
+    msgEl.className='savemsg err';
+  }
+}
+
+// Checks whether every section has at least one row with real data —
+// purely to decide whether to show the "partial report" warning. Never
+// blocks generation either way, per the confirmed design.
+function hasAnyData(){
+  return SECTIONS.some(function(sec){
+    return (formData[sec.key]||[]).some(function(row){
+      return sec.fields.some(function(f){ return row[f.name] && String(row[f.name]).trim(); });
+    });
+  });
+}
+function isFullyComplete(){
+  return SECTIONS.every(function(sec){
+    return (formData[sec.key]||[]).some(function(row){
+      return sec.fields.every(function(f){ return f.readonly || (row[f.name] && String(row[f.name]).trim()); });
+    });
+  });
+}
+
+function confirmGenerate(){
+  if(!hasAnyData()){
+    showModal('No Information Entered', 'Please fill in at least some details before generating your Fin Doc.', [
+      {label:'OK', action:function(){ closeModal(); }, style:'color:var(--text)'}
+    ]);
+    return;
+  }
+  if(!isFullyComplete()){
+    showModal('Partial Information', 'You have entered partial data. The final Fin Doc will be a partial report, covering only what\'s been filled in so far. You can always generate a fuller version later.', [
+      {label:'Go Back', action:function(){ closeModal(); }, style:'color:var(--t2)'},
+      {label:'Generate Anyway', action:function(){ closeModal(); doGenerate(); }, style:'color:var(--accent);font-weight:800'}
+    ]);
+    return;
+  }
+  doGenerate();
+}
+
+function showModal(title, body, actions){
+  var ov=document.createElement('div');
+  ov.className='modal-ov'; ov.id='findoc-modal';
+  ov.innerHTML='<div class="modal-box">'
+    +'<div class="modal-hdr">'+esc(title)+'</div>'
+    +'<div class="modal-body">'+esc(body)+'</div>'
+    +'<div class="modal-actions">'+actions.map(function(a,i){ return '<button id="modal-act-'+i+'" style="'+a.style+'">'+esc(a.label)+'</button>'; }).join('')+'</div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  actions.forEach(function(a,i){ document.getElementById('modal-act-'+i).onclick=a.action; });
+}
+function closeModal(){ var m=document.getElementById('findoc-modal'); if(m) m.remove(); }
+
+async function doGenerate(){
+  // Save first, so the PDF is built from the exact data currently on screen
+  // (including anything typed since the last explicit Save Progress).
+  await saveProgress();
+  var btn=document.getElementById('btn-generate');
+  var msgEl=document.getElementById('savemsg');
+  btn.disabled=true; btn.textContent='Generating…';
+  var res=await apiPost({action:'generateFinDocPdf', token:token});
+  btn.disabled=false; btn.textContent='Generate Fin Doc';
+  if(res && res.success){
+    msgEl.textContent='✅ Your Fin Doc has been generated and shared with your advisor.';
+    msgEl.className='savemsg ok';
+  } else {
+    msgEl.textContent='⚠️ Could not generate right now: '+(res&&res.error||'please try again in a moment.');
+    msgEl.className='savemsg err';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

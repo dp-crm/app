@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="dns-prefetch" href="https://script.google.com">
+<title>Upload Documents — Wealth Matrix Finserv</title>
+<style>
+:root{
+  --bg:#0A1830; --s1:#0F2140; --s2:#132848; --border:#2E5C8A;
+  --accent:#FFFFFF; --accent2:rgba(255,255,255,.12);
+  --text:#FFFFFF; --t2:#8FB4DC; --t3:#5D7A9E;
+  --green:#4C9A6A; --orange:#C08A3E; --red:#C1553D; --r:12px; --r2:8px;
+  --page-w:460px; --grid-cols:1;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+.wrap{max-width:var(--page-w);margin:0 auto;padding:0 0 40px;transition:max-width .2s}
+.hdr{padding:22px 18px 16px;text-align:center;border-bottom:1px solid var(--border)}
+.hdr .logo{font-size:34px;margin-bottom:6px}
+.hdr h1{font-size:16px;font-weight:800;margin:0 0 4px}
+.hdr p{font-size:11px;color:var(--t3);margin:0}
+.state{padding:60px 24px;text-align:center}
+.state .ico{font-size:40px;margin-bottom:14px}
+.state h2{font-size:15px;font-weight:800;margin:0 0 8px}
+.state p{font-size:12px;color:var(--t2);line-height:1.6;margin:0}
+.greet{padding:18px;text-align:center}
+.greet .name{font-size:17px;font-weight:800}
+.greet .sub{font-size:11px;color:var(--t2);margin-top:4px;line-height:1.5}
+.notice{margin:0 14px 14px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.consent-box{margin:0 14px 16px;background:var(--s1);border:1px solid var(--accent);border-radius:var(--r);padding:16px}
+.consent-box .t{font-size:13px;font-weight:800;color:var(--accent);margin-bottom:8px;line-height:1.4}
+.consent-box p{font-size:12px;color:var(--t2);line-height:1.7;margin:0 0 12px}
+.consent-check{display:flex;align-items:flex-start;gap:10px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.consent-check input[type=checkbox]{width:20px;height:20px;min-width:20px;margin-top:1px;accent-color:var(--accent);cursor:pointer}
+.consent-check span{font-size:13px;font-weight:700;color:var(--text);line-height:1.4}
+.notice .t{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.notice p{font-size:11px;color:var(--t2);line-height:1.6;margin:0 0 8px}
+.notice p:last-child{margin-bottom:0}
+.sectionlbl{padding:16px 14px 6px;font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.5px}
+.slots{padding:6px 14px;display:grid;grid-template-columns:repeat(var(--grid-cols),1fr);gap:10px}
+.slot{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.slot .l{flex:1;min-width:0}
+.slot .l .t{font-size:14px;font-weight:700}
+.slot .l .s{font-size:11px;color:var(--t3);margin-top:3px}
+.slot .btn{display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff !important;background:var(--accent);padding:9px 14px;border-radius:var(--r2);cursor:pointer;flex-shrink:0;text-align:center;border:none;-webkit-appearance:none;appearance:none;line-height:normal;min-width:64px}
+.slot.done{border-color:var(--green)}
+.slot.done .s{color:var(--green)}
+.slot.err .s{color:var(--red)}
+.slot.staged{border-color:var(--orange)}
+.slot.staged .s{color:var(--orange)}
+.slot .btn.done{background:var(--s2);color:var(--green);border:1px solid var(--green)}
+.form-block{margin:6px 14px 0;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.fg{margin-bottom:12px}
+.fg:last-child{margin-bottom:0}
+.fl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;display:block}
+.fi{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;color:var(--text);font-family:inherit;font-size:14px;outline:none}
+.fi:focus{border-color:var(--accent)}
+.nomform-grid{display:grid;grid-template-columns:repeat(var(--grid-cols),1fr);gap:0 14px}
+.savebtn{width:100%;padding:12px;font-size:13px;font-weight:700;color:#fff;background:var(--accent);border:none;border-radius:var(--r2);cursor:pointer;margin-top:4px}
+.savebtn:disabled{opacity:.5}
+.savemsg{font-size:11px;margin-top:8px;text-align:center}
+.savemsg.ok{color:var(--green)}
+.savemsg.err{color:var(--red)}
+.footer-note{padding:18px 24px 4px;text-align:center;font-size:10px;color:var(--t3);line-height:1.6}
+input[type=file]{display:none}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--t3);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── Adaptive breakpoints ── */
+@media (min-width:700px){
+  :root{ --page-w:640px; --grid-cols:2; }
+  body{font-size:15px}
+  .hdr{padding:30px 18px 20px}
+  .hdr .logo{font-size:42px}
+  .hdr h1{font-size:19px}
+  .state{padding:90px 24px}
+}
+@media (min-width:1000px){
+  :root{ --page-w:820px; --grid-cols:3; }
+  .wrap{padding-top:24px}
+  .hdr{border-radius:var(--r) var(--r) 0 0}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="logo">🔒</div>
+    <h1>Wealth Matrix Finserv</h1>
+    <p>Secure document upload</p>
+  </div>
+  <div id="app">
+    <div class="state"><div class="spin" style="width:22px;height:22px"></div><div style="font-size:12px;color:var(--t3);margin-top:12px">Connecting…</div></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIGURATION ── update this if you ever redeploy Apps Script with a new URL
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxi1b4DHWFsXuOCO5XTpsCPmhEawBDpC66eVZW7K1Z6aZ7zwLZ7HYhNd--saAv6CdG5/exec';
+
+var DOC_TYPES = [
+  {key:'PAN', label:'PAN'},
+  {key:'Aadhaar', label:'Aadhaar'},
+  {key:'Bank account details', label:'Bank account details (Account statement/Cancelled cheque)'},
+  {key:'Passport', label:'Passport (only for NRIs)'},
+  {key:'Resident ID', label:'Resident ID (only for NRIs)'}
+];
+
+var client = null; // {name, mobile, pan}
+
+function qs(name){
+  var p = new URLSearchParams(window.location.search);
+  return p.get(name) || '';
+}
+
+function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+function fileToBase64(file){
+  return new Promise(function(resolve, reject){
+    var reader = new FileReader();
+    reader.onload = function(){ resolve(reader.result.split(',')[1]); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Same POST pattern as the main app — text/plain avoids CORS preflight
+async function apiPost(data, timeoutMs){
+  var controller = (typeof AbortController!=='undefined') ? new AbortController() : null;
+  var timer = null;
+  if(controller && timeoutMs){
+    timer = setTimeout(function(){ controller.abort(); }, timeoutMs);
+  }
+  try{
+    var r = await fetch(SCRIPT_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(data),
+      signal: controller ? controller.signal : undefined
+    });
+    if(timer) clearTimeout(timer);
+    var t = await r.text();
+    try{ return JSON.parse(t); } catch(e){ return r.ok ? {success:true} : {error:'Server returned an error (HTTP '+r.status+')'}; }
+  }catch(e){
+    if(timer) clearTimeout(timer);
+    if(e.name==='AbortError') return {error:'Request timed out — the server took too long to respond'};
+    // A genuine network-level failure (device offline, DNS/connectivity issue,
+    // or — the most likely real-world cause of intermittent reports — the
+    // Apps Script URL in this page no longer matches the live deployment,
+    // e.g. after a "New deployment" was made instead of updating the existing one.
+    return {error:'Could not reach the server — check your internet connection'};
+  }
+}
+
+function renderError(title, msg){
+  document.getElementById('app').innerHTML =
+    '<div class="state"><div class="ico">⚠️</div><h2>'+esc(title)+'</h2><p>'+esc(msg)+'</p></div>';
+}
+
+function renderSlots(){
+  var app = document.getElementById('app');
+  var html = '<div class="greet"><div class="name">Hi '+esc(client.name||'there')+'</div>'
+    + '<div class="sub">Please select the documents below, then tap Save to upload them all at once.</div></div>'
+    + '<div class="notice">'
+    +   '<div class="t">📋 Why we need these documents</div>'
+    +   '<p>As per regulatory (KYC) requirements, please upload the documents below to complete your onboarding.</p>'
+    + '</div>'
+
+    + '<div class="sectionlbl">Investor Details</div>'
+    + '<div class="slots" id="slotList">'
+    + DOC_TYPES.map(function(dt){
+        var safeId = dt.key.replace(/\s+/g,'_');
+        var row = '<div class="slot" id="row-'+safeId+'">'
+          + '<div class="l"><div class="t">'+dt.label+'</div><div class="s" id="status-'+safeId+'">Not uploaded</div></div>'
+          + '<label class="btn" id="btn-'+safeId+'">Select'
+          + '<input type="file" accept="image/*,.pdf" data-doctype="'+dt.key+'" onchange="stageFile(this)">'
+          + '</label></div>';
+        if(dt.key==='Bank account details'){
+          row += '<div class="form-block" style="margin-top:-6px;margin-bottom:14px">'
+            +   '<div style="font-size:11px;color:var(--t2);margin-bottom:10px">If you don\u2019t have a bank statement or cancelled cheque, fill in the following bank account details instead.</div>'
+            +   '<div class="nomform-grid">'
+            +     '<div class="fg"><label class="fl">Bank Account Number</label><input class="fi" id="bank-acc" inputmode="numeric" placeholder="Account number" oninput="this.value=this.value.replace(/[^0-9]/g,\'\')"></div>'
+            +     '<div class="fg"><label class="fl">IFSC Code</label><input class="fi" id="bank-ifsc" placeholder="IFSC code" oninput="this.value=this.value.toUpperCase()"></div>'
+            +   '</div>'
+            +   '<button class="savebtn" id="bankSaveBtn" onclick="saveBankDetails()">Save Bank Details</button>'
+            +   '<div class="savemsg" id="bankMsg"></div>'
+            + '</div>';
+        }
+        return row;
+      }).join('')
+    + '</div>'
+    + '<div style="padding:0 14px 4px">'
+    +   '<button class="savebtn" id="saveDocsBtn" onclick="saveAllDocuments()">💾 Save &amp; Upload Documents</button>'
+    +   '<div class="savemsg" id="saveDocsMsg"></div>'
+    + '</div>'
+
+    + '<div class="sectionlbl">Nominee Details</div>'
+    + '<div class="form-block">'
+    +   '<div class="nomform-grid">'
+    +     '<div class="fg"><label class="fl">Nominee Name</label><input class="fi" id="nom-name" placeholder="FULL NAME" oninput="this.value=this.value.toUpperCase()"></div>'
+    +     '<div class="fg"><label class="fl">Nominee Mobile Number</label><input class="fi" id="nom-mobile" type="tel" inputmode="numeric" placeholder="10-digit mobile number" oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,10)"></div>'
+    +   '</div>'
+    +   '<div class="fg"><label class="fl">Nominee Email ID</label><input class="fi" id="nom-email" type="email" placeholder="nominee@example.com"></div>'
+    +   '<div class="fg"><label class="fl">Nominee KYC Document</label>'
+    +     '<div class="slot" id="row-Nominee_KYC" style="margin-top:2px">'
+    +       '<div class="l"><div class="t">Nominee ID Proof (PAN/Aadhaar/Driving License)</div><div class="s" id="status-Nominee_KYC">Not uploaded</div></div>'
+    +       '<label class="btn" id="btn-Nominee_KYC">Select'
+    +       '<input type="file" accept="image/*,.pdf" data-doctype="Nominee KYC" onchange="stageFile(this)">'
+    +       '</label></div>'
+    +   '</div>'
+    +   '<button class="savebtn" id="nomSaveBtn" onclick="saveNominee()">Save Nominee Details</button>'
+    +   '<div class="savemsg" id="nomMsg"></div>'
+    + '</div>'
+    + '<div class="footer-note">🔒 Documents are uploaded directly and securely to your advisor\'s private folder. No account or login needed.</div>';
+  app.innerHTML = html;
+}
+
+// Checks the client's Drive folder for documents already uploaded — even from
+// a previous visit to this same link — and marks those slots as done on load,
+// so it's immediately clear which documents are still missing versus already in.
+async function markExistingUploads(){
+  if(!client || !client.folderId) return; // no folder yet means nothing could be uploaded yet
+  try{
+    var res = await apiPost({
+      action:'listClientDocuments',
+      clientName: client.name, pan: client.pan||'', mobile: client.mobile, folderId: client.folderId
+    }, 15000);
+    if(!res || !res.success || !res.files) return;
+    var uploadedTypes = {};
+    res.files.forEach(function(f){ uploadedTypes[f.docType]=true; });
+    DOC_TYPES.concat([{key:'Nominee KYC'}]).forEach(function(dt){
+      if(!uploadedTypes[dt.key]) return; // not uploaded — leave the slot as "Not uploaded"
+      var safeId = dt.key.replace(/\s+/g,'_');
+      var statusEl = document.getElementById('status-'+safeId);
+      var rowEl = document.getElementById('row-'+safeId);
+      var btnEl = document.getElementById('btn-'+safeId);
+      if(statusEl) statusEl.textContent = '✅ Uploaded';
+      if(rowEl) rowEl.className = 'slot done';
+      if(btnEl){
+        var inputEl = btnEl.querySelector('input[type=file]');
+        btnEl.textContent = 'Replace';
+        btnEl.className = 'btn done';
+        if(inputEl) btnEl.appendChild(inputEl);
+      }
+    });
+  }catch(e){ /* non-fatal — worst case, slots just show "Not uploaded" until re-checked */ }
+}
+
+// ── Staged files — selecting a file no longer uploads immediately. It's held
+// here (already base64-encoded, ready to go) until the Save button is
+// pressed, at which point the folder gets created (if needed) and every
+// staged file uploads in sequence. ──
+var stagedFiles = {}; // docType -> {base64, mimeType, ext, name}
+
+async function stageFile(inputEl){
+  var docType = inputEl.dataset.doctype;
+  var file = inputEl.files[0];
+  if(!file) return;
+  var safeId = docType.replace(/\s+/g,'_');
+  var statusEl = document.getElementById('status-'+safeId);
+  var rowEl = document.getElementById('row-'+safeId);
+  var btnEl = document.getElementById('btn-'+safeId);
+
+  if(file.size > 10*1024*1024){
+    if(statusEl) statusEl.textContent = 'File too large — please keep it under 10MB';
+    if(rowEl) rowEl.className = 'slot err';
+    inputEl.value=''; return;
+  }
+
+  if(statusEl) statusEl.innerHTML = '<span class="spin"></span>Preparing…';
+  try{
+    var base64 = await fileToBase64(file);
+    var ext = file.name.indexOf('.')>=0 ? file.name.split('.').pop() : '';
+    stagedFiles[docType] = { base64:base64, mimeType:file.type, ext:ext, name:file.name };
+    if(statusEl) statusEl.innerHTML = '📎 Ready: '+esc(file.name)+' <a href="#" id="unstage-'+safeId+'" style="color:var(--t3)">(remove)</a>';
+    if(rowEl) rowEl.className = 'slot staged';
+    if(btnEl){ btnEl.textContent = 'Change'; btnEl.appendChild(inputEl); }
+    var unstageLink = document.getElementById('unstage-'+safeId);
+    if(unstageLink){
+      unstageLink.onclick = function(e){
+        e.preventDefault();
+        delete stagedFiles[docType];
+        if(statusEl) statusEl.textContent = 'Not uploaded';
+        if(rowEl) rowEl.className = 'slot';
+        if(btnEl) btnEl.textContent = 'Select';
+      };
+    }
+  }catch(e){
+    if(statusEl) statusEl.textContent = 'Could not read the file — please try again';
+    if(rowEl) rowEl.className = 'slot err';
+  }
+  inputEl.value = '';
+}
+
+// Checks for an existing folder before the first upload of a session — if
+// found, informs the advisor/client so they know documents are being added
+// to an existing record rather than a new one being silently created.
+// Resolves once the user has seen and dismissed the notice (or immediately
+// if no matching folder exists).
+var _folderCheckDone = false;
+function checkFolderBeforeSaving(){
+  return new Promise(function(resolve){
+    if(_folderCheckDone || client.folderId){ resolve(); return; }
+    apiPost({ action:'checkClientFolder', clientName:client.name, pan:client.pan||'', mobile:client.mobile }, 15000)
+      .then(function(res){
+        _folderCheckDone = true;
+        if(res && res.exists){
+          client.folderId = res.folderId;
+          var ov=document.createElement('div');
+          ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+          ov.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:320px;overflow:hidden">'
+            +'<div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border)">📁 Existing folder found</div>'
+            +'<div style="padding:14px 16px;font-size:12px;color:var(--t2);line-height:1.6">A document folder already exists for '+esc(client.name)+'. These files will be added to it.</div>'
+            +'<div style="display:flex;border-top:1px solid var(--border)"><button id="_fc_ok" style="flex:1;padding:12px;border:none;background:none;color:var(--accent);font-weight:700;cursor:pointer">Continue</button></div>'
+            +'</div>';
+          document.body.appendChild(ov);
+          document.getElementById('_fc_ok').onclick=function(){ ov.remove(); resolve(); };
+        } else {
+          resolve();
+        }
+      })
+      .catch(function(){ _folderCheckDone = true; resolve(); }); // non-fatal — proceed, folder gets created on first upload anyway
+  });
+}
+
+// Uploads one staged file, retrying automatically once on failure before
+// giving up and marking that specific slot as failed (the rest continue).
+async function uploadOneStaged(docType, staged){
+  var safeId = docType.replace(/\s+/g,'_');
+  var statusEl = document.getElementById('status-'+safeId);
+  var rowEl = document.getElementById('row-'+safeId);
+  var btnEl = document.getElementById('btn-'+safeId);
+  if(statusEl) statusEl.innerHTML = '<span class="spin"></span>Uploading…';
+  for(var attempt=0; attempt<2; attempt++){
+    try{
+      var res = await apiPost({
+        action:'uploadClientDocument',
+        clientName: client.name, pan: client.pan||'', mobile: client.mobile, folderId: client.folderId||'',
+        docType: docType, fileData: staged.base64, mimeType: staged.mimeType, fileExt: staged.ext
+      }, 25000);
+      if(res && res.success){
+        if(statusEl) statusEl.textContent = '✅ Uploaded';
+        if(rowEl) rowEl.className = 'slot done';
+        if(btnEl) btnEl.textContent = 'Replace';
+        if(res.folderId && res.folderId !== client.folderId){
+          client.folderId = res.folderId;
+          var tagAction = client.recordType==='lead' ? 'tagLeadFolder' : 'tagClientFolder';
+          apiPost({ action: tagAction, mobile: client.mobile, recordId: client.recordId||'', folderId: res.folderId }).catch(function(){});
+        }
+        delete stagedFiles[docType];
+        return true;
+      }
+      if(attempt===0) continue; // one silent retry
+      if(statusEl) statusEl.textContent = 'Failed: '+esc(res&&res.error?res.error:'Unknown error');
+      if(rowEl) rowEl.className = 'slot err';
+      return false;
+    }catch(e){
+      if(attempt===0) continue;
+      if(statusEl) statusEl.textContent = 'Failed: '+esc(e.message||'Could not reach the server');
+      if(rowEl) rowEl.className = 'slot err';
+      return false;
+    }
+  }
+}
+
+async function saveAllDocuments(){
+  var docTypes = Object.keys(stagedFiles).filter(function(k){ return k!=='Nominee KYC'; });
+  var msgEl = document.getElementById('saveDocsMsg');
+  var btn = document.getElementById('saveDocsBtn');
+  if(!docTypes.length){
+    if(msgEl){ msgEl.textContent='Please select at least one document first.'; msgEl.className='savemsg err'; }
+    return;
+  }
+  btn.disabled = true;
+  if(msgEl){ msgEl.textContent='Checking your folder…'; msgEl.className='savemsg'; }
+  await checkFolderBeforeSaving();
+
+  var okCount=0;
+  for(var i=0;i<docTypes.length;i++){
+    if(msgEl){ msgEl.textContent='Uploading '+(i+1)+' of '+docTypes.length+'…'; msgEl.className='savemsg'; }
+    var success = await uploadOneStaged(docTypes[i], stagedFiles[docTypes[i]]);
+    if(success) okCount++;
+  }
+  btn.disabled = false;
+  if(okCount===docTypes.length){
+    if(msgEl){ msgEl.textContent='✅ All documents saved.'; msgEl.className='savemsg ok'; }
+  } else {
+    if(msgEl){ msgEl.textContent=okCount+' of '+docTypes.length+' uploaded — check the failed item(s) above and tap Save again.'; msgEl.className='savemsg err'; }
+  }
+}
+  var name=(document.getElementById('nom-name').value||'').trim();
+  var mobile=(document.getElementById('nom-mobile').value||'').trim();
+  var email=(document.getElementById('nom-email').value||'').trim();
+  var msgEl=document.getElementById('nomMsg');
+  var btn=document.getElementById('nomSaveBtn');
+
+async function saveNominee(){
+  var name=(document.getElementById('nom-name').value||'').trim();
+  var mobile=(document.getElementById('nom-mobile').value||'').trim();
+  var email=(document.getElementById('nom-email').value||'').trim();
+  var msgEl=document.getElementById('nomMsg');
+  var btn=document.getElementById('nomSaveBtn');
+
+  if(!name){ msgEl.textContent='Please enter the nominee name.'; msgEl.className='savemsg err'; return; }
+  if(mobile && mobile.length!==10){ msgEl.textContent='Mobile number must be exactly 10 digits.'; msgEl.className='savemsg err'; return; }
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ msgEl.textContent='Please enter a valid email address.'; msgEl.className='savemsg err'; return; }
+
+  btn.disabled=true; msgEl.textContent='Saving…'; msgEl.className='savemsg';
+  if(stagedFiles['Nominee KYC']) await checkFolderBeforeSaving();
+  var res = await apiPost({
+    action:'saveNomineeDetails',
+    clientName: client.name, pan: client.pan||'', mobile: client.mobile, folderId: client.folderId||'',
+    nomineeName: name, nomineeMobile: mobile, nomineeEmail: email
+  }, 20000);
+  if(res && res.success && res.folderId) client.folderId = res.folderId;
+
+  // If a Nominee ID Proof file was staged, upload it now too, in the same save action.
+  var idUploadOk = true;
+  if(stagedFiles['Nominee KYC']){
+    idUploadOk = await uploadOneStaged('Nominee KYC', stagedFiles['Nominee KYC']);
+  }
+  btn.disabled=false;
+  if(res && res.success && idUploadOk){
+    msgEl.textContent='✅ Nominee details saved.'; msgEl.className='savemsg ok';
+  } else if(res && res.success){
+    msgEl.textContent='Nominee details saved, but the ID proof upload failed — check above and try again.'; msgEl.className='savemsg err';
+  } else {
+    msgEl.textContent='Could not save: '+esc(res&&res.error?res.error:'please try again'); msgEl.className='savemsg err';
+  }
+}
+
+async function saveBankDetails(){
+  var accNum=(document.getElementById('bank-acc').value||'').trim();
+  var ifsc=(document.getElementById('bank-ifsc').value||'').trim();
+  var msgEl=document.getElementById('bankMsg');
+  var btn=document.getElementById('bankSaveBtn');
+
+  if(!accNum){ msgEl.textContent='Please enter the account number.'; msgEl.className='savemsg err'; return; }
+  if(!ifsc){ msgEl.textContent='Please enter the IFSC code.'; msgEl.className='savemsg err'; return; }
+  if(!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)){ msgEl.textContent='IFSC code looks incorrect — check and try again.'; msgEl.className='savemsg err'; return; }
+
+  btn.disabled=true; msgEl.textContent='Saving…'; msgEl.className='savemsg';
+  var res = await apiPost({
+    action:'saveBankDetails',
+    clientName: client.name, pan: client.pan||'', mobile: client.mobile, folderId: client.folderId||'',
+    accountNumber: accNum, ifscCode: ifsc
+  }, 20000);
+  btn.disabled=false;
+  if(res && res.success){
+    msgEl.textContent='✅ Bank details saved.'; msgEl.className='savemsg ok';
+    if(res.folderId) client.folderId = res.folderId;
+  } else {
+    msgEl.textContent='Could not save: '+esc(res&&res.error?res.error:'please try again'); msgEl.className='savemsg err';
+  }
+}
+
+async function fetchWithRetry(url, attempts, timeoutMs){
+  var lastErr;
+  for(var i=0;i<attempts;i++){
+    var controller = (typeof AbortController!=='undefined') ? new AbortController() : null;
+    var timer = controller ? setTimeout(function(){ controller.abort(); }, timeoutMs||12000) : null;
+    try{
+      var r = await fetch(url, { signal: controller ? controller.signal : undefined });
+      if(timer) clearTimeout(timer);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return await r.json();
+    }catch(e){
+      if(timer) clearTimeout(timer);
+      lastErr = (e && e.name==='AbortError') ? new Error('Request timed out') : e;
+      if(i<attempts-1) await new Promise(function(res){ setTimeout(res, 800); });
+    }
+  }
+  throw lastErr;
+}
+
+async function init(){
+  var token = qs('id');
+  if(!token){
+    renderError('Invalid link', 'This upload link is missing information. Please ask your advisor to resend it.');
+    return;
+  }
+  try{
+    // Retries once automatically — Apps Script can be slow or briefly fail on
+    // the very first request after a period of inactivity (a "cold start").
+    // Retrying transparently here avoids showing a false "connection problem"
+    // for something that resolves itself half a second later.
+    var j = await fetchWithRetry(SCRIPT_URL + '?action=resolveUploadToken&token=' + encodeURIComponent(token) + '&t=' + Date.now(), 2);
+    if(j && j.found){
+      client = { name:j.name, mobile:j.mobile, pan:j.pan, folderId:j.folderId||'', recordId:j.recordId||'', recordType:j.recordType||'client' };
+      renderSlots();
+      markExistingUploads();
+    } else {
+      renderError('Link not found', 'This link is invalid or has expired. Please contact your advisor for a new one.');
+    }
+  }catch(e){
+    renderError('Connection problem', 'Could not reach the server. Please check your internet connection and reopen this link.');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

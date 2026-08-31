@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Feedback — Wealth Matrix Finserv</title>
+<style>
+:root{
+  --bg:#0A1830; --s1:#0F2140; --s2:#132848; --border:#2E5C8A;
+  --accent:#FFFFFF; --accent2:rgba(255,255,255,.12);
+  --text:#FFFFFF; --t2:#8FB4DC; --t3:#5D7A9E;
+  --green:#4C9A6A; --red:#C1553D; --r:12px; --r2:8px;
+  --page-w:460px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+.wrap{max-width:var(--page-w);margin:0 auto;padding:0 0 40px}
+.hdr{padding:22px 18px 16px;text-align:center;border-bottom:1px solid var(--border)}
+.hdr .logo{font-size:34px;margin-bottom:6px}
+.hdr h1{font-size:16px;font-weight:800;margin:0 0 4px}
+.hdr p{font-size:11px;color:var(--t3);margin:0}
+.state{padding:60px 24px;text-align:center}
+.state .ico{font-size:40px;margin-bottom:14px}
+.state h2{font-size:15px;font-weight:800;margin:0 0 8px}
+.state p{font-size:12px;color:var(--t2);line-height:1.6;margin:0}
+.greet{padding:16px 18px 4px}
+.greet .name{font-size:17px;font-weight:800}
+
+.intent-box{margin:12px 14px;background:var(--s1);border:1px solid var(--accent);border-radius:var(--r);padding:16px}
+.intent-box .t{font-size:13px;font-weight:800;color:var(--accent);margin-bottom:8px}
+.intent-box p{font-size:12px;color:var(--t2);line-height:1.7;margin:0 0 10px}
+.intent-box p:last-child{margin-bottom:0}
+
+.anon-box{margin:0 14px 14px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.anon-box input[type=checkbox]{width:20px;height:20px;min-width:20px;margin-top:1px;accent-color:var(--accent);cursor:pointer}
+.anon-box .t{font-size:13px;font-weight:700;color:var(--text);line-height:1.4}
+.anon-box .sub{font-size:11px;color:var(--t3);margin-top:3px;line-height:1.5}
+
+.form-block{margin:0 14px 14px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.form-block .section-t{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:12px;letter-spacing:.3px}
+.fg{margin-bottom:16px}
+.fg:last-child{margin-bottom:0}
+.fl{font-size:12px;font-weight:700;color:var(--text);line-height:1.45;margin-bottom:9px;display:block}
+.fi{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:11px 12px;color:var(--text);font-family:inherit;font-size:14px;outline:none}
+.fi:focus{border-color:var(--accent)}
+textarea.fi{resize:vertical;min-height:70px}
+
+.star-row{display:flex;gap:8px;justify-content:space-between}
+.star{flex:1;text-align:center;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r2);padding:10px 4px;font-size:14px;font-weight:800;color:var(--t2);cursor:pointer;-webkit-user-select:none;user-select:none}
+.star.sel{border-color:var(--accent);background:var(--accent2);color:var(--accent)}
+
+.nps-row{display:flex;gap:4px;flex-wrap:wrap}
+.nps-opt{flex:1;min-width:26px;text-align:center;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:9px 0;font-size:12px;font-weight:800;color:var(--t2);cursor:pointer;-webkit-user-select:none;user-select:none}
+.nps-opt.sel{border-color:var(--accent);background:var(--accent2);color:var(--accent)}
+.nps-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:6px}
+
+.ref-note{font-size:10px;color:var(--t3);margin-bottom:12px;line-height:1.5;font-style:italic}
+
+.savebtn{width:100%;padding:13px;font-size:14px;font-weight:700;color:#fff;background:var(--accent);border:none;border-radius:var(--r2);cursor:pointer;margin:4px 14px 0;width:calc(100% - 28px)}
+.savebtn:disabled{opacity:.5}
+.savemsg{font-size:11px;margin:10px 14px 0;text-align:center}
+.savemsg.ok{color:var(--green)}
+.savemsg.err{color:var(--red)}
+.footer-note{padding:18px 24px 4px;text-align:center;font-size:10px;color:var(--t3);line-height:1.6}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--t3);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (min-width:700px){
+  :root{ --page-w:760px; }
+  .hdr{padding:30px 18px 20px}
+  .hdr .logo{font-size:42px}
+  .hdr h1{font-size:19px}
+  .state{padding:90px 24px}
+  .ratings-block{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
+  .ratings-block .section-t{grid-column:1/-1}
+  .referral-block{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start}
+  .referral-block .section-t,.referral-block .ref-note{grid-column:1/-1}
+  .intent-box,.anon-box{margin-left:16px;margin-right:16px}
+  .form-block{margin-left:16px;margin-right:16px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="logo">💬</div>
+    <h1>Wealth Matrix Finserv</h1>
+    <p>Your feedback matters to us</p>
+  </div>
+  <div id="app">
+    <div class="state"><div class="spin" style="width:22px;height:22px"></div></div>
+  </div>
+</div>
+
+<script>
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxi1b4DHWFsXuOCO5XTpsCPmhEawBDpC66eVZW7K1Z6aZ7zwLZ7HYhNd--saAv6CdG5/exec';
+
+var token='';
+var clientName='';
+var state={
+  isAnonymous:false, email:'',
+  ratingQueryResolution:0, ratingTransactionEase:0, ratingRmSupport:0, ratingCommunication:0, ratingProductTransparency:0,
+  valueMost:'', areaToImprove:'', npsScore:null,
+  referralName:'', referralMobile:''
+};
+
+function qs(name){ var p=new URLSearchParams(window.location.search); return p.get(name)||''; }
+function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+async function apiPost(data){
+  try{
+    var r=await fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(data) });
+    var t=await r.text();
+    try{ return JSON.parse(t); } catch(e){ return r.ok ? {success:true} : {error:'HTTP '+r.status}; }
+  }catch(e){ return {error:e.message}; }
+}
+function renderError(title, msg){
+  document.getElementById('app').innerHTML='<div class="state"><div class="ico">⚠️</div><h2>'+esc(title)+'</h2><p>'+esc(msg)+'</p></div>';
+}
+
+async function init(){
+  token=qs('id');
+  if(!token){ renderError('Invalid Link','This link is missing required information. Please ask your advisor for a new link.'); return; }
+  var res=await apiPost({action:'getFeedbackClientName', token:token});
+  if(!res || res.success===false || !res.name){
+    renderError('Link Not Found','This link may have expired or is invalid. Please contact your advisor for a fresh link.');
+    return;
+  }
+  clientName=res.name;
+  renderForm();
+}
+
+function renderForm(){
+  var html='<div class="greet"><div class="name">Hi '+esc(clientName)+',</div></div>'
+    +'<div class="intent-box">'
+    +'<div class="t">Why we\'re asking</div>'
+    +'<p>We genuinely want to become a better version of our firm — for you, and for every family we work with. That only happens if we hear the truth, not just what sounds good.</p>'
+    +'<p>Please be completely honest, even if it\'s critical. Nothing here affects your account or how we serve you — if anything, it helps us serve you better. You can also submit this anonymously below if that makes it easier to speak freely.</p>'
+    +'</div>'
+    +'<div class="anon-box" onclick="toggleAnon()">'
+    +'<input type="checkbox" id="anon-check" onclick="event.stopPropagation()" onchange="toggleAnon(true)">'
+    +'<div><div class="t">I\'d prefer to keep this feedback anonymous</div><div class="sub">If checked, your name and contact details will not be saved against this feedback at all.</div></div>'
+    +'</div>'
+
+    +'<div class="form-block ratings-block">'
+    +'<div class="section-t">RATE OUR SERVICE (1 = Poor, 5 = Excellent)</div>'
+    +starBlock('ratingQueryResolution','Query Resolution Time')
+    +starBlock('ratingTransactionEase','Transaction Process & Ease')
+    +starBlock('ratingRmSupport','RM Support')
+    +starBlock('ratingCommunication','Communication Updates')
+    +starBlock('ratingProductTransparency','Product Transparency & Alignment')
+    +'</div>'
+
+    +'<div class="form-block">'
+    +'<div class="fg"><label class="fl">📌 What do you value most about our service?</label><textarea class="fi" oninput="state.valueMost=this.value"></textarea></div>'
+    +'<div class="fg" style="margin-bottom:0"><label class="fl">📌 What\'s one area where we could improve?</label><textarea class="fi" oninput="state.areaToImprove=this.value"></textarea></div>'
+    +'</div>'
+
+    +'<div class="form-block">'
+    +'<div class="fg" style="margin-bottom:0">'
+    +'<label class="fl">How likely are you to recommend us to a friend or colleague? (0 = Not at all, 10 = Extremely likely)</label>'
+    +'<div class="nps-row" id="nps-row">'+Array.from({length:11},function(_,i){return '<div class="nps-opt" data-nps="'+i+'" onclick="setNps('+i+')">'+i+'</div>';}).join('')+'</div>'
+    +'<div class="nps-labels"><span>Not likely</span><span>Extremely likely</span></div>'
+    +'</div></div>'
+
+    +'<div class="form-block" id="email-block">'
+    +'<div class="fg" style="margin-bottom:0"><label class="fl">Email (optional)</label><input class="fi" type="email" oninput="state.email=this.value"></div>'
+    +'</div>'
+
+    +'<div class="form-block referral-block">'
+    +'<div class="section-t">KNOW SOMEONE WHO COULD USE OUR HELP?</div>'
+    +'<div class="ref-note">Entirely optional. If you\'d like to refer a friend or relative, just their name is enough — we\'ll take it from there.</div>'
+    +'<div class="fg"><label class="fl">Their Name</label><input class="fi" id="ref-name" oninput="state.referralName=this.value"></div>'
+    +'<div class="fg" style="margin-bottom:0"><label class="fl">Their Mobile Number (optional)</label><input class="fi" type="tel" oninput="state.referralMobile=this.value"></div>'
+    +'</div>'
+
+    +'<button class="savebtn" id="submit-btn" onclick="submitFeedback()">Submit Feedback</button>'
+    +'<div class="savemsg" id="savemsg"></div>'
+    +'<div class="footer-note">Wealth Matrix Finserv LLP · Thank you for helping us improve.</div>';
+
+  document.getElementById('app').innerHTML=html;
+}
+
+function starBlock(key, label){
+  return '<div class="fg"><label class="fl">'+esc(label)+'</label>'
+    +'<div class="star-row" data-starkey="'+key+'">'
+    +[1,2,3,4,5].map(function(n){ return '<div class="star" data-val="'+n+'" onclick="setStar(\''+key+'\','+n+')">'+n+'</div>'; }).join('')
+    +'</div></div>';
+}
+function setStar(key, val){
+  state[key]=val;
+  var row=document.querySelector('[data-starkey="'+key+'"]');
+  row.querySelectorAll('.star').forEach(function(el){
+    el.classList.toggle('sel', parseInt(el.dataset.val)===val);
+  });
+}
+function setNps(val){
+  state.npsScore=val;
+  document.querySelectorAll('#nps-row .nps-opt').forEach(function(el){
+    el.classList.toggle('sel', parseInt(el.dataset.nps)===val);
+  });
+}
+function toggleAnon(fromCheckbox){
+  var box=document.getElementById('anon-check');
+  if(!fromCheckbox) box.checked=!box.checked;
+  state.isAnonymous=box.checked;
+  var emailBlock=document.getElementById('email-block');
+  if(emailBlock) emailBlock.style.display=box.checked?'none':'block';
+}
+
+async function submitFeedback(){
+  var refName=(state.referralName||'').trim();
+  var refMobile=(state.referralMobile||'').trim();
+  var msgEl=document.getElementById('savemsg');
+  if(refMobile && !refName){
+    msgEl.textContent='⚠️ Please add their name too if you\'d like to refer them, or leave both blank.';
+    msgEl.className='savemsg err';
+    document.getElementById('ref-name').focus();
+    return;
+  }
+  var btn=document.getElementById('submit-btn');
+  btn.disabled=true; btn.textContent='Submitting…';
+  var res=await apiPost({
+    action:'submitFeedback', token:token,
+    isAnonymous:state.isAnonymous, email:state.email,
+    ratingQueryResolution:state.ratingQueryResolution, ratingTransactionEase:state.ratingTransactionEase,
+    ratingRmSupport:state.ratingRmSupport, ratingCommunication:state.ratingCommunication,
+    ratingProductTransparency:state.ratingProductTransparency,
+    valueMost:state.valueMost, areaToImprove:state.areaToImprove, npsScore:state.npsScore,
+    referralName:refName, referralMobile:refMobile
+  });
+  if(res && res.success){
+    document.getElementById('app').innerHTML='<div class="state"><div class="ico">✅</div><h2>Thank you!</h2>'
+      +'<p>Your feedback plays a key role in helping us improve and better meet your financial goals.'
+      +(res.referralCreated?'<br><br>We\'ve also noted your referral \u2014 thank you for thinking of us.':'')
+      +'</p></div>';
+  } else {
+    btn.disabled=false; btn.textContent='Submit Feedback';
+    msgEl.textContent='⚠️ Could not submit right now: '+(res&&res.error||'please try again in a moment.');
+    msgEl.className='savemsg err';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

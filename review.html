@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="dns-prefetch" href="https://script.google.com">
+<title>Your Portfolio Review — Wealth Matrix Finserv</title>
+<style>
+:root{
+  --bg:#0A1830; --s1:#0F2140; --s2:#132848; --border:#2E5C8A;
+  --accent:#FFFFFF; --accent2:rgba(255,255,255,.12);
+  --text:#FFFFFF; --t2:#8FB4DC; --t3:#5D7A9E;
+  --page-w:480px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.7}
+.wrap{max-width:var(--page-w);margin:0 auto;padding:0 0 50px}
+.hdr{padding:26px 20px 16px;text-align:center;border-bottom:1px solid var(--border)}
+.hdr .logo{font-size:32px;margin-bottom:6px}
+.hdr h1{font-size:15px;font-weight:800;margin:0 0 3px}
+.hdr p{font-size:11px;color:var(--t3);margin:0}
+.state{padding:70px 24px;text-align:center}
+.state .ico{font-size:38px;margin-bottom:14px}
+.state h2{font-size:15px;font-weight:800;margin:0 0 8px}
+.state p{font-size:12px;color:var(--t2);line-height:1.6;margin:0}
+.spin{display:inline-block;width:22px;height:22px;border:2px solid var(--t3);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.letter{margin:20px 16px;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:22px 20px;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.letter .body{font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.85}
+.meta{padding:0 20px;font-size:10px;color:var(--t3);text-align:center;margin-top:-6px;margin-bottom:6px}
+.actions{display:flex;gap:8px;padding:4px 16px 0}
+.actbtn{flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--s1);color:var(--text);font-size:12px;font-weight:700;cursor:pointer;text-align:center}
+.actbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.footer-note{padding:22px 24px 4px;text-align:center;font-size:10px;color:var(--t3);line-height:1.6}
+@media (min-width:700px){
+  :root{ --page-w:640px; }
+  .hdr{padding:34px 20px 20px}
+  .hdr .logo{font-size:40px}
+  .hdr h1{font-size:18px}
+  .letter{padding:32px 36px}
+  .letter .body{font-size:15px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="logo">💌</div>
+    <h1>Wealth Matrix Finserv</h1>
+    <p>Your Portfolio Review</p>
+  </div>
+  <div id="app">
+    <div class="state"><div class="spin"></div></div>
+  </div>
+</div>
+
+<script>
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxi1b4DHWFsXuOCO5XTpsCPmhEawBDpC66eVZW7K1Z6aZ7zwLZ7HYhNd--saAv6CdG5/exec';
+
+function qs(name){
+  var p = new URLSearchParams(window.location.search);
+  return p.get(name) || '';
+}
+function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+async function apiPost(data, timeoutMs){
+  var controller = (typeof AbortController!=='undefined') ? new AbortController() : null;
+  var timer = null;
+  if(controller && timeoutMs){ timer = setTimeout(function(){ controller.abort(); }, timeoutMs); }
+  try{
+    var r = await fetch(SCRIPT_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(data),
+      signal: controller ? controller.signal : undefined
+    });
+    if(timer) clearTimeout(timer);
+    var t = await r.text();
+    try{ return JSON.parse(t); } catch(e){ return r.ok ? {success:true} : {error:'Server returned an error (HTTP '+r.status+')'}; }
+  }catch(e){
+    if(timer) clearTimeout(timer);
+    if(e.name==='AbortError') return {error:'Request timed out'};
+    return {error:'Could not reach the server — check your internet connection'};
+  }
+}
+
+function renderError(title, msg){
+  document.getElementById('app').innerHTML =
+    '<div class="state"><div class="ico">⚠️</div><h2>'+esc(title)+'</h2><p>'+esc(msg)+'</p></div>';
+}
+
+function renderLetter(name, reportText, generatedDate){
+  var app = document.getElementById('app');
+  var dateLabel = generatedDate ? generatedDate.split(' ')[0] : '';
+  app.innerHTML =
+      '<div class="letter"><div class="body" id="letterBody">'+esc(reportText)+'</div></div>'
+    + (dateLabel?('<div class="meta">Prepared on '+esc(dateLabel)+'</div>'):'')
+    + '<div class="actions">'
+    +   '<button class="actbtn" id="btnCopy">📋 Copy</button>'
+    +   '<button class="actbtn primary" id="btnShare">📤 Share</button>'
+    + '</div>'
+    + '<div class="footer-note">🔒 This review is prepared just for you. If you have any questions, reach out to your advisor anytime.</div>';
+
+  document.getElementById('btnCopy').onclick = function(){
+    var text = document.getElementById('letterBody').textContent;
+    navigator.clipboard.writeText(text).then(function(){
+      var b=document.getElementById('btnCopy'); var orig=b.textContent;
+      b.textContent='✅ Copied'; setTimeout(function(){ b.textContent=orig; }, 1500);
+    });
+  };
+  document.getElementById('btnShare').onclick = function(){
+    var text = document.getElementById('letterBody').textContent;
+    if(navigator.share){
+      navigator.share({title:'My Portfolio Review — Wealth Matrix Finserv', text:text}).catch(function(){});
+    } else {
+      navigator.clipboard.writeText(text);
+      var b=document.getElementById('btnShare'); var orig=b.textContent;
+      b.textContent='✅ Copied instead'; setTimeout(function(){ b.textContent=orig; }, 1500);
+    }
+  };
+}
+
+async function init(){
+  var token = qs('id');
+  if(!token){
+    renderError('Invalid link', 'This link is missing information. Please contact your advisor for a new one.');
+    return;
+  }
+  var res = await apiPost({ action:'getClientReviewReport', token: token }, 20000);
+  if(res && res.success){
+    renderLetter(res.name, res.report, res.generatedDate);
+  } else {
+    renderError('Not ready yet', (res && res.error) || 'This review isn\u2019t available yet. Please check back shortly or contact your advisor.');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

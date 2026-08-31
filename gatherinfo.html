@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Update Your Details — Wealth Matrix Finserv</title>
+<style>
+:root{
+  --bg:#0A1830; --s1:#0F2140; --s2:#132848; --border:#2E5C8A;
+  --accent:#FFFFFF; --accent2:rgba(255,255,255,.12);
+  --text:#FFFFFF; --t2:#8FB4DC; --t3:#5D7A9E;
+  --green:#4C9A6A; --red:#C1553D; --r:12px; --r2:8px;
+  --page-w:460px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+.wrap{max-width:var(--page-w);margin:0 auto;padding:0 0 40px}
+.hdr{padding:22px 18px 16px;text-align:center;border-bottom:1px solid var(--border)}
+.hdr .logo{font-size:34px;margin-bottom:6px}
+.hdr h1{font-size:16px;font-weight:800;margin:0 0 4px}
+.hdr p{font-size:11px;color:var(--t3);margin:0}
+.state{padding:60px 24px;text-align:center}
+.state .ico{font-size:40px;margin-bottom:14px}
+.state h2{font-size:15px;font-weight:800;margin:0 0 8px}
+.state p{font-size:12px;color:var(--t2);line-height:1.6;margin:0}
+.greet{padding:18px;text-align:center}
+.greet .name{font-size:17px;font-weight:800}
+.greet .sub{font-size:11px;color:var(--t2);margin-top:4px;line-height:1.5}
+.notice{margin:0 14px 14px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.consent-box{margin:0 14px 16px;background:var(--s1);border:1px solid var(--accent);border-radius:var(--r);padding:16px}
+.consent-box .t{font-size:13px;font-weight:800;color:var(--accent);margin-bottom:8px;line-height:1.4}
+.consent-box p{font-size:12px;color:var(--t2);line-height:1.7;margin:0 0 12px}
+.consent-check{display:flex;align-items:flex-start;gap:10px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.consent-check input[type=checkbox]{width:20px;height:20px;min-width:20px;margin-top:1px;accent-color:var(--accent);cursor:pointer}
+.consent-check span{font-size:13px;font-weight:700;color:var(--text);line-height:1.4}
+.notice .t{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.notice p{font-size:11px;color:var(--t2);line-height:1.6;margin:0 0 8px}
+.notice p:last-child{margin-bottom:0}
+.form-block{margin:0 14px 14px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+.fg{margin-bottom:16px}
+.fg:last-child{margin-bottom:0}
+.fl{font-size:12px;font-weight:700;color:var(--text);line-height:1.45;margin-bottom:9px;display:block}
+.fl .sub2{display:block;font-size:10px;font-weight:500;color:var(--t3);margin-top:2px;text-transform:none;letter-spacing:0}
+.fi{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:11px 12px;color:var(--text);font-family:inherit;font-size:14px;outline:none}
+.fi:focus{border-color:var(--accent)}
+.yn-opt{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r2);padding:10px 4px;text-align:center;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;-webkit-user-select:none;user-select:none}
+.yn-opt.sel{border-color:var(--accent);background:var(--accent2);color:var(--accent)}
+.yn2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.followup{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);display:none}
+.followup.show{display:block}
+.prod-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.prod-opt{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--r2);padding:11px 8px;text-align:center;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;-webkit-user-select:none;user-select:none}
+.prod-opt.sel{border-color:var(--accent);background:var(--accent2);color:var(--accent)}
+.savebtn{width:100%;padding:13px;font-size:14px;font-weight:700;color:#fff;background:var(--accent);border:none;border-radius:var(--r2);cursor:pointer;margin:4px 14px 0;width:calc(100% - 28px)}
+.savebtn:disabled{opacity:.5}
+.savemsg{font-size:11px;margin:10px 14px 0;text-align:center}
+.savemsg.ok{color:var(--green)}
+.savemsg.err{color:var(--red)}
+.uploadlink{display:block;margin:0 14px 14px;background:var(--s1);border:1px solid var(--accent);border-radius:var(--r);padding:14px 16px;text-decoration:none}
+.uploadlink .t{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:5px}
+.uploadlink p{font-size:11px;color:var(--t2);line-height:1.6;margin:0}
+.uploadlink .cta{display:inline-block;margin-top:10px;font-size:12px;font-weight:700;color:#fff;background:var(--accent);padding:9px 16px;border-radius:var(--r2)}
+.footer-note{padding:18px 24px 4px;text-align:center;font-size:10px;color:var(--t3);line-height:1.6}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--t3);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (min-width:700px){
+  :root{ --page-w:760px; }
+  .prod-grid{grid-template-columns:repeat(3,1fr)}
+  .hdr{padding:30px 18px 20px}
+  .hdr .logo{font-size:42px}
+  .hdr h1{font-size:19px}
+  .state{padding:90px 24px}
+  .yn3-block{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;align-items:start}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="logo">🔒</div>
+    <h1>Wealth Matrix Finserv</h1>
+    <p>Keep your details up to date</p>
+  </div>
+  <div id="app">
+    <div class="state"><div class="spin" style="width:22px;height:22px"></div></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIGURATION ── update this if you ever redeploy Apps Script with a new URL
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxi1b4DHWFsXuOCO5XTpsCPmhEawBDpC66eVZW7K1Z6aZ7zwLZ7HYhNd--saAv6CdG5/exec';
+
+var PRODUCTS = ['Mutual Funds','Health Insurance','Term Life Insurance','WILL','AIF','PMS'];
+
+var client = null;
+var token = '';
+var state = {
+  healthInsurance:'', healthInsuranceCoverage:'', dueDateHealthInsurance:'',
+  lifeInsurance:'', lifeInsuranceCoverage:'', dueDateLifeInsurance:'',
+  dependentsInsurance:'', dependentsInsuranceCoverage:'',
+  appInstalled:'',
+  products: []
+};
+
+function qs(name){
+  var p = new URLSearchParams(window.location.search);
+  return p.get(name) || '';
+}
+function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+async function apiPost(data){
+  try{
+    var r = await fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(data) });
+    var t = await r.text();
+    try{ return JSON.parse(t); } catch(e){ return r.ok ? {success:true} : {error:'HTTP '+r.status}; }
+  }catch(e){ return {error:e.message}; }
+}
+
+function renderError(title, msg){
+  document.getElementById('app').innerHTML =
+    '<div class="state"><div class="ico">⚠️</div><h2>'+esc(title)+'</h2><p>'+esc(msg)+'</p></div>';
+}
+
+// Builds a 3-way Yes/No/Unsure question block with an optional coverage-amount
+// + due-date follow-up that only appears when "Yes" is selected.
+function yn3Block(fieldKey, label, subLabel, unsureLabel, showDueDate){
+  return '<div class="fg">'
+    + '<label class="fl">'+label+(subLabel?'<span class="sub2">'+subLabel+'</span>':'')+'</label>'
+    + '<div class="yn2">'
+    +   '<div class="yn-opt" data-yn="'+fieldKey+'" data-val="YES" onclick="setYN3(this)">Yes</div>'
+    +   '<div class="yn-opt" data-yn="'+fieldKey+'" data-val="NO" onclick="setYN3(this)">No</div>'
+    + '</div>'
+    + '<div class="followup" id="followup-'+fieldKey+'">'
+    +   '<div class="fg" style="margin-bottom:'+(showDueDate?'12px':'0')+'"><label class="fl" style="font-size:11px;font-weight:600;color:var(--t2)">Coverage Amount</label><input class="fi" placeholder="e.g. 5 Lakhs, 10 Lakhs" id="cov-'+fieldKey+'" oninput="state.'+fieldKey+'Coverage=this.value"></div>'
+    +   (showDueDate?('<div class="fg" style="margin-bottom:0"><label class="fl" style="font-size:11px;font-weight:600;color:var(--t2)">Premium Due Date</label><input class="fi" type="date" id="due-'+fieldKey+'" oninput="state.dueDate'+fieldKey.charAt(0).toUpperCase()+fieldKey.slice(1)+'=this.value"></div>'):'')
+    + '</div>'
+    + '</div>';
+}
+
+function setYN3(el){
+  var key = el.dataset.yn;
+  state[key] = el.dataset.val;
+  document.querySelectorAll('.yn-opt[data-yn="'+key+'"]').forEach(function(o){ o.classList.remove('sel'); });
+  el.classList.add('sel');
+  var fu = document.getElementById('followup-'+key);
+  if(fu) fu.classList.toggle('show', el.dataset.val==='YES');
+}
+
+function toggleProduct(el){
+  var p = el.dataset.p;
+  var idx = state.products.indexOf(p);
+  if(idx>=0){ state.products.splice(idx,1); el.classList.remove('sel'); }
+  else{ state.products.push(p); el.classList.add('sel'); }
+}
+
+function setYN2(el){
+  var key = el.dataset.yn2;
+  state[key] = el.dataset.val;
+  document.querySelectorAll('.yn-opt[data-yn2="'+key+'"]').forEach(function(o){ o.classList.remove('sel'); });
+  el.classList.add('sel');
+}
+
+function renderForm(){
+  var app = document.getElementById('app');
+
+  var html = '<div class="greet"><div class="name">Hi '+esc(client.name||'there')+'</div>'
+    + '<div class="sub">To serve you better, we\u2019d like to understand your protection needs and preferences a little better. A few quick questions \u2014 takes under 2 minutes.</div></div>'
+
+    + '<div class="consent-box" id="consentBox">'
+    +   '<div class="t">Before we begin, please confirm below.</div>'
+    +   '<p>I agree to share my insurance status, coverage details, and product preferences with Wealth Matrix Finserv LLP, so they can better understand my protection needs and reach out with relevant guidance. My information will be handled as described in the <a href="privacy-policy.html" target="_blank">Privacy Policy</a>, kept secure, and never sold. I can withdraw this consent anytime by contacting my advisor.</p>'
+    +   '<label class="consent-check" id="consentCheckLabel">'
+    +     '<input type="checkbox" id="consentCheckbox" onchange="handleConsentChange(this)">'
+    +     '<span>I have read and agree to the above</span>'
+    +   '</label>'
+    +   '<div class="savemsg" id="consentMsg"></div>'
+    + '</div>'
+
+    + '<div id="gatheredFields" style="opacity:.4;pointer-events:none">'
+    + '<div class="form-block yn3-block">'
+    +   yn3Block('healthInsurance', 'Do you have Health Insurance for your Family?', '(Other than employer coverage)', 'Not Sure', true)
+    +   yn3Block('lifeInsurance', 'Do you have a Term Life Insurance policy?', '(Not insurance investment schemes)', 'Don\u2019t Know', true)
+    +   yn3Block('dependentsInsurance', 'Do your dependents (Parents/Siblings etc.) have health insurance?', '', 'Don\u2019t Know', false)
+    + '</div>'
+
+    + '<div class="form-block">'
+    +   '<div class="fg" style="margin-bottom:0">'
+    +     '<label class="fl">Have you installed the Wealth Matrix mobile app?</label>'
+    +     '<div class="yn2">'
+    +       '<div class="yn-opt" data-yn2="appInstalled" data-val="YES" onclick="setYN2(this)">Yes</div>'
+    +       '<div class="yn-opt" data-yn2="appInstalled" data-val="NO" onclick="setYN2(this)">No</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>'
+
+    + '<div class="form-block">'
+    +   '<div class="fg" style="margin-bottom:0">'
+    +     '<label class="fl">Which of these are you interested in? <span class="sub2">Select any that apply</span></label>'
+    +     '<div class="prod-grid">'
+    +       PRODUCTS.map(function(p){ return '<div class="prod-opt" data-p="'+p+'" onclick="toggleProduct(this)">'+p+'</div>'; }).join('')
+    +     '</div>'
+    +   '</div>'
+    + '</div>'
+
+    + '<button class="savebtn" id="saveBtn" onclick="saveInfo()">Save Details</button>'
+    + '<div class="savemsg" id="saveMsg"></div>'
+    + '</div>'
+
+    + '<a class="uploadlink" id="insUploadLink" href="#" onclick="return false;">'
+    +   '<div class="t">📄 Want us to review your insurance policy?</div>'
+    +   '<p>If you\u2019d like, upload a copy of your existing health or life insurance policy \u2014 our expert team will review it thoroughly and share our insights, so you\u2019re better informed about your coverage. <b>This is completely free of cost.</b></p>'
+    +   '<span class="cta">Upload Policy Copy</span>'
+    + '</a>'
+
+    + '<div class="footer-note">🔒 Your details are sent directly and securely to your advisor. No account or login needed.</div>';
+  app.innerHTML = html;
+
+  var linkEl = document.getElementById('insUploadLink');
+  if(linkEl) linkEl.href = 'upload.html?id='+encodeURIComponent(token);
+}
+
+// Exact wording shown above — logged as-is to the DPDP Consents sheet.
+var CONSENT_TEXT = 'I agree to share my insurance status, coverage details, and product preferences with Wealth Matrix Finserv LLP, so they can better understand my protection needs and reach out with relevant guidance. My information will be handled as described in the Privacy Policy, kept secure, and never sold. I can withdraw this consent anytime by contacting my advisor.';
+
+async function handleConsentChange(checkboxEl){
+  var msgEl = document.getElementById('consentMsg');
+  var fields = document.getElementById('gatheredFields');
+  if(!checkboxEl.checked){
+    if(fields){ fields.style.opacity='.4'; fields.style.pointerEvents='none'; }
+    if(msgEl){ msgEl.textContent=''; msgEl.className='savemsg'; }
+    return;
+  }
+  checkboxEl.disabled = true;
+  if(msgEl){ msgEl.textContent='Saving your consent…'; msgEl.className='savemsg'; }
+  var res = await apiPost({
+    action: 'logDpdpConsent',
+    name: client.name || '',
+    mobile: client.mobile || '',
+    consentText: CONSENT_TEXT
+  });
+  checkboxEl.disabled = false;
+  if(res && res.success){
+    if(fields){ fields.style.opacity='1'; fields.style.pointerEvents='auto'; }
+    if(msgEl){ msgEl.textContent='✅ Thank you — please go ahead below.'; msgEl.className='savemsg ok'; }
+  } else {
+    checkboxEl.checked = false;
+    if(msgEl){ msgEl.textContent='Could not save your consent — please try again.'; msgEl.className='savemsg err'; }
+  }
+}
+
+async function saveInfo(){
+  var btn = document.getElementById('saveBtn');
+  var msgEl = document.getElementById('saveMsg');
+  btn.disabled = true;
+  msgEl.textContent = 'Saving…'; msgEl.className = 'savemsg';
+
+  var payload = {
+    action: 'updateClientGatherInfo',
+    token: token,
+    healthInsurance: state.healthInsurance,
+    healthInsuranceCoverage: state.healthInsuranceCoverage || '',
+    dueDateHealth: state.dueDateHealthInsurance || '',
+    lifeInsurance: state.lifeInsurance,
+    lifeInsuranceCoverage: state.lifeInsuranceCoverage || '',
+    dueDateLife: state.dueDateLifeInsurance || '',
+    dependentsInsurance: state.dependentsInsurance,
+    dependentsCoverage: state.dependentsInsuranceCoverage || '',
+    appInstalled: state.appInstalled === 'YES',
+    products: state.products
+  };
+
+  var res = await apiPost(payload);
+  btn.disabled = false;
+  if(res && res.success){
+    msgEl.textContent = '✅ Saved — thank you!'; msgEl.className = 'savemsg ok';
+  } else {
+    msgEl.textContent = 'Could not save — please try again. '+(res&&res.error?('('+res.error+')'):'');
+    msgEl.className = 'savemsg err';
+  }
+}
+
+async function init(){
+  token = qs('id');
+  if(!token){
+    renderError('Invalid link', 'This link is missing information. Please ask your advisor to resend it.');
+    return;
+  }
+  try{
+    var r = await fetch(SCRIPT_URL + '?action=resolveUploadToken&token=' + encodeURIComponent(token) + '&t=' + Date.now());
+    var j = await r.json();
+    if(j && j.found && j.recordType==='client'){
+      client = { name:j.name, mobile:j.mobile };
+      renderForm();
+    } else {
+      renderError('Link not found', 'This link is invalid or has expired. Please contact your advisor for a new one.');
+    }
+  }catch(e){
+    renderError('Connection problem', 'Could not reach the server. Please check your internet connection and reopen this link.');
+  }
+}
+
+init();
+</script>
+</body>
+</html>
