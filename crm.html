@@ -346,6 +346,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .qwa-blue .qwa-ico{background:linear-gradient(150deg,#5EACEE,#2E7FCC);--qwa-shadow:rgba(52,152,219,.4)}
 .qwa-amber .qwa-ico{background:linear-gradient(150deg,color-mix(in srgb, var(--orange) 75%, white),var(--orange));--qwa-shadow:color-mix(in srgb, var(--orange) 45%, transparent)}
 .qwa-purple .qwa-ico{background:linear-gradient(150deg,color-mix(in srgb, var(--purple) 70%, white),var(--purple));--qwa-shadow:color-mix(in srgb, var(--purple) 45%, transparent)}
+.qwa-teal .qwa-ico{background:linear-gradient(150deg,#3DCFA8,#16A085);--qwa-shadow:rgba(22,160,133,.4)}
 @keyframes lockShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 
 /* ══ Adaptive shell — tablet & desktop ══
@@ -2295,26 +2296,16 @@ function openDetail(mob,type,nameHint){
     + '</div>'
     + '<div style="padding:0 14px 8px">'
     + '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.5px;margin-bottom:6px">QUICK WHATSAPP</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px 4px">'
     + '<button data-waq="app" data-wanum="'+waNum+'" data-mob="'+mob+'" class="qwa-btn qwa-green"><span class="qwa-ico">📲</span><span class="qwa-lbl">App Link</span></button>'
     + '<button data-waq="cas" data-wanum="'+waNum+'" class="qwa-btn qwa-blue"><span class="qwa-ico">📊</span><span class="qwa-lbl">CAMS CAS</span></button>'
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">'
-    + '<button data-waq="welcome" data-wanum="'+waNum+'" data-mob="'+mob+'" class="qwa-btn qwa-green" style="padding:8px 4px"><span class="qwa-ico">👋</span><span class="qwa-lbl">Welcome<br>Message</span></button>'
-    + '<button data-uploadlink="'+mob+'" class="qwa-btn qwa-amber" style="padding:8px 4px"><span class="qwa-ico">📤</span><span class="qwa-lbl">Upload<br>Link</span></button>'
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">'
-    + '<button onclick="startMeetingInsight(\''+mob+'\')" class="qwa-btn" style="padding:8px 4px;border-color:var(--purple);color:var(--purple)"><span class="qwa-ico">🧠</span><span class="qwa-lbl">Meeting<br>Insights</span></button>'
-    + '<button onclick="sendGatherInfoLinkWA(\''+mob+'\')" class="qwa-btn" style="padding:8px 4px;border-color:#16a085;color:#16a085"><span class="qwa-ico">📝</span><span class="qwa-lbl">Gather<br>Info</span></button>'
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr;gap:6px;margin-top:6px">'
-    + '<button onclick="sendFinDocLinkWA(\''+mob+'\')" class="qwa-btn" style="padding:8px 4px;border-color:var(--orange);color:var(--orange)"><span class="qwa-ico">🗂️</span><span class="qwa-lbl">Fin Doc \u2014 Family Financial Organizer</span></button>'
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr;gap:6px;margin-top:6px">'
-    + '<button onclick="showFeedbackChoicePopup(\''+mob+'\')" class="qwa-btn" style="padding:8px 4px;border-color:var(--green);color:var(--green)"><span class="qwa-ico">\u{1F4AC}</span><span class="qwa-lbl">Request Feedback</span></button>'
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr;gap:6px;margin-top:6px">'
-    + '<button onclick="startClientReviewReport(\''+mob+'\')" class="qwa-btn" style="padding:8px 4px;border-color:var(--blue);color:var(--blue)"><span class="qwa-ico">💌</span><span class="qwa-lbl">Send Review Report to Client</span></button>'
+    + '<button data-waq="welcome" data-wanum="'+waNum+'" data-mob="'+mob+'" class="qwa-btn qwa-green"><span class="qwa-ico">👋</span><span class="qwa-lbl">Welcome</span></button>'
+    + '<button data-uploadlink="'+mob+'" class="qwa-btn qwa-amber"><span class="qwa-ico">📤</span><span class="qwa-lbl">Upload</span></button>'
+    + '<button onclick="startMeetingInsight(\''+mob+'\')" class="qwa-btn qwa-purple"><span class="qwa-ico">🧠</span><span class="qwa-lbl">Meeting<br>Insights</span></button>'
+    + '<button onclick="sendGatherInfoLinkWA(\''+mob+'\')" class="qwa-btn qwa-teal"><span class="qwa-ico">📝</span><span class="qwa-lbl">Gather<br>Info</span></button>'
+    + '<button onclick="sendFinDocLinkWA(\''+mob+'\')" class="qwa-btn qwa-amber"><span class="qwa-ico">🗂️</span><span class="qwa-lbl">Fin Doc</span></button>'
+    + '<button onclick="showFeedbackChoicePopup(\''+mob+'\')" class="qwa-btn qwa-green"><span class="qwa-ico">💬</span><span class="qwa-lbl">Feedback</span></button>'
+    + '<button onclick="startClientReviewReport(\''+mob+'\')" class="qwa-btn qwa-blue"><span class="qwa-ico">💌</span><span class="qwa-lbl">Review<br>Report</span></button>'
     + '</div>'
     + '<div id="meeting-insight-body-'+mob+'" style="display:none;padding-top:8px"></div>'
     + '</div>'
