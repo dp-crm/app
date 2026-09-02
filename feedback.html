@@ -117,16 +117,43 @@ function renderError(title, msg){
   document.getElementById('app').innerHTML='<div class="state"><div class="ico">⚠️</div><h2>'+esc(title)+'</h2><p>'+esc(msg)+'</p></div>';
 }
 
+function cacheKey(token){ return 'wm_feedback_cache_'+token; }
+var CACHE_MAX_AGE_MS = 24*60*60*1000;
+
+function loadCachedName(token){
+  try{
+    var raw = localStorage.getItem(cacheKey(token));
+    if(!raw) return null;
+    var parsed = JSON.parse(raw);
+    if(!parsed || !parsed.savedAt || !parsed.name) return null;
+    if(Date.now()-parsed.savedAt > CACHE_MAX_AGE_MS){ localStorage.removeItem(cacheKey(token)); return null; }
+    return parsed.name;
+  }catch(e){ return null; }
+}
+function saveCachedName(token, name){
+  try{ localStorage.setItem(cacheKey(token), JSON.stringify({savedAt:Date.now(), name:name})); }catch(e){}
+}
+
 async function init(){
   token=qs('id');
   if(!token){ renderError('Invalid Link','This link is missing required information. Please ask your advisor for a new link.'); return; }
+
+  var cached = loadCachedName(token);
+  if(cached){
+    clientName = cached;
+    renderForm();
+  }
+
   var res=await apiPost({action:'getFeedbackClientName', token:token});
   if(!res || res.success===false || !res.name){
-    renderError('Link Not Found','This link may have expired or is invalid. Please contact your advisor for a fresh link.');
+    if(!cached){
+      renderError('Link Not Found','This link may have expired or is invalid. Please contact your advisor for a fresh link.');
+    }
     return;
   }
   clientName=res.name;
-  renderForm();
+  saveCachedName(token, clientName);
+  if(!cached) renderForm();
 }
 
 function renderForm(){

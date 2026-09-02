@@ -473,12 +473,41 @@ async function fetchWithRetry(url, attempts, timeoutMs){
   throw lastErr;
 }
 
+function cacheKey(token){ return 'wm_upload_cache_'+token; }
+var CACHE_MAX_AGE_MS = 24*60*60*1000; // matches the same 24hr precedent used elsewhere on this page
+
+function loadCachedClient(token){
+  try{
+    var raw = localStorage.getItem(cacheKey(token));
+    if(!raw) return null;
+    var parsed = JSON.parse(raw);
+    if(!parsed || !parsed.savedAt || !parsed.client) return null;
+    if(Date.now()-parsed.savedAt > CACHE_MAX_AGE_MS){ localStorage.removeItem(cacheKey(token)); return null; }
+    return parsed.client;
+  }catch(e){ return null; }
+}
+function saveCachedClient(token, c){
+  try{ localStorage.setItem(cacheKey(token), JSON.stringify({savedAt:Date.now(), client:c})); }catch(e){}
+}
+
 async function init(){
   var token = qs('id');
   if(!token){
     renderError('Invalid link', 'This upload link is missing information. Please ask your advisor to resend it.');
     return;
   }
+
+  // Instant render from cache — genuinely useful on a repeat visit (e.g.
+  // coming back to add more documents), matching crm.html's own "show
+  // cached first, verify in background" pattern rather than always
+  // spinning through a fresh network round-trip before anything appears.
+  var cached = loadCachedClient(token);
+  if(cached){
+    client = cached;
+    renderSlots();
+    markExistingUploads();
+  }
+
   try{
     // Retries once automatically — Apps Script can be slow or briefly fail on
     // the very first request after a period of inactivity (a "cold start").
@@ -487,13 +516,29 @@ async function init(){
     var j = await fetchWithRetry(SCRIPT_URL + '?action=resolveUploadToken&token=' + encodeURIComponent(token) + '&t=' + Date.now(), 2);
     if(j && j.found){
       client = { name:j.name, mobile:j.mobile, pan:j.pan, folderId:j.folderId||'', recordId:j.recordId||'', recordType:j.recordType||'client' };
+      saveCachedClient(token, client);
       renderSlots();
       markExistingUploads();
-    } else {
+    } else if(!cached){
+      // Only shown if nothing was cached — a cached render already visible
+      // stays up rather than being replaced by an error on a transient miss.
+      renderError('Link not found', 'This link is invalid or has expired. Please contact your advisor for a new one.');
+    } else if(j && j.found===false){
+      // The cache showed content, but the server has now explicitly said
+      // this token is no longer valid (revoked/expired) — a stale local
+      // cache must not keep a client looking at data they shouldn't. This
+      // replaces the already-shown content with the real error.
+      localStorage.removeItem(cacheKey(token));
       renderError('Link not found', 'This link is invalid or has expired. Please contact your advisor for a new one.');
     }
   }catch(e){
-    renderError('Connection problem', 'Could not reach the server. Please check your internet connection and reopen this link.');
+    if(!cached){
+      renderError('Connection problem', 'Could not reach the server. Please check your internet connection and reopen this link.');
+    }
+    // If something was cached, a background refresh failure is silent —
+    // the client already sees their (possibly slightly stale) form and can
+    // still act on it; there's no reason to interrupt them with an error
+    // for a background check that simply couldn't complete this time.
   }
 }
 

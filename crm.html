@@ -507,7 +507,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <span style="font-size:10px;font-weight:900;color:#000">WM</span>
     </div>
     <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Wealth Matrix CRM</span>
-    <span id="global-user-label" style="font-size:9px;color:var(--t3);flex-shrink:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Logged in as —</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
     <button id="global-refresh-btn" onclick="manualTopBarRefresh()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Refresh">
@@ -562,7 +561,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <!-- DASHBOARD -->
 <div class="page active" id="pg-dash">
   <div class="ph">
-    <div><h1>Dash</h1></div>
+    <div><h1>Dash</h1><div id="dash-welcome" style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--t2);margin-top:2px"></div></div>
   </div>
 
   <!-- 4 count tiles: 2x2 grid -->
@@ -593,19 +592,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div id="dash-funnel" style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px"></div>
   </div>
 
-  <!-- Today's Activity — follow-ups, events, SIP/review/anniversary/birthdays due today, all clubbed. Made visually prominent: bordered accent card, bigger than the sections below. -->
+  <!-- Today's Activity — follow-ups, events, SIP/review/anniversary/birthdays due today, tasks due/overdue, all clubbed. Made visually prominent: bordered accent card, bigger than the sections below. -->
   <div class="sec">
     <div style="background:var(--accent2);border:1.5px solid var(--accent);border-radius:14px;padding:14px 12px 10px">
       <div class="lbl" style="color:var(--accent);margin-bottom:8px">📋 Today's Activity</div>
       <div id="dash-alert" style="display:none"></div>
       <div id="dash-todays-activity"></div>
     </div>
-  </div>
-
-  <!-- Quick Reminders — "Actions Pending" -->
-  <div class="sec" id="dash-actions-pending-wrap" style="display:none">
-    <div class="lbl" style="color:var(--accent)">⏰ Actions Pending</div>
-    <div id="dash-actions-pending"></div>
   </div>
 
   <!-- Week Follow-up Planner -->
@@ -843,7 +836,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="ph">
     <div><h1>AI Insights</h1><div class="sub">Ask your practice anything</div></div>
   </div>
-  <div id="chat-messages" style="padding:4px 14px 100px">
+  <div id="chat-messages" style="padding:4px 14px 160px">
     <div id="chat-empty-state">
       <div style="text-align:center;padding:34px 10px 18px">
         <div style="font-size:34px;margin-bottom:10px">💬</div>
@@ -2167,6 +2160,7 @@ function renderClients(){
           +'<span style="font-size:15px;font-weight:800;color:var(--text);display:flex;align-items:center;flex-wrap:wrap;gap:4px;min-width:0;overflow:hidden">'
             +'<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+toTitle(c.name)+'</span>'
             +(c.familyName?'<span style="font-size:9px;color:var(--t2);background:var(--s2);border:1px solid var(--border);border-radius:999px;padding:1px 6px;font-weight:600;flex-shrink:0">👪 '+c.familyName+'</span>':'')
+            +(c.userId?'<span style="font-size:9px;color:var(--t2);background:var(--s2);border:1px solid var(--border);border-radius:999px;padding:1px 6px;font-weight:600;flex-shrink:0">👤 '+esc(c.userId)+'</span>':'')
             +(c.folderId?'<span style="font-size:9px;color:var(--green);font-weight:700;flex-shrink:0">📁 Docs uploaded</span>':'')
           +'</span>'
           +'<select onclick="event.stopPropagation()" onchange="event.stopPropagation();updateClientField(\''+cId+'\',\'stage\',this.value);this.blur();" style="font-size:9px;font-weight:700;color:'+stageCol+';background:var(--bg);border:1px solid '+stageCol+';border-radius:99px;padding:2px 6px;white-space:nowrap;flex-shrink:0;max-width:118px">'
@@ -2265,12 +2259,6 @@ function openDetail(mob,type,nameHint){
     + '<div style="font-size:28px;font-weight:900;color:var(--green);line-height:1">'+clientD+'</div>'
     + '<div style="font-size:10px;color:var(--t3);text-transform:uppercase;font-weight:700;letter-spacing:.4px;margin-top:2px">days since connected · Client since '+fmt(c.convertedDate||c.createdDate||'')+'</div>'
     + '</div></div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;padding:10px 14px 6px">'
-    + '<div data-aiwa="'+mob+'" class="cd-btn cd-wa"><span class="cd-icon">💬</span><span>WhatsApp</span></div>'
-    + '<div data-tel="'+c.mobile+'" class="cd-btn cd-call"><span class="cd-icon">📞</span><span>Call</span></div>'
-    + '<div data-meet="'+mob+'" class="cd-btn cd-meet"><span class="cd-icon">🎥</span><span>Meet</span></div>'
-    + '<div data-mail="'+(c.email||'')+'" data-mailname="'+toTitle(c.name)+'" class="cd-btn cd-mail"><span class="cd-icon">✉️</span><span>Email</span></div>'
-    + '</div>'
     + '<div style="padding:0 14px 8px"><div style="background:var(--s2);border-radius:9px;padding:10px 12px">'
     + '<div style="font-size:9px;color:var(--accent);font-weight:700;letter-spacing:.5px;margin-bottom:7px">DETAILS</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;font-size:11px">'
@@ -2284,6 +2272,25 @@ function openDetail(mob,type,nameHint){
     + '<div style="color:var(--t3)">Broadcast</div><div style="color:'+(c.broadcastAdded?'#25D366':'var(--red)')+';text-align:right;font-weight:700">'+(c.broadcastAdded?'✓ Yes':'✗ No')+'</div>'
     + '</div></div></div>'
     + '<div style="padding:0 14px 8px">'
+    + '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.5px;margin-bottom:6px">QUICK LINKS</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px 4px">'
+    + '<div data-aiwa="'+mob+'" class="qwa-btn qwa-green"><span class="qwa-ico">💬</span><span class="qwa-lbl">WhatsApp</span></div>'
+    + '<div data-tel="'+c.mobile+'" class="qwa-btn qwa-blue"><span class="qwa-ico">📞</span><span class="qwa-lbl">Call</span></div>'
+    + '<div data-meet="'+mob+'" class="qwa-btn qwa-purple"><span class="qwa-ico">🎥</span><span class="qwa-lbl">Meet</span></div>'
+    + '<div data-mail="'+(c.email||'')+'" data-mailname="'+toTitle(c.name)+'" class="qwa-btn qwa-amber"><span class="qwa-ico">✉️</span><span class="qwa-lbl">Email</span></div>'
+    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'app\',\'📲 Share App Link\')" class="qwa-btn qwa-green"><span class="qwa-ico">📲</span><span class="qwa-lbl">Share App<br>Link</span></button>'
+    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'cas\',\'📊 Send CAMS CAS\')" class="qwa-btn qwa-blue"><span class="qwa-ico">📊</span><span class="qwa-lbl">CAMS CAS</span></button>'
+    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'welcome\',\'👋 Send Welcome Message\')" class="qwa-btn qwa-green"><span class="qwa-ico">👋</span><span class="qwa-lbl">Welcome</span></button>'
+    + '<button data-uploadlink="'+mob+'" class="qwa-btn qwa-amber"><span class="qwa-ico">📤</span><span class="qwa-lbl">Upload</span></button>'
+    + '<button onclick="startMeetingInsight(\''+mob+'\')" class="qwa-btn qwa-purple"><span class="qwa-ico">🧠</span><span class="qwa-lbl">Meeting<br>Insights</span></button>'
+    + '<button onclick="sendGatherInfoLinkWA(\''+mob+'\')" class="qwa-btn qwa-teal"><span class="qwa-ico">📝</span><span class="qwa-lbl">Gather<br>Info</span></button>'
+    + '<button onclick="sendFinDocLinkWA(\''+mob+'\')" class="qwa-btn qwa-amber"><span class="qwa-ico">🗂️</span><span class="qwa-lbl">FinDoc</span></button>'
+    + '<button onclick="showFeedbackChoicePopup(\''+mob+'\')" class="qwa-btn qwa-green"><span class="qwa-ico">💬</span><span class="qwa-lbl">Feedback</span></button>'
+    + '<button onclick="startClientReviewReport(\''+mob+'\')" class="qwa-btn qwa-blue"><span class="qwa-ico">💌</span><span class="qwa-lbl">Review Report</span></button>'
+    + '</div>'
+    + '<div id="meeting-insight-body-'+mob+'" style="display:none;padding-top:8px"></div>'
+    + '</div>'
+    + '<div style="padding:0 14px 8px">'
     + '<div onclick="toggleChipDocs(\''+mob+'\')" style="background:var(--s2);border-radius:9px;padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">'
     + '<span style="font-size:9px;color:var(--accent);font-weight:700;letter-spacing:.5px">📁 DOCUMENTS</span>'
     + '<span id="chip-docs-arrow" style="font-size:11px;color:var(--t3)">▾</span>'
@@ -2296,21 +2303,6 @@ function openDetail(mob,type,nameHint){
     + '<span id="chip-data-arrow" style="font-size:11px;color:var(--t3)">▾</span>'
     + '</div>'
     + '<div id="chip-data-body" style="display:none;padding-top:6px"></div>'
-    + '</div>'
-    + '<div style="padding:0 14px 8px">'
-    + '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.5px;margin-bottom:6px">QUICK LINKS</div>'
-    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px 4px">'
-    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'app\',\'📲 Share App Link\')" class="qwa-btn qwa-green"><span class="qwa-ico">📲</span><span class="qwa-lbl">Share App<br>Link</span></button>'
-    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'cas\',\'📊 Send CAMS CAS\')" class="qwa-btn qwa-blue"><span class="qwa-ico">📊</span><span class="qwa-lbl">CAMS CAS</span></button>'
-    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'welcome\',\'👋 Send Welcome Message\')" class="qwa-btn qwa-green"><span class="qwa-ico">👋</span><span class="qwa-lbl">Welcome</span></button>'
-    + '<button data-uploadlink="'+mob+'" class="qwa-btn qwa-amber"><span class="qwa-ico">📤</span><span class="qwa-lbl">Upload</span></button>'
-    + '<button onclick="startMeetingInsight(\''+mob+'\')" class="qwa-btn qwa-purple"><span class="qwa-ico">🧠</span><span class="qwa-lbl">Meeting<br>Insights</span></button>'
-    + '<button onclick="sendGatherInfoLinkWA(\''+mob+'\')" class="qwa-btn qwa-teal"><span class="qwa-ico">📝</span><span class="qwa-lbl">Gather<br>Info</span></button>'
-    + '<button onclick="sendFinDocLinkWA(\''+mob+'\')" class="qwa-btn qwa-amber"><span class="qwa-ico">🗂️</span><span class="qwa-lbl">FinDoc</span></button>'
-    + '<button onclick="showFeedbackChoicePopup(\''+mob+'\')" class="qwa-btn qwa-green"><span class="qwa-ico">💬</span><span class="qwa-lbl">Feedback</span></button>'
-    + '<button onclick="startClientReviewReport(\''+mob+'\')" class="qwa-btn qwa-blue"><span class="qwa-ico">💌</span><span class="qwa-lbl">Review Report</span></button>'
-    + '</div>'
-    + '<div id="meeting-insight-body-'+mob+'" style="display:none;padding-top:8px"></div>'
     + '</div>'
     + '<div style="padding:0 14px 8px"><div style="background:var(--s2);border-radius:9px;padding:10px 12px">'
     + '<div style="font-size:9px;color:var(--accent);font-weight:700;letter-spacing:.5px;margin-bottom:7px">ACTIVITY LOG</div>'
@@ -2737,32 +2729,6 @@ async function deleteTaskNow(){
     toast('❌ Could not delete: '+(res&&res.error||'unknown error'));
     setTaskButtonsBusy(false, btnDelete, origText);
   }
-}
-
-function renderRemindersPending(){
-  var wrap=document.getElementById('dash-actions-pending-wrap');
-  var el=document.getElementById('dash-actions-pending');
-  if(!wrap||!el) return;
-  var todayStr=today();
-  // Due/overdue tasks only — the full interactive list now lives on the
-  // dedicated Task page; this is just a lightweight "you have X due" pointer.
-  var due=tasks.filter(function(t){
-    return (t.status||'').toUpperCase()!=='FINISHED' && (t.dueDate||'') && t.dueDate<=todayStr;
-  }).sort(function(a,b){ return (a.dueDate||'').localeCompare(b.dueDate||''); });
-  if(!due.length){ wrap.style.display='none'; return; }
-  wrap.style.display='block';
-  el.innerHTML=due.slice(0,4).map(function(t){
-    var overdueTag = t.dueDate < todayStr
-      ? '<span style="color:var(--red);font-weight:700">Overdue \u2014 '+fmt(t.dueDate)+'</span>'
-      : 'Due today';
-    return '<div onclick="openOverdueTaskFromDash(\''+t.taskId+'\')" style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:var(--s1);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer">'
-      +'<div style="flex:1;min-width:0">'
-      +'<div style="font-size:12px;color:var(--text);line-height:1.4">'+(t.name?toTitle(t.name):t.taskDetails.slice(0,40))+'</div>'
-      +'<div style="font-size:10px;color:var(--t3);margin-top:3px">'+(t.name?t.taskDetails:'')+' \u00B7 '+overdueTag+'</div>'
-      +'</div>'
-      +'</div>';
-  }).join('')
-  +(due.length>4?'<div onclick="nav(\'tasks\',document.getElementById(\'nav-tasks\'))" style="text-align:center;padding:8px;font-size:11px;color:var(--accent);cursor:pointer;font-weight:700">View all '+due.length+' in Task menu \u203A</div>':'');
 }
 
 // Deep-links from the Dashboard's overdue-task card straight into that
@@ -3226,7 +3192,9 @@ async function scriptGet(tab,retries){
   retries=retries||2;
   for(var attempt=1;attempt<=retries;attempt++){
     try{
-      var url=cfg_.scriptUrl+'?tab='+encodeURIComponent(tab)+'&t='+Date.now();
+      var _session=getSession();
+      var _sessionParam=_session&&_session.sessionToken?('&session='+encodeURIComponent(_session.sessionToken)):'';
+      var url=cfg_.scriptUrl+'?tab='+encodeURIComponent(tab)+_sessionParam+'&t='+Date.now();
       var fetchPromise=fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
       var timeoutPromise=new Promise(function(_,rej){setTimeout(function(){rej(new Error('Timeout'));},10000);});
       var json=await Promise.race([fetchPromise,timeoutPromise]);
@@ -3239,6 +3207,8 @@ async function scriptGet(tab,retries){
 // ROBUST WRITE — uses same fetch pattern as scriptGet (follows 302 redirects, awaits response)
 async function sheetWrite(data, timeoutMs){
   if(!hasScript()) return {error:'no script url'};
+  var _wSession=getSession();
+  if(_wSession && _wSession.sessionToken && !data.session) data=Object.assign({}, data, {session:_wSession.sessionToken});
   var url = cfg_.scriptUrl;
   var effectiveTimeout = timeoutMs || 30000; // default 30s — generous for normal writes, but never "forever"
   var controller = (typeof AbortController!=='undefined') ? new AbortController() : null;
@@ -3572,7 +3542,6 @@ function nav(name,btn){
     var sb2=document.getElementById('shared-search-bar');
     if(sb2){sb2.style.display='none';var si2=document.getElementById('shared-search');if(si2){si2.value='';si2.placeholder='Search clients…';}}
     renderClients(); setTimeout(addSearchClose,100);
-    setTimeout(checkStaleAumPopup, 400); // potential-AUM stale contact alert
   }
   if(name==='settings'){
     var sb5=document.getElementById('shared-search-bar'); if(sb5) sb5.style.display='none';
@@ -3943,7 +3912,7 @@ function renderLeads(){
     return '<div class="li'+(sel?' selected':'')+'" onclick="'+(bulkMode?'toggleSelect(\''+l.mobile+'\')':'openDetail(\''+lId+'\',\'lead\',\''+encodeURIComponent(l.name||'')+'\')')+'">'
       +(bulkMode?'<div style="width:20px;height:20px;border-radius:50%;border:2px solid var(--accent);background:'+(sel?'var(--accent)':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:8px">'+(sel?'<svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M20 6L9 17l-5-5"/></svg>':'')+'</div>':'')
       +'<div class="av">'+ini(l.name)+'</div>'
-      +'<div class="li-info"><div class="li-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:3px">'+toTitle(l.name)+(l.familyName?'<span style="font-size:9px;color:var(--t2);background:var(--s2);border:1px solid var(--border);border-radius:999px;padding:1px 6px;font-weight:600">👪 '+l.familyName+'</span>':'')+(l.folderId?'<span style="font-size:9px;color:var(--green);font-weight:700">📁 Docs uploaded</span>':'')+' <span style="font-size:11px">'+leadHeat(leadScore(l)).emoji+'</span>'+badge+aumTag+potAumTag+'</div>'
+      +'<div class="li-info"><div class="li-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:3px">'+toTitle(l.name)+(l.familyName?'<span style="font-size:9px;color:var(--t2);background:var(--s2);border:1px solid var(--border);border-radius:999px;padding:1px 6px;font-weight:600">👪 '+l.familyName+'</span>':'')+(l.userId?'<span style="font-size:9px;color:var(--t2);background:var(--s2);border:1px solid var(--border);border-radius:999px;padding:1px 6px;font-weight:600">👤 '+esc(l.userId)+'</span>':'')+(l.folderId?'<span style="font-size:9px;color:var(--green);font-weight:700">📁 Docs uploaded</span>':'')+' <span style="font-size:11px">'+leadHeat(leadScore(l)).emoji+'</span>'+badge+aumTag+potAumTag+'</div>'
       +'<div class="li-meta">'+(l.mobile||'')+(l.age?' · 🎂'+l.age:'')+(l.country?' · '+l.country:'')+'</div>'
       +((l.products||l.nextFollowUp)?'<div class="li-prod" style="display:flex;gap:6px;flex-wrap:wrap">'+(l.products?'<span>'+l.products+'</span>':'')+(l.nextFollowUp&&/^\d{4}-\d{2}-\d{2}$/.test(l.nextFollowUp)?'<span style="color:var(--accent)">📅 '+fmt(l.nextFollowUp)+'</span>':'')+'</div>':'')
       +(lastRem?'<div style="font-size:10px;color:var(--t3);margin-top:2px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">📝 '+lastRem+'</div>':'')
@@ -3951,7 +3920,7 @@ function renderLeads(){
       +'<div class="li-right"><span class="pill '+scls(l.status)+'">'+(l.status||'').charAt(0)+(l.status||'').slice(1).toLowerCase()+'</span><span class="days'+(hot?' hot':'')+'">'+(d===0?'Today':d+'d ago')+'</span></div>'
       +'</div>';
   }).join(''):'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">No leads found</div></div>';
-  if(clientResults.length){html+='<div style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;background:var(--s2)">Clients ('+clientResults.length+')</div>';html+=clientResults.map(function(c){var cId=c.recordId||c.mobile;return '<div class="ci" onclick="openDetail(\''+cId+'\',\'client\',\''+encodeURIComponent(c.name||'')+'\')"><div class="ci-av">'+ini(c.name)+'</div><div class="li-info"><div class="li-name">'+toTitle(c.name)+(c.familyName?' <span style="font-size:9px;color:var(--t2)">👪 '+c.familyName+'</span>':'')+'</div><div class="li-meta">'+c.mobile+'</div></div><div class="li-right"><span style="font-size:9px;color:var(--green);font-weight:700">CLIENT</span></div></div>';}).join('');}
+  if(clientResults.length){html+='<div style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;background:var(--s2)">Clients ('+clientResults.length+')</div>';html+=clientResults.map(function(c){var cId=c.recordId||c.mobile;return '<div class="ci" onclick="openDetail(\''+cId+'\',\'client\',\''+encodeURIComponent(c.name||'')+'\')"><div class="ci-av">'+ini(c.name)+'</div><div class="li-info"><div class="li-name">'+toTitle(c.name)+(c.familyName?' <span style="font-size:9px;color:var(--t2)">👪 '+c.familyName+'</span>':'')+(c.userId?' <span style="font-size:9px;color:var(--t2)">👤 '+esc(c.userId)+'</span>':'')+'</div><div class="li-meta">'+c.mobile+'</div></div><div class="li-right"><span style="font-size:9px;color:var(--green);font-weight:700">CLIENT</span></div></div>';}).join('');}
   var ll=document.getElementById('lead-list');if(ll)ll.innerHTML=html;
 }
 
@@ -4595,7 +4564,6 @@ function renderCountryLeadsChart(){
 
 // ── OVERRIDE renderDash to include country leads chart + last sync ──
 function renderDash(){
-  renderRemindersPending();
   // Last sync
   var lsEl=document.getElementById('last-sync-time');
   if(lsEl&&cfg_.lastSyncDisplay) lsEl.textContent='Last sync: '+cfg_.lastSyncDisplay;
@@ -5305,7 +5273,6 @@ async function bootSequenceV17(){
     // dashboard's first real render is guaranteed to already include calendar
     // events and analytics data, instead of racing a background update in later.
     await Promise.all([pullAnalytics(),pullSpecialDays(),pullCalendarEvents(),pullTasks()]);
-    checkForNewInsight(); // shows an in-app popup if a new AI insight has been generated since last seen
 
     // Seed Special Days sheet if empty (one-time, background — genuinely OK to
     // leave un-awaited since it never affects what's displayed on this render)
@@ -6177,40 +6144,6 @@ async function _mfYesClick(){
 // ── In-app "new insight" notification. Checks the Insights sheet for an entry
 // newer than the last one the advisor has actually seen (tracked locally),
 // and shows a popup right when the app is opened — no email needed. ──
-async function checkForNewInsight(){
-  if(!hasScript()) return;
-  try{
-    var res=await scriptGet('Insights', 1);
-    if(!res || !res.rows || res.rows.length<2) return;
-    var latest=res.rows[res.rows.length-1]; // [date, insight]
-    var latestStamp=latest[0]||'';
-    var isError=String(latest[1]||'').indexOf('ERROR:')===0;
-    if(!latestStamp || isError) return;
-    var lastSeen=localStorage.getItem('wm_last_seen_insight')||'';
-    if(latestStamp===lastSeen) return; // already seen this one
-    showNewInsightPopup(latestStamp, latest[1]);
-  }catch(e){ console.warn('checkForNewInsight failed:', e.message); }
-}
-function showNewInsightPopup(stamp, text){
-  localStorage.setItem('wm_last_seen_insight', stamp); // mark seen now — won't nag again for this one
-  var ov=document.createElement('div');
-  ov.id='new-insight-ov';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px';
-  var preview=text.length>220?text.slice(0,220)+'…':text;
-  ov.innerHTML='<div style="background:var(--s1);border-radius:14px;width:100%;max-width:360px;overflow:hidden;border:1px solid var(--accent)">'
-    +'<div style="padding:18px 18px 4px;text-align:center">'
-    +'<div style="font-size:32px;margin-bottom:8px">🤖</div>'
-    +'<div style="font-size:14px;font-weight:800;color:var(--accent);margin-bottom:4px">New AI Insight</div>'
-    +'<div style="font-size:10px;color:var(--t3);margin-bottom:10px">'+stamp+'</div>'
-    +'</div>'
-    +'<div style="padding:0 18px 16px;font-size:12px;color:var(--text);line-height:1.6;white-space:pre-wrap">'+preview+'</div>'
-    +'<div style="display:flex;border-top:1px solid var(--border)">'
-    +'<button onclick="document.getElementById(\'new-insight-ov\').remove()" style="flex:1;padding:13px;border:none;background:none;color:var(--t2);cursor:pointer;font-size:13px;border-right:1px solid var(--border)">Dismiss</button>'
-    +'<button onclick="document.getElementById(\'new-insight-ov\').remove();nav(\'analytics\',document.getElementById(\'nav-analytics\'))" style="flex:1;padding:13px;border:none;background:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:13px">View Full →</button>'
-    +'</div></div>';
-  document.body.appendChild(ov);
-}
-
 async function loadInsightsHistory(){
   var histEl=document.getElementById('insights-history');
   var resultEl=document.getElementById('insights-result');
@@ -6302,7 +6235,7 @@ function confirmAndLoadInsights(){
     window._chatUnlocked=true;
     var bar=document.getElementById('chat-input-bar'); if(bar) bar.style.display='flex';
     startChatPlaceholderCycle();
-    startChatChipCarousel();
+    setTimeout(startChatChipCarousel, 3000); // suggested questions flash in after a brief pause, not instantly
   };
 }
 
@@ -6352,7 +6285,10 @@ var chatQuestionPool=[
   {label:'Highest-value opportunities', q:'Where are my biggest opportunities right now, combining lead value and urgency?'},
   {label:'How\u2019s my practice doing?', q:'Give me an honest, high-level read on how the practice is doing right now.'},
   {label:'Best lead source', q:'Which lead source is actually converting best for me?'},
-  {label:'Recently converted', q:'Who converted from lead to client most recently, and how did that journey go?'}
+  {label:'Recently converted', q:'Who converted from lead to client most recently, and how did that journey go?'},
+  {label:'Last week in review', q:'Brief me on what happened last week — key activity, progress, and anything that needs follow-up.'},
+  {label:'What\u2019s my team doing', q:'What has each team member been working on recently, based on who logged each activity?'},
+  {label:'Focus for today', q:'Based on everything due, overdue, and recently active, what should I actually focus on today?'}
 ];
 var _chatChipsStopped=false;
 var _chatChipTimer=null;
@@ -6499,6 +6435,62 @@ function askQuickChat(question){
   sendChatMessage();
 }
 
+// Scrolls the chat container to its true bottom — NOT via bubble.scrollIntoView,
+// which targets the raw viewport edge with no awareness that the fixed input
+// bar overlaps that same area. scrollHeight already includes the container's
+// own bottom padding (sized to clear the input bar), so this correctly leaves
+// the newest content fully visible above it, not hidden behind it.
+function scrollChatToBottom(){
+  var container=document.getElementById('chat-messages');
+  if(!container) return;
+  container.scrollTo({top: container.scrollHeight, behavior:'smooth'});
+}
+
+// ── Lightweight Markdown → HTML for AI chat replies. Escapes the raw text
+// FIRST, then applies formatting on top of the already-safe result — bold,
+// script tags, anything the model outputs is neutralized before any HTML is
+// ever introduced, so this carries no more XSS risk than plain text did. ──
+function renderMarkdownLite(text){
+  var escaped = esc(text);
+  escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  var blocks = escaped.split(/\n\n+/);
+  var html = blocks.map(function(block){
+    var lines = block.split('\n').filter(function(l){ return l.trim()!==''; });
+    if(!lines.length) return '';
+    // Line-by-line grouping — a label line followed by bullets in the same
+    // block (a very common real pattern) still renders the bullets
+    // properly, rather than requiring every line in the block to match.
+    var out = '';
+    var i = 0;
+    while(i < lines.length){
+      var line = lines[i].trim();
+      if(/^[-•]\s+/.test(line)){
+        var items = [];
+        while(i < lines.length && /^[-•]\s+/.test(lines[i].trim())){
+          items.push('<li>'+lines[i].trim().replace(/^[-•]\s+/,'')+'</li>');
+          i++;
+        }
+        out += '<ul style="margin:4px 0 8px;padding-left:16px">'+items.join('')+'</ul>';
+      } else if(/^\d+\.\s+/.test(line)){
+        var items2 = [];
+        while(i < lines.length && /^\d+\.\s+/.test(lines[i].trim())){
+          items2.push('<li>'+lines[i].trim().replace(/^\d+\.\s+/,'')+'</li>');
+          i++;
+        }
+        out += '<ol style="margin:4px 0 8px;padding-left:16px">'+items2.join('')+'</ol>';
+      } else if(/^###\s+/.test(line)){
+        out += '<div style="font-weight:800;color:var(--accent);font-size:12px;margin:6px 0 3px">'+line.replace(/^###\s+/,'')+'</div>';
+        i++;
+      } else {
+        out += '<div style="margin:0 0 4px">'+line+'</div>';
+        i++;
+      }
+    }
+    return out;
+  }).join('');
+  return html;
+}
+
 function appendChatBubble(role, text){
   var container=document.getElementById('chat-messages');
   if(!container) return;
@@ -6515,36 +6507,61 @@ function appendChatBubble(role, text){
     // range of what can be asked. Only the LATEST reply's row ever rotates —
     // starting this one automatically stops whichever reply was rotating before.
     var chipRowId='chat-followup-'+Date.now();
-    bubble.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);color:var(--text);border-radius:14px 14px 14px 3px;padding:10px 13px;font-size:13px;max-width:85%;line-height:1.6;white-space:pre-wrap">'+esc(text)+'</div>'
+    bubble.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);color:var(--text);border-radius:14px 14px 14px 3px;padding:10px 13px;font-size:13px;max-width:85%;line-height:1.6">'+renderMarkdownLite(text)+'</div>'
       +'<div id="'+chipRowId+'" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-width:95%;min-height:26px"></div>';
   }
   container.appendChild(bubble);
-  setTimeout(function(){ bubble.scrollIntoView({behavior:'smooth', block:'end'}); }, 50);
+  setTimeout(scrollChatToBottom, 50);
   if(role==='assistant' && typeof chipRowId!=='undefined'){ startFollowUpChipRotation(chipRowId); }
   return bubble;
 }
 
+var chatThinkingStages=[
+  '🤔 Thinking…',
+  '🧠 Applying logic…',
+  '📊 Checking the data…',
+  '🔗 Connecting the dots…',
+  '✍️ Putting it together…'
+];
+var _chatThinkingTimer=null;
 function appendTypingIndicator(){
   var container=document.getElementById('chat-messages');
   if(!container) return;
-  if(!document.getElementById('typing-dots-style')){
-    var style=document.createElement('style');
-    style.id='typing-dots-style';
-    style.textContent='@keyframes chatTypingBounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}';
-    document.head.appendChild(style);
-  }
   var bubble=document.createElement('div');
   bubble.id='chat-typing-indicator';
   bubble.style.cssText='display:flex;justify-content:flex-start;margin-bottom:10px';
-  bubble.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-radius:14px 14px 14px 3px;padding:13px 16px;display:flex;gap:4px;align-items:center">'
-    +'<span style="width:6px;height:6px;border-radius:50%;background:var(--t2);display:inline-block;animation:chatTypingBounce 1.2s infinite;animation-delay:0s"></span>'
-    +'<span style="width:6px;height:6px;border-radius:50%;background:var(--t2);display:inline-block;animation:chatTypingBounce 1.2s infinite;animation-delay:.2s"></span>'
-    +'<span style="width:6px;height:6px;border-radius:50%;background:var(--t2);display:inline-block;animation:chatTypingBounce 1.2s infinite;animation-delay:.4s"></span>'
+  bubble.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);border-radius:14px 14px 14px 3px;padding:12px 16px;display:flex;gap:9px;align-items:center;max-width:85%">'
+    +'<span style="width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;flex-shrink:0;animation:chatTypingSpin .8s linear infinite"></span>'
+    +'<span id="chat-typing-text" style="font-size:12.5px;color:var(--t2);transition:opacity .25s ease">'+chatThinkingStages[0]+'</span>'
     +'</div>';
   container.appendChild(bubble);
-  setTimeout(function(){ bubble.scrollIntoView({behavior:'smooth', block:'end'}); }, 50);
+  setTimeout(scrollChatToBottom, 50);
+
+  if(!document.getElementById('chat-typing-spin-style')){
+    var style=document.createElement('style');
+    style.id='chat-typing-spin-style';
+    style.textContent='@keyframes chatTypingSpin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(style);
+  }
+
+  var stageIdx=0;
+  function cycleStage(){
+    var textEl=document.getElementById('chat-typing-text');
+    if(!textEl) return; // indicator was removed — stop cycling
+    stageIdx=(stageIdx+1)%chatThinkingStages.length;
+    textEl.style.opacity='0';
+    setTimeout(function(){
+      var el=document.getElementById('chat-typing-text');
+      if(!el) return; // removed mid-fade — bail out cleanly
+      el.innerHTML=chatThinkingStages[stageIdx];
+      el.style.opacity='1';
+    }, 250);
+    _chatThinkingTimer=setTimeout(cycleStage, 1400);
+  }
+  _chatThinkingTimer=setTimeout(cycleStage, 1400);
 }
 function removeTypingIndicator(){
+  if(_chatThinkingTimer){ clearTimeout(_chatThinkingTimer); _chatThinkingTimer=null; }
   var el=document.getElementById('chat-typing-indicator');
   if(el) el.remove();
 }
@@ -6576,7 +6593,7 @@ function appendSearchingIndicator(){
     +'<span id="chat-searching-elapsed" style="font-size:10.5px;color:var(--t3);font-variant-numeric:tabular-nums;flex-shrink:0">0s</span>'
     +'</div>';
   container.appendChild(bubble);
-  setTimeout(function(){ bubble.scrollIntoView({behavior:'smooth', block:'end'}); }, 50);
+  setTimeout(scrollChatToBottom, 50);
 
   if(!document.getElementById('chat-search-spin-style')){
     var style=document.createElement('style');
@@ -7538,16 +7555,16 @@ function checkURLParams(){
 
 document.getElementById('ov-detail').addEventListener('click',function(e){
   if(e.target.closest('[data-aiwa]')){ draftClientWAMessage(e.target.closest('[data-aiwa]').dataset.aiwa); }
-  if(e.target.closest('.cd-call')){var tel=e.target.closest('.cd-call').dataset.tel;if(tel)window.open('tel:'+tel,'_blank');}
-  if(e.target.closest('.cd-meet')){
-    var mm=e.target.closest('.cd-meet').dataset.meet;
+  if(e.target.closest('[data-tel]')){var tel=e.target.closest('[data-tel]').dataset.tel;if(tel)window.open('tel:'+tel,'_blank');}
+  if(e.target.closest('[data-meet]')){
+    var mm=e.target.closest('[data-meet]').dataset.meet;
     if(mm){
       window.open('https://meet.google.com/new','_blank'); // opens Google Meet — creates an instant meeting
       logActivity(mm,'client','Google Meet started','');
     }
   }
-  if(e.target.closest('.cd-mail')){
-    var mailBtn=e.target.closest('.cd-mail');
+  if(e.target.closest('[data-mail]')){
+    var mailBtn=e.target.closest('[data-mail]');
     var mailTo=mailBtn.dataset.mail;
     var mailName=mailBtn.dataset.mailname||'';
     if(mailTo){
@@ -8443,76 +8460,6 @@ function setClientSort(field){
 
 // ── Find clients with Potential AUM who haven't been contacted in 14+ days ──
 // "Last contacted" = most recent activity log entry date, falls back to convertedDate
-function getStaleAumClients(){
-  var cutoffDays=14;
-  var result=[];
-  clients.forEach(function(c){
-    var potAum=parseFloat((c.potentialAum||'').toString().replace(/[^0-9.]/g,''))||0;
-    if(potAum<=0) return; // no potential AUM on file
-    var log=getActivity(c.mobile,'client');
-    var lastDateStr = log.length ? log[log.length-1].ts : (c.convertedDate||c.createdDate||'');
-    if(!lastDateStr) return;
-    var lastDate=new Date(lastDateStr);
-    if(isNaN(lastDate)) return;
-    var days=Math.floor((new Date()-lastDate)/86400000);
-    if(days>=cutoffDays){
-      result.push({client:c, days:days, potAum:c.potentialAum});
-    }
-  });
-  return result.sort(function(a,b){return b.days-a.days;});
-}
-
-// ── Show a one-time popup per day if stale-potential-AUM clients exist ──
-function checkStaleAumPopup(){
-  var stale=getStaleAumClients();
-  if(!stale.length) return;
-  var shownKey='wm_staleaum_'+today();
-  if(localStorage.getItem(shownKey)) return; // already shown today
-  localStorage.setItem(shownKey,'1');
-
-  var topClient=stale[0];
-  var ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px';
-  ov.innerHTML='<div style="background:var(--s1);border-radius:14px;width:100%;max-width:340px;overflow:hidden;border:1px solid var(--accent)">'
-    +'<div style="padding:18px 18px 14px;text-align:center">'
-    +'<div style="font-size:32px;margin-bottom:8px">💰</div>'
-    +'<div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px">Potential Business Alert</div>'
-    +'<div style="font-size:12px;color:var(--t2);line-height:1.5"><b>'+toTitle(topClient.client.name)+'</b> has potential business of <b style="color:var(--accent)">'+(topClient.potAum||'—')+'</b>, not contacted for <b>'+topClient.days+' days</b>.'
-    +(stale.length>1?'<br><br>+'+(stale.length-1)+' more client'+(stale.length>2?'s':'')+' need attention.':'')+'</div>'
-    +'</div>'
-    +'<div style="display:flex;border-top:1px solid var(--border)">'
-    +'<button id="_staleClose" style="flex:1;padding:13px;border:none;background:none;color:var(--t2);cursor:pointer;border-right:1px solid var(--border);font-size:12px">Dismiss</button>'
-    +'<button id="_staleView" style="flex:1;padding:13px;border:none;background:var(--accent);color:#000;font-weight:700;cursor:pointer;font-size:12px">View All ('+stale.length+')</button>'
-    +'</div></div>';
-  document.body.appendChild(ov);
-  document.getElementById('_staleClose').onclick=function(){ov.remove();};
-  document.getElementById('_staleView').onclick=function(){ov.remove();showStaleAumList();};
-}
-
-// ── Full list popup of stale potential-AUM clients ──
-function showStaleAumList(){
-  var stale=getStaleAumClients();
-  var ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
-  var rows=stale.map(function(item){
-    var c=item.client;
-    return '<div onclick="closeStaleList();openDetail(\''+c.mobile+'\',\'client\',\''+encodeURIComponent(c.name||'')+'\')" style="padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;align-items:center">'
-      +'<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+toTitle(c.name)+'</div>'
-      +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+item.days+' days since contact</div></div>'
-      +'<div style="font-size:12px;font-weight:700;color:var(--accent)">'+(item.potAum||'—')+'</div>'
-      +'</div>';
-  }).join('');
-  ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:75vh;display:flex;flex-direction:column">'
-    +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
-    +'<span style="font-size:14px;font-weight:800;color:var(--text)">💰 Potential AUM — Stale Contacts</span>'
-    +'<span id="_staleListClose" style="font-size:18px;color:var(--t2);cursor:pointer">✕</span></div>'
-    +'<div style="overflow-y:auto;flex:1">'+(rows||'<div style="padding:20px;text-align:center;color:var(--t3);font-size:12px">None found</div>')+'</div>'
-    +'</div>';
-  document.body.appendChild(ov);
-  ov.id='_staleListOv';
-  document.getElementById('_staleListClose').onclick=closeStaleList;
-}
-function closeStaleList(){var el=document.getElementById('_staleListOv');if(el)el.remove();}
 
 
 // ── renderReminders — builds the Reminders section in Dashboard ──
@@ -9202,7 +9149,7 @@ async function pullTasks(){
       }).filter(function(t){ return t.name || t.taskDetails; }); // keep any row with real content, ID or not
       tasks = filterTasksForRole(tasks);
       saveTasks();
-      if(typeof renderRemindersPending==='function') renderRemindersPending();
+      if(typeof renderTodaysActivity==='function') renderTodaysActivity();
       if(document.getElementById('pg-tasks') && document.getElementById('pg-tasks').classList.contains('active')) renderTasks();
       // Rows from before the Task ID system existed won't have one yet —
       // backfill them once in the background, then silently re-pull so they
@@ -10324,6 +10271,22 @@ function renderTodaysActivity(){
   // silently prevent every category after it from rendering. Any failure is
   // logged to the console for debugging, and the rest continue normally.
 
+  // ── 0b. Overdue/due tasks — merged into Today's Activity rather than a
+  // separate card below it. Tapping opens the Tasks page with this specific
+  // task's detail already showing, via the existing deep-link helper. ──
+  try{
+    var todayStrForTasks=todayStr;
+    var dueTasks=tasks.filter(function(t){
+      return (t.status||'').toUpperCase()!=='FINISHED' && (t.dueDate||'') && t.dueDate<=todayStrForTasks;
+    }).sort(function(a,b){ return (a.dueDate||'').localeCompare(b.dueDate||''); });
+    if(dueTasks.length){
+      items.push({icon:'✅',color:'var(--orange)',bg:'rgba(230,126,34,.08)',
+        title:'You have '+dueTasks.length+' overdue task'+(dueTasks.length>1?'s':'')+' to complete',
+        sub:dueTasks.slice(0,3).map(function(t){ return t.name?toTitle(t.name):t.taskDetails.slice(0,30); }).join(' · ')+(dueTasks.length>3?' + '+(dueTasks.length-3)+' more':''),
+        list:dueTasks, listType:'tasks'});
+    }
+  }catch(e){ console.warn('Today\'s Activity — Tasks section failed:', e.message); }
+
   // ── 1. Follow-ups today (leads + clients) ──
   try{
     var fd=parseInt(cfg_.followUpDays)||14;
@@ -10400,21 +10363,14 @@ function renderTodaysActivity(){
           return toTitle(c.name)+' ('+dates.join(' & ')+')';
         }).join(' · '),
         list:sipDue, listType:'sip'});
-    } else {
-      // Nothing due — say so explicitly rather than showing nothing at all.
-      // Silence is ambiguous (did the check run? is it broken?); an explicit
-      // all-clear confirms the check actually ran and found nothing.
-      items.push({icon:'💰',color:'var(--blue)',bg:'color-mix(in srgb, var(--blue) 6%, transparent)',
-        title:'No SIP due in the next 5 days',
-        sub:'All clear — nothing to follow up on right now.',
-        list:null, listType:'sipNone'});
     }
   }catch(e){ console.warn('Today\'s Activity — SIP due section failed:', e.message); }
 
-  // ── 4b. SIP debit verification — fires exactly 7 days AFTER the SIP date,
-  // to catch SIPs that bounced (insufficient funds, mandate issues, etc).
-  // e.g. SIP on the 7th → this appears on the 14th. Checks SIP Date 1 and 2
-  // independently, and skips any already confirmed/marked-returned this month. ──
+  // ── 4b. SIP debit verification — fires from 7 days AFTER the SIP date
+  // ONWARDS (not just exactly on day 7), so missing the exact day doesn't
+  // lose the prompt until next month. Stays visible until confirmed/marked
+  // returned. e.g. SIP on the 7th → visible from the 14th, every day after,
+  // until acted on. Checks SIP Date 1 and 2 independently. ──
   try{
     var sipVerify=[];
     clients.forEach(function(c){
@@ -10422,11 +10378,11 @@ function renderTodaysActivity(){
         if(!s.day) return;
         var day=parseInt(s.day);
         if(!day||day<1||day>28) return;
-        // How many days since this month's SIP date? (Exactly 7 = show it.)
+        // How many days since this month's SIP date? (7 or more = show it.)
         var nowD=new Date(); nowD.setHours(0,0,0,0);
         var thisMonthSip=new Date(nowD.getFullYear(), nowD.getMonth(), day);
         var daysSince=Math.round((nowD-thisMonthSip)/86400000);
-        if(daysSince!==7) return;
+        if(daysSince<7) return;
         if(isSipVerified(c.mobile, s.which)) return; // already handled this month
         sipVerify.push({client:c, sipDay:day, which:s.which});
       });
@@ -10540,6 +10496,17 @@ function showTodaysActivityList(idx){
         +'<button class="sipv-returned" data-vi="'+vi+'" style="flex:1;font-size:11px;font-weight:700;padding:7px;border-radius:8px;border:1px solid color-mix(in srgb, var(--red) 40%, transparent);background:color-mix(in srgb, var(--red) 10%, transparent);color:var(--red);cursor:pointer">↩️ Returned SIP</button>'
         +'</div></div>';
     }).join('');
+  } else if(item.listType==='tasks'){
+    rows=item.list.map(function(t){
+      var overdueTag = t.dueDate < todayStr
+        ? '<span style="color:var(--red);font-weight:700">Overdue — '+fmt(t.dueDate)+'</span>'
+        : 'Due today';
+      return '<div class="tal-task-row" data-taskid="'+t.taskId+'" style="display:flex;align-items:flex-start;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer">'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:13px;font-weight:700;color:var(--text)">'+(t.name?toTitle(t.name):t.taskDetails.slice(0,40))+'</div>'
+        +'<div style="font-size:10px;color:var(--t3);margin-top:3px">'+(t.name?t.taskDetails:'')+' · '+overdueTag+'</div>'
+        +'</div></div>';
+    }).join('');
   } else {
     rows=item.list.map(function(c){
       var wn=(c.mobile||'').replace(/\D/g,'');wn=wn.length===10?'91'+wn:wn;
@@ -10594,6 +10561,8 @@ function showTodaysActivityList(idx){
     if(waBtn){ var _wt=waBtn.dataset.rwaq; if(_wt==='review')_wt='cas'; sendWAQuick(waBtn.dataset.rwanum, _wt, waBtn.dataset.rmob); if(_wt==='greet'&&waBtn.dataset.rmob)promptUpdateLastContacted(waBtn.dataset.rmob,'WhatsApp'); return; }
     var row=e.target.closest('.tal-row');
     if(row){ ov.remove(); openDetail(row.dataset.cmob,'client',row.dataset.cname); }
+    var taskRow=e.target.closest('.tal-task-row');
+    if(taskRow){ ov.remove(); openOverdueTaskFromDash(taskRow.dataset.taskid); }
   });
 }
 
@@ -10618,11 +10587,13 @@ async function sha256Hex(text){
 function getSession(){
   try{
     var s=JSON.parse(localStorage.getItem('wm_session')||'null');
-    // A session without both a userId and userType is corrupt, not valid —
-    // it can't be used for role checks or record filtering, and trusting it
-    // means someone sits in a broken half-logged-in state indefinitely.
-    // Treat it as no session at all so they get a clean login screen instead.
-    if(s && (!s.userId || !s.userType)){
+    // A session without userId, userType, AND a real sessionToken is corrupt
+    // or predates this feature — it can't be used for role checks, record
+    // filtering, or verified backend requests. Treat it as no session at
+    // all so they get a clean login screen (and a fresh, real token) rather
+    // than sitting logged-in client-side with no way to actually
+    // authenticate anything server-side.
+    if(s && (!s.userId || !s.userType || !s.sessionToken)){
       localStorage.removeItem('wm_session');
       return null;
     }
@@ -10704,8 +10675,8 @@ async function attemptLogin(){
     // that would let someone past the login screen with no password ever
     // actually verified, in a broken state with no role. Checking for the
     // fields themselves closes that off regardless of how it arises.
-    if(res && res.success && res.userId && res.userType){
-      setSession({name:res.name, username:res.username, userType:res.userType, userId:res.userId});
+    if(res && res.success && res.userId && res.userType && res.sessionToken){
+      setSession({name:res.name, username:res.username, userType:res.userType, userId:res.userId, sessionToken:res.sessionToken});
       if(passEl) passEl.value='';
       hideLoginScreen();
       if(res.passwordNeverChanged){
@@ -11041,10 +11012,10 @@ function startAppAfterAuth(){
   if(isLockEnabled()){ showLockScreen(); }
   load();loadActivityLog();loadTasks();bootSequenceV17();
   var topBar=document.getElementById('global-topbar'); if(topBar) topBar.style.display='flex';
-  var userLabel=document.getElementById('global-user-label');
-  if(userLabel){
-    var _authSession=getSession();
-    userLabel.textContent=_authSession?('Logged in as '+_authSession.name):'Logged in as —';
+  var dashWelcome=document.getElementById('dash-welcome');
+  if(dashWelcome){
+    var _welcomeSession=getSession();
+    dashWelcome.textContent=_welcomeSession?('Welcome, '+_welcomeSession.name):'';
   }
   if(!isAdmin()){
     var navBtn=document.getElementById('nav-analytics'); if(navBtn) navBtn.style.display='none';

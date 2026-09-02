@@ -279,23 +279,53 @@ async function saveInfo(){
   }
 }
 
+function cacheKey(token){ return 'wm_gatherinfo_cache_'+token; }
+var CACHE_MAX_AGE_MS = 24*60*60*1000;
+
+function loadCachedClient(token){
+  try{
+    var raw = localStorage.getItem(cacheKey(token));
+    if(!raw) return null;
+    var parsed = JSON.parse(raw);
+    if(!parsed || !parsed.savedAt || !parsed.client) return null;
+    if(Date.now()-parsed.savedAt > CACHE_MAX_AGE_MS){ localStorage.removeItem(cacheKey(token)); return null; }
+    return parsed.client;
+  }catch(e){ return null; }
+}
+function saveCachedClient(token, c){
+  try{ localStorage.setItem(cacheKey(token), JSON.stringify({savedAt:Date.now(), client:c})); }catch(e){}
+}
+
 async function init(){
   token = qs('id');
   if(!token){
     renderError('Invalid link', 'This link is missing information. Please ask your advisor to resend it.');
     return;
   }
+
+  var cached = loadCachedClient(token);
+  if(cached){
+    client = cached;
+    renderForm();
+  }
+
   try{
     var r = await fetch(SCRIPT_URL + '?action=resolveUploadToken&token=' + encodeURIComponent(token) + '&t=' + Date.now());
     var j = await r.json();
     if(j && j.found && j.recordType==='client'){
       client = { name:j.name, mobile:j.mobile };
-      renderForm();
-    } else {
+      saveCachedClient(token, client);
+      if(!cached) renderForm();
+    } else if(!cached){
+      renderError('Link not found', 'This link is invalid or has expired. Please contact your advisor for a new one.');
+    } else if(j && j.found===false){
+      localStorage.removeItem(cacheKey(token));
       renderError('Link not found', 'This link is invalid or has expired. Please contact your advisor for a new one.');
     }
   }catch(e){
-    renderError('Connection problem', 'Could not reach the server. Please check your internet connection and reopen this link.');
+    if(!cached){
+      renderError('Connection problem', 'Could not reach the server. Please check your internet connection and reopen this link.');
+    }
   }
 }
 

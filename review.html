@@ -119,17 +119,48 @@ function renderLetter(name, reportText, generatedDate){
   };
 }
 
+function cacheKey(token){ return 'wm_review_cache_'+token; }
+var CACHE_MAX_AGE_MS = 24*60*60*1000;
+
+function loadCachedReport(token){
+  try{
+    var raw = localStorage.getItem(cacheKey(token));
+    if(!raw) return null;
+    var parsed = JSON.parse(raw);
+    if(!parsed || !parsed.savedAt || !parsed.report) return null;
+    if(Date.now()-parsed.savedAt > CACHE_MAX_AGE_MS){ localStorage.removeItem(cacheKey(token)); return null; }
+    return parsed;
+  }catch(e){ return null; }
+}
+function saveCachedReport(token, name, report, generatedDate){
+  try{ localStorage.setItem(cacheKey(token), JSON.stringify({savedAt:Date.now(), name:name, report:report, generatedDate:generatedDate})); }catch(e){}
+}
+
 async function init(){
   var token = qs('id');
   if(!token){
     renderError('Invalid link', 'This link is missing information. Please contact your advisor for a new one.');
     return;
   }
+
+  var cached = loadCachedReport(token);
+  if(cached){
+    renderLetter(cached.name, cached.report, cached.generatedDate);
+  }
+
   var res = await apiPost({ action:'getClientReviewReport', token: token }, 20000);
   if(res && res.success){
-    renderLetter(res.name, res.report, res.generatedDate);
-  } else {
+    saveCachedReport(token, res.name, res.report, res.generatedDate);
+    if(!cached) renderLetter(res.name, res.report, res.generatedDate);
+  } else if(!cached){
     renderError('Not ready yet', (res && res.error) || 'This review isn\u2019t available yet. Please check back shortly or contact your advisor.');
+  } else if(res && res.success===false && res.error){
+    // The cache showed a report, but the server has now given an explicit
+    // error (e.g. the report was withdrawn/regenerated and the old token no
+    // longer resolves) — replace the stale cached content rather than let
+    // it keep showing.
+    localStorage.removeItem(cacheKey(token));
+    renderError('Not ready yet', res.error);
   }
 }
 
