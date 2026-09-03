@@ -5,9 +5,10 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Wealth Matrix">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
@@ -18,6 +19,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+/* ── iOS zoom-on-focus fix — Safari auto-zooms the whole page whenever a
+   focused text input's font-size is under 16px. Many inputs across this app
+   set smaller sizes inline for compact layouts; overriding with !important
+   here is the one safe place to guarantee no input anywhere ever triggers
+   it, without hand-editing dozens of individual inline styles (select/radio/
+   checkbox excluded — native pickers/toggles don't trigger this zoom). ── */
+input:not([type="checkbox"]):not([type="radio"]),textarea{font-size:16px!important}
+
+/* ── Long-press text-selection callout — iOS shows a "Copy/Look Up" bubble
+   on long-press by default, which reads as a webpage, not an app. Scoped to
+   genuinely interactive controls only (not remarks/notes text, where
+   long-press-to-copy is still legitimately useful). ── */
+button,.nb,.pt,.yn-opt,.prod-opt,.acc-header,.task-card,.qwa-btn,.btn,[data-action],[onclick]{-webkit-touch-callout:none}
 :root{
   /* ═══════════════════════════════════════════════════════════
      WEALTH MATRIX THEME — every color in the app is defined here
@@ -104,6 +119,26 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .task-card .tc-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--s2);color:var(--t3)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:10px 16px;border-radius:var(--r2);border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .12s,transform .08s;text-decoration:none;white-space:nowrap}
 .btn:active{transform:scale(.97)}
+
+/* ── Native-feel press feedback — extends the existing .btn/.qwa-btn :active
+   scale to every other tappable control in the app, so nothing feels dead
+   under a finger. Transform-only (no layout properties), so this stays
+   cheap even on busy re-rendered lists. ── */
+.nb:active,.pt:active,.yn-opt:active,.prod-opt:active,.acc-header:active,
+.task-card:active,select:active,input[type=checkbox]:active,
+button:active,[data-action]:active,[onclick]:active{transform:scale(.96)}
+.nb,.pt,.yn-opt,.prod-opt,.acc-header,.task-card,button,[data-action],[onclick]{transition:transform .08s ease-out}
+
+/* ── Page-switch transition — replaces the previous instant hard cut between
+   Dashboard/Leads/Clients/Tasks/etc with a quick fade+rise, the single
+   biggest thing that made tab switches feel like a "webpage" rather than an
+   app. Uses a keyframe animation rather than a transition, since transitions
+   don't reliably animate across the display:none→block boundary that
+   .page/.page.active already toggle — animations do. Kept short (160ms) so
+   it never feels sluggish. ── */
+@keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.page.active{animation:pageIn .16s ease-out}
+
 .btn-gold{background:var(--accent);color:#000000}
 .btn-ghost{background:var(--s2);color:var(--text);border:1px solid var(--border)}
 .btn-wa{background:#25D366;color:#fff}
@@ -264,6 +299,25 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 /* Floating Add Button */
 .fab{position:fixed;bottom:98px;right:max(18px, calc(50vw - var(--shell-w)/2 + 18px));width:54px;height:54px;border-radius:50%;background:var(--accent);color:#0C1420;border:none;font-size:26px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(255,255,255,.5);z-index:150;transition:transform .15s,box-shadow .15s;-webkit-user-select:none;user-select:none}
+
+/* ── Ask AI — floating agent button (Dashboard only) ── */
+#ai-fab{position:fixed;bottom:92px;right:18px;width:56px;height:56px;border-radius:50%;background:var(--accent);border:2px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,.25);transition:transform .15s}
+#ai-fab:active{transform:scale(.94)}
+#ai-fab.listening{border-color:var(--red);animation:aiPulse 1.1s ease-in-out infinite}
+#ai-fab.thinking{border-color:var(--border2);animation:aiSpin 1.4s linear infinite}
+@keyframes aiPulse{0%{box-shadow:0 0 0 0 rgba(193,85,61,.55)}70%{box-shadow:0 0 0 16px rgba(193,85,61,0)}100%{box-shadow:0 0 0 0 rgba(193,85,61,0)}}
+@keyframes aiSpin{0%{border-color:var(--border2)}50%{border-color:var(--accent)}100%{border-color:var(--border2)}}
+
+/* ── Skeleton loaders — replaces plain "Loading..." text on dashboard
+   sections with shimmering placeholder rows shaped like the real content,
+   so the layout doesn't visibly jump once data arrives and it reads as an
+   app loading, not a blank page with a status message. ── */
+@keyframes skelShimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.skel-row{height:44px;border-radius:9px;margin-bottom:6px;background:linear-gradient(90deg,var(--s2) 25%,var(--s1) 50%,var(--s2) 75%);background-size:400px 100%;animation:skelShimmer 1.3s ease-in-out infinite}
+#ai-fab svg{width:28px;height:28px}
+.ai-sheet{background:var(--s1);border-radius:16px 16px 0 0;width:100%;max-width:420px;max-height:88dvh;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px calc(20px + env(safe-area-inset-bottom,10px));border:1px solid var(--accent);border-bottom:none}
+.ai-field-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin:10px 0 4px}
+.ai-intent-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;background:var(--accent2);color:var(--accent);border:1px solid var(--border2)}
 .fab:active{transform:scale(.92);box-shadow:0 2px 8px rgba(255,255,255,.3)}
 .fab.hidden{display:none}
 #toast{position:fixed;bottom:152px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--s2);border:1px solid var(--border2);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;opacity:0;transition:all .25s;z-index:150000;white-space:nowrap;pointer-events:none;max-width:88vw;text-align:center}
@@ -522,6 +576,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 </div>
 
 <div id="app">
+<div id="ptr-indicator" style="position:absolute;top:calc(46px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%) translateY(-50px);width:36px;height:36px;border-radius:50%;background:var(--s1);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;z-index:400;transition:transform .15s;pointer-events:none">
+  <svg id="ptr-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" style="transition:transform .1s"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+</div>
 <div id="content">
 
 <!-- SHARED SEARCH BAR — active on Leads and Clients pages -->
@@ -601,10 +658,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
 
+  <!-- Upcoming Activity — special days (national/observance days, festivals) in the
+       next 14 days. Split out from Planning Nudges into its own section, right next
+       to Today's Activity, since these are date-driven outreach opportunities rather
+       than client-specific planning items. -->
+  <div class="sec" id="dash-upcoming-activity-wrap">
+    <div class="lbl" style="color:var(--accent)">📅 Upcoming Activity</div>
+    <div id="dash-upcoming-activity"><div class="skel-row"></div><div class="skel-row" style="width:70%"></div></div>
+  </div>
+
   <!-- Week Follow-up Planner -->
   <div class="sec">
     <div class="lbl" style="color:var(--accent)">📆 This Week's Follow-ups</div>
-    <div id="dash-weekcal"><div style="font-size:11px;color:var(--t3);text-align:center;padding:8px">Loading...</div></div>
+    <div id="dash-weekcal"><div class="skel-row"></div><div class="skel-row" style="width:70%"></div></div>
   </div>
 
   <!-- Client Stage Pipeline -->
@@ -613,12 +679,25 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div id="dash-stage-table"></div>
   </div>
 
-  <!-- Planning Nudges (forward-looking only — Today's Activity above covers same-day items) -->
+  <!-- Planning Nudges (forward-looking only — Today's Activity above covers same-day items,
+       Upcoming Activity above covers special days) -->
   <div class="sec" id="dash-reminders-wrap">
     <div class="lbl" style="color:var(--accent)">🧭 Planning Nudges</div>
-    <div id="dash-reminders"><div style="font-size:11px;color:var(--t3);text-align:center;padding:8px">Loading...</div></div>
+    <div id="dash-reminders"><div class="skel-row"></div><div class="skel-row" style="width:70%"></div></div>
   </div>
   </div>
+
+  <!-- Ask AI — floating voice agent. Tap → speaks in the language chosen in
+       Settings → phone converts speech to text → transcript + a compact
+       lead/client/task snapshot goes to Apps Script → Gemini classifies it
+       into one intent (new lead/client/task, or update to an existing
+       record) → review card shown → nothing is written until confirmed. -->
+  <button id="ai-fab" onclick="askAiToggle()" aria-label="Ask AI">
+    <svg viewBox="0 0 24 24">
+      <path d="M12 3c.6 4.2 2.1 6.9 6.2 7.5-4.1.6-5.6 3.3-6.2 7.5-.6-4.2-2.1-6.9-6.2-7.5C9.9 9.9 11.4 7.2 12 3z" fill="#0C1420"/>
+      <path d="M18.6 3.4c.25 1.35.72 2.16 2.05 2.4-1.33.24-1.8 1.05-2.05 2.4-.25-1.35-.72-2.16-2.05-2.4 1.33-.24 1.8-1.05 2.05-2.4z" fill="#0C1420"/>
+    </svg>
+  </button>
 </div>
 
   
@@ -636,6 +715,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <button id="sort-potaum-btn" onclick="setClientSort('potentialAum')" style="flex:1;padding:7px 4px;font-size:11px;font-weight:700;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--t2);cursor:pointer">📈 Potential AUM ↓</button>
   </div>
   <div id="location-filter-wrap-client" style="padding:0 12px 8px"><select id="location-dropdown-client" onchange="setLFC(this.value)" style="width:100%;padding:9px 10px;font-size:12px;font-weight:600;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:8px;-webkit-appearance:none;cursor:pointer"></select></div>
+  <div style="padding:0 12px 8px"><select id="stage-dropdown-client" onchange="setStageFilterClient(this.value)" style="width:100%;padding:9px 10px;font-size:12px;font-weight:600;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:8px;-webkit-appearance:none;cursor:pointer"></select></div>
   <div id="client-bulk-bar" style="display:none;padding:8px 12px;background:rgba(255,255,255,.08);border-bottom:1px solid var(--border);justify-content:space-between;align-items:center">
     <span id="client-sel-count" style="font-size:12px;font-weight:700;color:var(--accent)">0 selected</span>
     <div style="display:flex;gap:6px">
@@ -742,6 +822,29 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           <div class="si" style="font-size:10px;color:var(--t3)"><span>Quick check only — does every client have a Drive folder, correctly matched? No test data written, just a read-only scan.</span></div>
           <div class="syc"><button class="btn btn-ghost btn-full" style="font-weight:700;border-color:var(--accent);color:var(--accent)" onclick="runFolderCheckOnly()">📁 Client Folder Creation Check</button></div>
           <div class="syc"><pre id="folder-check-result" style="font-size:10px;background:var(--s2);border-radius:8px;padding:10px;white-space:pre-wrap;max-height:340px;overflow-y:auto;margin:0"></pre></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4b. Ask AI — Voice Language -->
+    <div class="acc-section" id="acc-set-aivoice">
+      <div class="acc-header" onclick="toggleSettingsSection('set-aivoice')">
+        <span class="acc-icon">🤖</span><span class="acc-title">Ask AI — Voice Language</span><span class="acc-chevron">▾</span>
+      </div>
+      <div class="acc-body">
+        <div class="sg">
+          <div class="si"><span>Speak in</span></div>
+          <div style="padding:0 12px 8px">
+            <select id="s-ai-lang" class="fi" onchange="cfg('aiVoiceLang',this.value)">
+              <option value="en-IN">English (India)</option>
+              <option value="hi-IN">Hindi — हिन्दी</option>
+              <option value="ml-IN">Malayalam — മലയാളം</option>
+              <option value="ta-IN">Tamil — தமிழ்</option>
+              <option value="te-IN">Telugu — తెలుగు</option>
+              <option value="kn-IN">Kannada — ಕನ್ನಡ</option>
+            </select>
+          </div>
+          <div class="si" style="font-size:10px;color:var(--t3);font-style:italic"><span>Used by the AI agent button on Dashboard. Speech-to-text happens on your phone; the AI then figures out what you meant — new lead, new client, new task, or an update to an existing record — in any of these languages, including mixed with English.</span></div>
         </div>
       </div>
     </div>
@@ -1308,6 +1411,8 @@ var filterProduct='All';
 var filterGeo='All';
 var filterFamily='All'; // Leads family-wise filter
 var filterLocationClient='All'; // Clients location-wise filter
+var filterStageClient='All'; // Clients stage-wise filter (KYC Pending, Investment Pending, Completed, etc.)
+var CLIENT_STAGE_OPTIONS=['KYC PENDING','DOCUMENT PENDING','PROFILE CREATION PENDING','MANDATE PENDING','INVESTMENT PENDING','GRATITUDE CALL PENDING','COMPLETED'];
 var clientSortBy='aum'; // 'aum' or 'potentialAum'
 var leadSortBy='score'; // 'score' (default, hot leads first) | 'potentialAum' | 'aum' (used as \'Potential SIP\' rank)
 var syncInProgress=false, bulkMode=false, selectedLeads=new Set();
@@ -1627,7 +1732,12 @@ function waMsg(l){
   // Simple "Hi" message — user types the rest personally
   return 'Hi';
 }
-function toast(m,d){d=d||2200;var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},d);}
+// Haptic feedback — Android/Chrome supports the Vibration API; iOS Safari
+// does not (even installed as a PWA), so this silently no-ops there rather
+// than erroring. Kept very short (8-15ms) — a tick, not a buzz.
+function haptic(ms){ if(navigator.vibrate){ try{ navigator.vibrate(ms||8); }catch(e){} } }
+
+function toast(m,d){d=d||2200;var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');haptic(12);clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},d);}
 function waIcon(){return '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';}
 function callIcon(){return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>';}
 
@@ -1742,6 +1852,7 @@ function setFP(p){filterProduct=p;renderLeads();}
 function setFG(g){filterGeo=g;renderLeads();}
 function setFF(f){filterFamily=f;renderLeads();}
 function setLFC(f){filterLocationClient=f;renderClients();}
+function setStageFilterClient(f){filterStageClient=f;renderClients();}
 
 
 // ═══════════════════════════════════════════════
@@ -2095,9 +2206,29 @@ function renderClients(){
       }).join('');
     }
   }
+  // Stage filter dropdown — same pattern as location, always shown (stage is
+  // core to every client, unlike location which may be unrecorded).
+  var stageDropdownC=document.getElementById('stage-dropdown-client');
+  if(stageDropdownC){
+    var stageIcon=function(s){
+      if(s==='KYC PENDING'||s==='DOCUMENT PENDING') return '🔴';
+      if(s==='PROFILE CREATION PENDING'||s==='MANDATE PENDING') return '🟡';
+      if(s==='INVESTMENT PENDING'||s==='GRATITUDE CALL PENDING') return '🔵';
+      if(s==='COMPLETED') return '🟢';
+      return '⚪';
+    };
+    var stageOptsHtml=['All'].concat(CLIENT_STAGE_OPTIONS).map(function(s){
+      var n=s==='All'?clients.length:clients.filter(function(c){return (c.stage||'').toUpperCase().trim()===s;}).length;
+      var lbl=s==='All'?'All Stages':s;
+      var ic=s==='All'?'📋':stageIcon(s);
+      return '<option value="'+s+'"'+(filterStageClient===s?' selected':'')+'>'+ic+' '+lbl+' ('+n+')</option>';
+    }).join('');
+    stageDropdownC.innerHTML=stageOptsHtml;
+  }
   // Sort newest first (most recently converted at top)
   var arr=clients.filter(function(c){
     if(filterLocationClient!=='All' && toTitle((c.country||'').trim())!==filterLocationClient) return false;
+    if(filterStageClient!=='All' && (c.stage||'').toUpperCase().trim()!==filterStageClient) return false;
     return !q||(c.name||'').toLowerCase().includes(q);
   }).sort(function(a,b){
     // Sort by selected field (AUM or Potential AUM) descending
@@ -2115,7 +2246,7 @@ function renderClients(){
   if(!cl) return;
 
   if(!arr.length){
-    cl.innerHTML='<div class="empty"><div class="empty-ico">👥</div><div class="empty-t">No clients yet</div><div class="empty-s">Convert a lead to Converted status to add your first client.</div></div>';
+    cl.innerHTML='<div class="empty"><div class="empty-ico">👥</div><div class="empty-t">No clients'+(filterStageClient!=='All'?' at this stage':'')+'</div><div class="empty-s">'+(filterStageClient!=='All'?'Try a different stage filter, or clear it to see everyone.':'Convert a lead to Converted status to add your first client.')+'</div></div>';
     return;
   }
 
@@ -2138,7 +2269,7 @@ function renderClients(){
     if(s==='COMPLETED') return 'var(--green)';
     return '#3A4A5E'; // no stage set — neutral, matches the card's own border tone
   }
-  var STAGE_OPTIONS=['KYC PENDING','DOCUMENT PENDING','PROFILE CREATION PENDING','MANDATE PENDING','INVESTMENT PENDING','GRATITUDE CALL PENDING','COMPLETED'];
+  var STAGE_OPTIONS=CLIENT_STAGE_OPTIONS;
 
   cl.innerHTML=arr.map(function(c,i){
     var ac=avatarColors[i%avatarColors.length];
@@ -2740,6 +2871,13 @@ function openOverdueTaskFromDash(taskId){
   setTimeout(function(){ openTaskDetail(taskId); }, 60);
 }
 
+// Single-tap jump from the "You have N overdue tasks" Dashboard card
+// straight to the Tasks page — no intermediate popup, since the card
+// already summarizes multiple tasks rather than pointing at one.
+function goToTasksMenu(){
+  nav('tasks', document.getElementById('nav-tasks'));
+}
+
 function openAddClient(pre){
   editClient=null;
   populateFamilyNameSuggestions();
@@ -3142,6 +3280,237 @@ var recog=null;
 function voiceAdd(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast('Voice not available');return;}var btn=document.getElementById('mic-btn');if(!btn)return;if(recog){recog.stop();return;}recog=new SR();recog.lang='en-IN';recog.interimResults=false;btn.classList.add('on');toast('🎤 Listening…',30000);recog.onresult=function(e){var t=e.results[0][0].transcript;openAddLead(parseVoice(t));toast('Review and save');};recog.onerror=function(){toast('Mic error');};recog.onend=function(){btn.classList.remove('on');recog=null;};recog.start();}
 function parseVoice(t){var lo=t.toLowerCase();var p={name:'',mob:'',email:'',country:'',age:'',gender:'',status:'PROSPECT',source:'',products:'',nextFollowUp:''};var dm=t.replace(/[^0-9]/g,'').match(/(\d{10,12})/);if(dm)p.mob=dm[1].slice(-10);if(lo.includes('female'))p.gender='FEMALE';else if(lo.includes('male'))p.gender='MALE';if(lo.includes('converted'))p.status='CONVERTED';else if(lo.includes('in progress'))p.status='IN PROGRESS';else if(lo.includes('contacted'))p.status='CONTACTED';return p;}
 
+// ═══════════════════════════════════════════════════════════════
+// ASK AI — floating voice agent (Dashboard).
+// Flow: tap #ai-fab → browser SpeechRecognition converts speech to text in
+// the language chosen in Settings → transcript + a compact [type,name,
+// mobile] snapshot of existing leads/clients is sent to Apps Script action
+// 'aiAssist' → Gemini (via the app's existing callGemini() helper) returns
+// ONE structured intent as JSON → a review card is shown → user edits/
+// confirms → routes into the SAME functions every other part of the app
+// already uses (openAddLead/openAddClient/openAddTaskPrefilled/
+// updateLeadField/updateClientField). Nothing is written until confirmed.
+// ═══════════════════════════════════════════════════════════════
+var _aiRecog=null;
+
+function askAiToggle(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  var fab=document.getElementById('ai-fab');
+  if(!SR){ toast('Voice input not available on this browser'); return; }
+  if(_aiRecog){ _aiRecog.stop(); return; } // tap again to stop early
+  if(!hasScript()){ toast('Add Apps Script URL in Settings first'); return; }
+
+  _aiRecog=new SR();
+  _aiRecog.lang=cfg_.aiVoiceLang||'en-IN';
+  _aiRecog.interimResults=false;
+  fab.classList.add('listening');
+  toast('🎙️ Yeah, tell me…',20000);
+
+  _aiRecog.onresult=function(e){
+    var transcript=(e.results[0][0].transcript||'').trim();
+    if(transcript.length<3){ toast('Didn\'t catch that — try again'); return; }
+    handleAiTranscript(transcript);
+  };
+  _aiRecog.onerror=function(){ toast('Mic error — try again'); fab.classList.remove('listening'); };
+  _aiRecog.onend=function(){ fab.classList.remove('listening'); _aiRecog=null; };
+  _aiRecog.start();
+}
+
+// Full, low-sensitivity snapshot of existing people — every lead and
+// client, no cap — so name-matching quality is never compromised by an
+// arbitrary cutoff. Sent as short tuples [type, name, mobile] rather than
+// {type,name,mobile} objects (no repeated key names). The token cost of
+// sending the full roster is kept low server-side via explicit context
+// caching in Code.gs (aiAssist reuses the same cache across calls within
+// its TTL, re-sending it in full only when the roster actually changes) —
+// so the right fix for cost was caching, not truncating the candidate list.
+function buildAiCandidates(){
+  var out=[];
+  leads.slice().sort(function(a,b){return (b.modifiedDate||'').localeCompare(a.modifiedDate||'');})
+    .forEach(function(l){ out.push(['L',l.name,l.mobile||l.recordId]); });
+  clients.slice().sort(function(a,b){return (b.lastContacted||'').localeCompare(a.lastContacted||'');})
+    .forEach(function(c){ out.push(['C',c.name,c.mobile||c.recordId]); });
+  return out;
+}
+
+async function handleAiTranscript(transcript){
+  var fab=document.getElementById('ai-fab');
+  if(fab){ fab.classList.remove('listening'); fab.classList.add('thinking'); }
+  toast('🤖 Thinking…',15000);
+  try{
+    var res=await sheetWrite({
+      action:'aiAssist',
+      expectsResponse:true,
+      transcript:transcript,
+      lang:cfg_.aiVoiceLang||'en-IN',
+      candidates:buildAiCandidates()
+    }, 30000);
+    if(fab) fab.classList.remove('thinking');
+    if(!res||!res.success){ toast('AI request failed: '+((res&&res.error)||'unknown error')); return; }
+    showAiReviewSheet(transcript, res.result);
+  }catch(e){
+    if(fab) fab.classList.remove('thinking');
+    toast('AI request failed: '+e.message);
+  }
+}
+
+// ── Review sheet — shows what was heard + what will happen, editable, before
+// anything is written. Built dynamically, same overlay pattern as the task
+// form (#task-form-ov). ──
+function showAiReviewSheet(transcript, result){
+  result=result||{};
+  var intent=result.intent||'unclear';
+  var f=result.fields||{};
+  var ov=document.createElement('div');
+  ov.id='ai-review-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
+
+  var intentLabels={
+    add_lead:'➕ Add New Lead', add_client:'➕ Add New Client',
+    add_task:'📝 Add Task', update_field:'✏️ Update Field',
+    log_note:'📝 Log Note', unclear:'❓ Not Sure'
+  };
+
+  function row(lbl,val,key){
+    return '<div class="ai-field-lbl">'+lbl+'</div><input class="fi" id="ai-f-'+key+'" value="'+(val||'').toString().replace(/"/g,'&quot;')+'">';
+  }
+  function matchBanner(rec){
+    if(rec) return '<div style="font-size:11px;color:var(--green);background:var(--gdim);border:1px solid var(--green);border-radius:8px;padding:7px 10px;margin:8px 0">✅ Matched: <b>'+toTitle(rec.name)+'</b> ('+(rec.mobile||rec.recordId)+')</div>';
+    return '<div style="font-size:11px;color:var(--red);background:var(--rdim);border:1px solid var(--red);border-radius:8px;padding:7px 10px;margin:8px 0">⚠️ Could not match this to an existing lead/client — nothing can be saved. Cancel and open the record manually, or try rephrasing with the exact name.</div>';
+  }
+
+  // For anything that touches an EXISTING record, resolve the match up front
+  // so the advisor sees exactly who/what they're confirming — informational
+  // only; Confirm stays available either way since confirmAiAction() itself
+  // safely no-ops (with a toast) if no match is found at write time.
+  var matchedRec=null;
+  if(intent==='update_field'||intent==='log_note'){
+    matchedRec=findAiMatch(f.mobile,f.name,f.recordType);
+  } else if(intent==='add_task'){
+    var linkType0=(f.linkedTo||'OTHERS').toUpperCase();
+    if(linkType0==='LEAD'||linkType0==='CLIENT'){
+      matchedRec=findAiMatch(f.mobile,f.name,linkType0==='CLIENT'?'client':'lead');
+    }
+  }
+
+  var body='';
+  if(intent==='add_lead'){
+    body=row('Name',f.name,'name')+row('Mobile',f.mobile,'mobile')+row('Products',f.products,'products')+row('Status',f.status||'PROSPECT','status')+row('Next Follow-up (YYYY-MM-DD)',f.nextFollowUp,'nextFollowUp')+row('Remarks',f.remarks,'remarks');
+  } else if(intent==='add_client'){
+    body=row('Name',f.name,'name')+row('Mobile',f.mobile,'mobile')+row('Products',f.products,'products')+row('AUM',f.aum,'aum')+row('Remarks',f.remarks,'remarks');
+  } else if(intent==='add_task'){
+    body=(f.linkedTo&&f.linkedTo.toUpperCase()!=='OTHERS'?matchBanner(matchedRec):'')
+      +row('Task for (LEAD/CLIENT/OTHERS)',f.linkedTo||'OTHERS','linkedTo')+row('Name (if linked)',f.name,'name')+row('Mobile (if linked)',f.mobile,'mobile')+row('Task details',f.taskDetails,'taskDetails')+row('Due date (YYYY-MM-DD)',f.dueDate,'dueDate');
+  } else if(intent==='update_field'){
+    var curVal=matchedRec?(matchedRec[f.field]!==undefined?matchedRec[f.field]:'(field not found on record)'):'';
+    body=matchBanner(matchedRec)
+      +(matchedRec?'<div class="ai-field-lbl">Current value</div><div style="font-size:12px;color:var(--t2);background:var(--s2);border-radius:8px;padding:8px 10px">'+(String(curVal||'').replace(/</g,'&lt;')||'(empty)')+'</div>':'')
+      +row('Name',f.name,'name')+row('Mobile',f.mobile,'mobile')+row('Record type (lead/client)',f.recordType,'recordType')+row('Field',f.field,'field')+row('New value',f.value,'value');
+  } else if(intent==='log_note'){
+    body=matchBanner(matchedRec)
+      +row('Name',f.name,'name')+row('Mobile',f.mobile,'mobile')+row('Record type (lead/client)',f.recordType,'recordType')+row('Note',f.note,'note');
+  } else {
+    body='<div style="font-size:12px;color:var(--t2);padding:8px 0">'+(f.reason||'Could not figure out what you meant. Try rephrasing, e.g. "add a new lead, Rajesh, nine…", or "remind me to call Priya tomorrow".').toString().replace(/</g,'&lt;')+'</div>';
+  }
+
+  var canConfirm=intent!=='unclear';
+  ov.innerHTML='<div class="ai-sheet">'
+    +'<div style="width:32px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 9px"></div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between">'
+    +'<span class="ai-intent-badge">'+(intentLabels[intent]||intent)+'</span>'
+    +'<span onclick="document.getElementById(\'ai-review-ov\').remove()" style="font-size:20px;color:var(--t2);cursor:pointer">✕</span>'
+    +'</div>'
+    +'<div style="font-size:11px;color:var(--t3);margin:10px 0 4px">You said:</div>'
+    +'<div style="font-size:12px;color:var(--t2);background:var(--s2);border-radius:8px;padding:8px 10px">'+transcript.toString().replace(/</g,'&lt;')+'</div>'
+    +'<div id="ai-review-body">'+body+'</div>'
+    +(canConfirm?'<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-ghost" style="flex:1" onclick="document.getElementById(\'ai-review-ov\').remove()">Cancel</button><button class="btn btn-gold" style="flex:2" id="_aiConfirm">✅ Confirm</button></div>':'<div style="margin-top:14px"><button class="btn btn-ghost btn-full" onclick="document.getElementById(\'ai-review-ov\').remove()">Close</button></div>')
+    +'</div>';
+
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  var confirmBtn=document.getElementById('_aiConfirm');
+  if(confirmBtn){
+    confirmBtn.onclick=function(){
+      var edited={};
+      Object.keys(f).forEach(function(k){
+        var el=document.getElementById('ai-f-'+k);
+        edited[k]=el?el.value:f[k];
+      });
+      ov.remove();
+      confirmAiAction(intent, edited);
+    };
+  }
+}
+
+// ── Confirm — routes into the SAME functions the rest of the app uses.
+// add_lead/add_client/add_task open the real forms pre-filled so the user
+// still gets a final look (dedupe/folder-creation/maker-checker logic in
+// those flows stays fully intact). update_field/log_note write directly
+// since they're single-field, low-risk operations on an already-matched
+// existing record. ──
+function confirmAiAction(intent, f){
+  if(intent==='add_lead'){
+    openAddLead({name:caps(f.name||''), mob:(f.mobile||'').replace(/\D/g,''), email:'', age:'', rem:f.remarks||'', status:f.status||'PROSPECT'});
+    toast('Review and save the lead — set products/follow-up date in the form');
+  } else if(intent==='add_client'){
+    openAddClient();
+    setTimeout(function(){
+      var map={name:caps(f.name||''), mob:(f.mobile||'').replace(/\D/g,''), aum:f.aum||'', rem:f.remarks||''};
+      Object.keys(map).forEach(function(k){ var el=document.getElementById('cf-'+k); if(el) el.value=map[k]; });
+    },50);
+    toast('Review and save the client');
+  } else if(intent==='add_task'){
+    var linkType=(f.linkedTo||'OTHERS').toUpperCase();
+    if(linkType!=='LEAD'&&linkType!=='CLIENT') linkType='OTHERS';
+    var linkedRec=linkType!=='OTHERS'?findAiMatch(f.mobile,f.name,linkType==='CLIENT'?'client':'lead'):null;
+    openAddTaskPrefilled(linkType, f.name||'', linkedRec?(linkedRec.recordId||linkedRec.mobile):'', f.taskDetails||'', f.dueDate||'');
+    toast('Review and save the task');
+  } else if(intent==='update_field'){
+    var rec=findAiMatch(f.mobile,f.name,f.recordType);
+    if(!rec){ toast('Could not match that person — open them manually'); return; }
+    var mob=rec.recordId||rec.mobile;
+    if((f.recordType||'').toLowerCase()==='client'){ updateClientField(mob, f.field, f.value); }
+    else { updateLeadField(mob, f.field, f.value); }
+  } else if(intent==='log_note'){
+    var rec2=findAiMatch(f.mobile,f.name,f.recordType);
+    if(!rec2){ toast('Could not match that person — open them manually'); return; }
+    if((f.recordType||'').toLowerCase()==='client'){
+      rec2.remarks=migrateRemarks(rec2.remarks||''); rec2.remarks=appendRemark(rec2.remarks,(f.note||'').toUpperCase());
+      saveC(); syncClient(rec2,'update'); toast('✅ Note saved');
+    } else {
+      rec2.remarks=migrateRemarks(rec2.remarks||''); rec2.remarks=appendRemark(rec2.remarks,(f.note||'').toUpperCase());
+      rec2.modifiedDate=now(); saveL(); syncLead(rec2,'update'); toast('✅ Note saved');
+    }
+  }
+}
+
+function findAiMatch(mobile,name,recordType){
+  var list=(recordType||'').toLowerCase()==='client'?clients:leads;
+  var mob=(mobile||'').replace(/\D/g,'');
+  if(mob){ var byMob=list.find(function(x){return (x.mobile||'').replace(/\D/g,'')===mob||(x.recordId||'')===mobile;}); if(byMob) return byMob; }
+  if(name){ var nm=name.trim().toUpperCase(); var byName=list.find(function(x){return (x.name||'').trim().toUpperCase()===nm;}); if(byName) return byName; }
+  return null;
+}
+
+// Opens the Add Task popup pre-filled from an AI-parsed command — mirrors
+// openAddTaskForClient() but generalized to LEAD/CLIENT/OTHERS and to also
+// prefill task details + due date, neither of which the manual "+ Task"
+// shortcut needed since a human types those directly into the form.
+function openAddTaskPrefilled(type, name, recordId, details, dueDate){
+  window._editingTaskId=null;
+  window._taskForType=type||'OTHERS';
+  window._taskLinkedRecordId=recordId||'';
+  var ov=document.createElement('div');
+  ov.id='task-form-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
+  ov.innerHTML=taskFormHtml(null, {type:type||'OTHERS', name:name||''});
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  wireTaskForm(null);
+  if(details){ var d=document.getElementById('task-details'); if(d) d.value=details; }
+  if(dueDate){ var dd=document.getElementById('task-due-date'); if(dd) dd.value=dueDate; }
+}
+
 // ═══════════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════════
@@ -3181,6 +3550,7 @@ function updateSyncBanner(){setSyncBanner(hasScript()?'idle':'idle');}
 function showSyncMsg(msg,ok){var el=document.getElementById('sync-status');if(!el)return;el.innerHTML='<div class="sm '+(ok?'sm-ok':'sm-err')+'">'+msg+'</div>';clearTimeout(el._t);el._t=setTimeout(function(){el.innerHTML='';},6000);}
 function renderSync(){
   var el=document.getElementById('s-script-url');if(el)el.value=cfg_.scriptUrl||'';
+  var aiLangEl=document.getElementById('s-ai-lang');if(aiLangEl)aiLangEl.value=cfg_.aiVoiceLang||'en-IN';
   var pm=document.getElementById('pull-meta');if(pm&&cfg_.lastPull)pm.textContent='Last pull: '+fmt(cfg_.lastPull);
   updateSyncBanner();
   // Show force push and test connection dynamically
@@ -4605,6 +4975,7 @@ function renderDash(){
   var elD=document.getElementById('dash-count-dropped');if(elD)elD.textContent=droppedCount;
   updateFUBadge();
   renderReminders(); // build reminders section in dashboard
+  renderUpcomingActivity(); // build "Upcoming Activity" (special days) section
   renderStageTable(); // client lifecycle stage pipeline
   renderPipelineFunnel(); // desktop-only lead pipeline funnel (no-op cost on mobile, just hidden)
   renderWeekCalendar(); // 7-day follow-up planning strip
@@ -7520,6 +7891,8 @@ function loadSettings(){
   if(glEl) glEl.value=cfg_.goalLeads||'30';
   var gcEl=document.getElementById('s-goal-conv');
   if(gcEl) gcEl.value=cfg_.goalConv||'5';
+  var aiLangEl=document.getElementById('s-ai-lang');
+  if(aiLangEl) aiLangEl.value=cfg_.aiVoiceLang||'en-IN';
 }
 
 // ── URL parameter pre-fill (for iOS Shortcuts integration) ──
@@ -7554,7 +7927,7 @@ function checkURLParams(){
 
 
 document.getElementById('ov-detail').addEventListener('click',function(e){
-  if(e.target.closest('[data-aiwa]')){ draftClientWAMessage(e.target.closest('[data-aiwa]').dataset.aiwa); }
+  if(e.target.closest('[data-aiwa]')){ showWaMsgTypeChoicePopup(e.target.closest('[data-aiwa]').dataset.aiwa); }
   if(e.target.closest('[data-tel]')){var tel=e.target.closest('[data-tel]').dataset.tel;if(tel)window.open('tel:'+tel,'_blank');}
   if(e.target.closest('[data-meet]')){
     var mm=e.target.closest('[data-meet]').dataset.meet;
@@ -8523,21 +8896,8 @@ function renderReminders(){
       list:lifeDue, listType:'life'});
   }
 
-  // ── Upcoming Special Days (next 14 days) ──
-  if(typeof _specialDays !== 'undefined'){
-    _specialDays.forEach(function(sd){
-      var r=daysUntilAnnual(sd.date);
-      if(r.days>=0&&r.days<=14){
-        var dayName=DAYS_OF_WEEK[r.date.getDay()];
-        var dateStr=r.date.getDate()+' '+MONTHS[r.date.getMonth()];
-        var daysStr=r.days===0?'Today!':r.days===1?'Tomorrow':r.days+' days';
-        items.push({icon:'📅',color:'var(--purple)',bg:'rgba(142,68,173,.08)',
-          title:sd.speciality+' — '+daysStr,
-          sub:dateStr+' ('+dayName+') · Plan accordingly',
-          isSpecialDay:true, spIdx:null});
-      }
-    });
-  }
+  // Special Days now render in their own "Upcoming Activity" section
+  // (see renderUpcomingActivity below) rather than here.
 
   if(!items.length){
     el.innerHTML='<div style="font-size:11px;color:var(--t3);text-align:center;padding:10px;font-style:italic">Nothing coming up in the near term 🎉</div>';
@@ -8558,6 +8918,47 @@ function renderReminders(){
 
   // Store items for click handler
   window._remItems=items;
+}
+
+// ── renderUpcomingActivity — split out from renderReminders() so special
+// days (national/observance days, festivals) get their own dashboard
+// section, right next to Today's Activity rather than mixed into Planning
+// Nudges. Same 14-day forward window and click-through as before. ──
+function renderUpcomingActivity(){
+  var el=document.getElementById('dash-upcoming-activity');
+  if(!el) return;
+  var items=[];
+
+  if(typeof _specialDays !== 'undefined'){
+    _specialDays.forEach(function(sd){
+      var r=daysUntilAnnual(sd.date);
+      if(r.days>=0&&r.days<=14){
+        var dayName=DAYS_OF_WEEK[r.date.getDay()];
+        var dateStr=r.date.getDate()+' '+MONTHS[r.date.getMonth()];
+        var daysStr=r.days===0?'Today!':r.days===1?'Tomorrow':r.days+' days';
+        items.push({icon:'📅',color:'var(--purple)',bg:'rgba(142,68,173,.08)',
+          title:sd.speciality+' — '+daysStr,
+          sub:dateStr+' ('+dayName+') · Plan accordingly',
+          isSpecialDay:true});
+      }
+    });
+  }
+
+  if(!items.length){
+    el.innerHTML='<div style="font-size:11px;color:var(--t3);text-align:center;padding:10px;font-style:italic">No special days in the next 14 days</div>';
+    return;
+  }
+
+  el.innerHTML=items.map(function(item){
+    return '<div onclick="showSpecialDaysList()" style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:'+item.bg+';border:1px solid '+item.color+'33;margin-bottom:6px;cursor:pointer">'
+      +'<span style="font-size:20px;flex-shrink:0">'+item.icon+'</span>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--text)">'+item.title+'</div>'
+      +'<div style="font-size:10px;color:var(--t3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+item.sub+'</div>'
+      +'</div>'
+      +'<span style="font-size:14px;color:var(--t3)">›</span>'
+      +'</div>';
+  }).join('');
 }
 
 // Show clickable list popup for a reminder group
@@ -8914,6 +9315,362 @@ if('serviceWorker' in navigator){
       .catch(function(err){ console.warn('SW registration failed:', err); });
   });
 }
+
+// ═══════════════════════════════════════════════════════════════
+// MOBILE APP-LIKE EXPERIENCE
+// Three pieces: (1) light haptic tap feedback on interactive elements,
+// (2) Android hardware back button closes the topmost open overlay/sheet
+// instead of leaving the app, (3) swipe-down-to-dismiss on bottom sheets.
+// All three are generic/delegated rather than wired into individual
+// overlay-creation functions, so they cover every popup, sheet, and form
+// in the app — including ones added later — without touching each one.
+// ═══════════════════════════════════════════════════════════════
+
+// ── (1) Light tap feedback on common interactive elements. Delegated on
+// document so it needs no per-element wiring; 'pointerdown' fires before
+// click, giving the most immediate-feeling response. ──
+document.addEventListener('pointerdown', function(e){
+  if(e.target.closest('button,.nb,.pt,.yn-opt,.prod-opt,.acc-header,.task-card,[data-action],[onclick]')){
+    haptic(6);
+  }
+}, {passive:true});
+
+// ── (2) + (3) Overlay tracking — a single generic detector covers BOTH
+// overlay patterns used throughout this app:
+//   a) Dynamically created full-screen divs (document.createElement +
+//      document.body.appendChild, closed via .remove()) — used by every
+//      popup/sheet built as this app grew (AI review, task form, upload
+//      choice, etc).
+//   b) Static ".ov" elements toggled via classList.add/remove('open') —
+//      used by the original core screens (lead/client detail, edit forms).
+// A MutationObserver watches for either signal and keeps a stack so nested
+// popups (a popup opened from within a sheet) close one at a time, most
+// recent first — matching how back-navigation should feel.
+(function(){
+  var _overlayStack = [];
+  var _handlingPopstate = false;
+
+  // A handful of ".ov" overlays have extra logic beyond a plain class
+  // toggle when closed — ov-fu-detail in particular checks for an unsaved
+  // note and asks before discarding it. Route through the SAME function
+  // their own ✕ button uses, so swipe-dismiss and the back button never
+  // silently skip that protection or the refresh logic closeFuDetail()
+  // does. Anything not listed here falls back to a plain classList toggle,
+  // which is safe (verified against every closeOv() call site in the app).
+  var OV_CLOSE_FN = {
+    'ov-fu-detail': function(){ if(typeof checkUnsavedNoteAndClose==='function') checkUnsavedNoteAndClose(); }
+  };
+  function closeOvSafely(el){
+    var fn=OV_CLOSE_FN[el.id];
+    if(fn){ fn(); return; }
+    el.classList.remove('open');
+  }
+
+  function isFullScreenOverlay(el){
+    if(!(el instanceof HTMLElement)) return false;
+    if(el.id==='toast') return false;
+    var cs=getComputedStyle(el);
+    if(cs.position!=='fixed') return false;
+    if(cs.display==='none') return false;
+    var z=parseInt(cs.zIndex)||0;
+    if(z<900) return false; // nav/topbar/toast sit well below this
+    // Must genuinely cover the viewport (inset:0 equivalent) — excludes
+    // partial banners like showConvertedBanner (top-only, no bottom).
+    return cs.top==='0px' && cs.left==='0px' && cs.right==='0px' && cs.bottom==='0px';
+  }
+
+  function trackOpen(el){
+    if(_overlayStack.indexOf(el)>=0) return;
+    _overlayStack.push(el);
+    try{ history.pushState({wmOverlay:true}, ''); }catch(e){}
+  }
+  function trackClosed(el){
+    var idx=_overlayStack.indexOf(el);
+    if(idx<0) return;
+    _overlayStack.splice(idx,1);
+    // Closed via an in-app close button / backdrop tap / swipe-dismiss
+    // rather than the hardware back button — consume the history entry we
+    // pushed for it now, so a later back-press doesn't land on a dead state.
+    if(!_handlingPopstate){
+      try{ history.back(); }catch(e){}
+    }
+  }
+
+  var mo=new MutationObserver(function(mutations){
+    mutations.forEach(function(m){
+      if(m.type==='childList'){
+        // subtree:false (see observe() call below) — only fires for direct
+        // children of <body> being added/removed, which is exactly how
+        // every dynamically-created overlay in this app is mounted. List
+        // re-renders (leads/clients/tasks) happen deep inside nested
+        // containers and never reach this branch, so this stays cheap
+        // even on a page that re-renders large lists constantly.
+        m.addedNodes.forEach(function(node){ if(node.nodeType===1 && isFullScreenOverlay(node)) trackOpen(node); });
+        m.removedNodes.forEach(function(node){ if(node.nodeType===1) trackClosed(node); });
+      } else if(m.type==='attributes' && m.attributeName==='class'){
+        var el=m.target;
+        if(el.classList && el.classList.contains('ov')){
+          if(el.classList.contains('open')) trackOpen(el);
+          else trackClosed(el);
+        }
+      }
+    });
+  });
+  mo.observe(document.body, {childList:true, subtree:false});
+  mo.observe(document.body, {attributes:true, attributeFilter:['class'], subtree:true});
+
+  window.addEventListener('popstate', function(){
+    if(_overlayStack.length){
+      _handlingPopstate=true;
+      var top=_overlayStack[_overlayStack.length-1];
+      if(top.classList && top.classList.contains('ov')) closeOvSafely(top);
+      else if(top.parentNode) top.remove();
+      _handlingPopstate=false;
+    }
+    // Nothing tracked open — let back behave normally (rare in a standalone
+    // PWA; there's usually nothing "before" this app in its own history).
+  });
+
+  // ── (3) Swipe-down-to-dismiss on bottom sheets. Delegated on the
+  // '.sh-handle' drag-grip already present at the top of every sheet —
+  // dragging it down past a threshold closes the sheet the same way
+  // tapping its close button would (routed through the same closeOvSafely()
+  // as above, so ov-fu-detail's unsaved-note check still fires here too). ──
+  var dragHandle=null, dragSheet=null, dragOverlay=null, dragStartY=0, dragCurY=0, dragging=false;
+
+  document.addEventListener('touchstart', function(e){
+    var handle=e.target.closest('.sh-handle');
+    if(!handle) return;
+    // The sheet card is the handle's parent (consistent markup pattern
+    // throughout this app: '<div class="sh-handle"></div>' is always the
+    // first child inside the sheet card). The overlay to eventually close
+    // is whichever ancestor is the direct child of <body>.
+    dragSheet=handle.parentElement;
+    var walker=handle;
+    while(walker.parentElement && walker.parentElement!==document.body) walker=walker.parentElement;
+    dragOverlay=walker;
+    dragHandle=handle;
+    dragStartY=e.touches[0].clientY;
+    dragCurY=dragStartY;
+    dragging=true;
+    if(dragSheet) dragSheet.style.transition='none';
+  }, {passive:true});
+
+  document.addEventListener('touchmove', function(e){
+    if(!dragging || !dragSheet) return;
+    dragCurY=e.touches[0].clientY;
+    var dy=Math.max(0, dragCurY-dragStartY); // only allow dragging downward
+    dragSheet.style.transform='translateY('+dy+'px)';
+  }, {passive:true});
+
+  document.addEventListener('touchend', function(){
+    if(!dragging || !dragSheet) return;
+    dragging=false;
+    var dy=Math.max(0, dragCurY-dragStartY);
+    dragSheet.style.transition='transform .18s ease-out';
+    if(dy>90){ // dragged far enough — dismiss
+      var overlayToClose=dragOverlay, sheetEl=dragSheet;
+      // For the ov-fu-detail unsaved-note case, closeOvSafely() may show
+      // its OWN confirmation overlay instead of closing immediately — don't
+      // force this sheet off-screen in that case, just snap it back and let
+      // that confirmation handle things. Detect this by checking the
+      // overlay is still open right after calling it.
+      if(overlayToClose && overlayToClose.classList && overlayToClose.classList.contains('ov') && OV_CLOSE_FN[overlayToClose.id]){
+        dragSheet.style.transform='translateY(0)';
+        closeOvSafely(overlayToClose);
+      } else {
+        dragSheet.style.transform='translateY(100%)';
+        setTimeout(function(){
+          if(!overlayToClose) return;
+          if(overlayToClose.classList && overlayToClose.classList.contains('ov')) closeOvSafely(overlayToClose);
+          else if(overlayToClose.parentNode) overlayToClose.remove();
+          if(sheetEl) sheetEl.style.transform=''; // reset for next time it's reused (static .ov sheets get re-shown, not recreated)
+        }, 160);
+      }
+    } else { // snap back
+      dragSheet.style.transform='translateY(0)';
+    }
+    dragHandle=null; dragSheet=null; dragOverlay=null;
+  }, {passive:true});
+})();
+
+// ── Pull-to-refresh (vertical) + swipe-between-tabs (horizontal) — one
+// coordinated handler on #content, since both are gestures on the same
+// element and need to agree on which direction a touch is before either
+// one acts. First real movement past a small threshold decides 'v' or 'h'
+// for that whole touch; whichever one it isn't stays completely inert, so
+// they never fight each other or fire together by accident.
+//
+// Pull-to-refresh only arms when #content is already scrolled to the very
+// top (so it never fights normal scrolling mid-list); past threshold it
+// re-runs manualSync(), the same one your Sync tab button already uses.
+//
+// Swipe-between-tabs moves through the bottom nav in visual order — Leads,
+// Dashboard, Tasks, Clients. Insights is deliberately excluded: it's
+// admin-gated and holds its own AI chat, so an accidental swipe landing on
+// it would be jarring rather than convenient; it stays reachable only via
+// its own nav icon, same as before. A swipe starting inside a known
+// horizontally-scrollable strip (product chips, week calendar) is ignored
+// here so those keep scrolling normally instead of triggering a tab change. ──
+(function(){
+  var contentEl=document.getElementById('content');
+  var indicator=document.getElementById('ptr-indicator');
+  var icon=document.getElementById('ptr-icon');
+  if(!contentEl) return;
+  var startX=0, startY=0, curX=0, curY=0;
+  var pulling=false, refreshing=false, dir=null; // dir: null | 'v' | 'h'
+  var PTR_THRESHOLD=70, SWIPE_THRESHOLD=60, DIR_LOCK_PX=10;
+  var TAB_ORDER=['leads','dash','tasks','clients'];
+
+  function currentTabIndex(){
+    var activePage=document.querySelector('.page.active');
+    if(!activePage) return -1;
+    return TAB_ORDER.indexOf(activePage.id.replace('pg-',''));
+  }
+  function switchToTab(idx){
+    if(idx<0 || idx>=TAB_ORDER.length) return;
+    var name=TAB_ORDER[idx];
+    var btn=document.querySelector('.nb[onclick*="nav(\'' + name + '\'"]');
+    if(typeof nav==='function') nav(name, btn||null);
+  }
+
+  contentEl.addEventListener('touchstart', function(e){
+    if(refreshing || e.touches.length!==1) return;
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+    curX=startX; curY=startY;
+    dir=null;
+    pulling=(contentEl.scrollTop<=0); // only eligible for pull-to-refresh if already at top
+  }, {passive:true});
+
+  contentEl.addEventListener('touchmove', function(e){
+    if(refreshing || e.touches.length!==1) return;
+    curX=e.touches[0].clientX; curY=e.touches[0].clientY;
+    var dx=curX-startX, dy=curY-startY;
+
+    if(dir===null){
+      if(Math.abs(dx)<DIR_LOCK_PX && Math.abs(dy)<DIR_LOCK_PX) return; // not enough movement to decide yet
+      var insideHScroll=e.target.closest && e.target.closest('#product-chips,#dash-weekcal');
+      dir=(Math.abs(dx)>Math.abs(dy)*1.3 && !insideHScroll) ? 'h' : 'v';
+    }
+
+    if(dir==='v'){
+      if(!pulling || !indicator) return;
+      if(dy<=0){ indicator.style.transform='translateX(-50%) translateY(-50px)'; return; }
+      var pull=Math.min(dy*0.5, PTR_THRESHOLD+20);
+      indicator.style.transform='translateX(-50%) translateY('+(pull-50)+'px)';
+      if(icon) icon.style.transform='rotate('+(dy>=PTR_THRESHOLD/0.5?180:0)+'deg)';
+    }
+    // dir==='h': no visual drag preview in v1 — decision happens on release below
+  }, {passive:true});
+
+  contentEl.addEventListener('touchend', function(){
+    if(refreshing) return;
+
+    if(dir==='h'){
+      var dx=curX-startX;
+      if(Math.abs(dx)>SWIPE_THRESHOLD){
+        var idx=currentTabIndex();
+        if(idx>=0){
+          if(dx<0 && idx<TAB_ORDER.length-1){ switchToTab(idx+1); haptic(10); } // swipe left → next tab
+          else if(dx>0 && idx>0){ switchToTab(idx-1); haptic(10); } // swipe right → previous tab
+        }
+      }
+    } else if(dir==='v' && pulling && indicator){
+      var dy=curY-startY;
+      if(dy*0.5>=PTR_THRESHOLD){
+        refreshing=true;
+        indicator.style.transform='translateX(-50%) translateY(10px)';
+        if(icon){ icon.style.transition='transform .6s linear'; icon.style.transform='rotate(720deg)'; }
+        haptic(15);
+        Promise.resolve(typeof manualSync==='function' ? manualSync() : null).finally(function(){
+          setTimeout(function(){
+            indicator.style.transform='translateX(-50%) translateY(-50px)';
+            if(icon){ icon.style.transition='transform .1s'; icon.style.transform='rotate(0deg)'; }
+            refreshing=false;
+          }, 300);
+        });
+      } else {
+        indicator.style.transform='translateX(-50%) translateY(-50px)';
+      }
+    }
+    pulling=false; dir=null;
+  }, {passive:true});
+})();
+
+// ── Offline banner — tied directly to navigator.onLine, so it reflects the
+// device's real connectivity state rather than guessing from failed
+// requests. Shows a persistent, unmissable bar rather than a toast, since
+// "you're offline" is a state, not a one-off event. ──
+(function(){
+  var banner=null;
+  function showOfflineBanner(){
+    if(banner) return;
+    banner=document.createElement('div');
+    banner.id='offline-banner';
+    banner.style.cssText='position:fixed;top:0;left:0;right:0;z-index:200000;background:var(--red);color:#fff;padding:calc(8px + env(safe-area-inset-top,0px)) 14px 8px;text-align:center;font-size:12px;font-weight:700';
+    banner.textContent='📡 You\'re offline — changes will sync once you\'re back online';
+    document.body.appendChild(banner);
+  }
+  function hideOfflineBanner(){
+    if(!banner) return;
+    banner.remove();
+    banner=null;
+  }
+  window.addEventListener('offline', function(){ haptic(20); showOfflineBanner(); });
+  window.addEventListener('online', function(){ haptic(10); hideOfflineBanner(); toast('✅ Back online'); });
+  if(!navigator.onLine) showOfflineBanner(); // catch already-offline on page load, not just the transition
+})();
+
+// ── Custom "Add to Home Screen" install banner (Android/Chrome only — iOS
+// Safari never fires beforeinstallprompt; there's no programmatic install
+// path there, so this stays invisible on iOS by design, not a bug). Chrome
+// suppresses its own default mini-infobar once preventDefault() is called
+// here, so this replaces it with a banner shown at a deliberate moment
+// (after the person has actually used the app a little) instead of
+// immediately on first load. ──
+(function(){
+  var deferredPrompt=null;
+  var STORAGE_KEY='wm_install_banner_dismissed';
+
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt=e;
+    if(localStorage.getItem(STORAGE_KEY)) return; // respect a previous dismissal
+    // Wait until the app has actually loaded data (a session exists) rather
+    // than firing on the very first paint of an unauthenticated visit.
+    setTimeout(function(){
+      if(deferredPrompt && (typeof getSession!=='function' || getSession())) showInstallBanner();
+    }, 4000);
+  });
+
+  function showInstallBanner(){
+    if(document.getElementById('install-banner')) return;
+    var b=document.createElement('div');
+    b.id='install-banner';
+    b.style.cssText='position:fixed;left:12px;right:12px;bottom:calc(88px + env(safe-area-inset-bottom,10px));z-index:9500;background:var(--s1);border:1px solid var(--accent);border-radius:14px;padding:12px 12px 12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:var(--shell-w);margin:0 auto';
+    b.innerHTML='<div style="font-size:22px">📲</div>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:800;color:var(--text)">Install Wealth Matrix</div><div style="font-size:10px;color:var(--t3);margin-top:1px">Faster access, works offline, feels like a real app</div></div>'
+      +'<button id="_inst_yes" style="background:var(--accent);color:#0C1420;border:none;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:800;cursor:pointer;flex-shrink:0">Install</button>'
+      +'<span id="_inst_x" style="color:var(--t3);font-size:16px;cursor:pointer;padding:4px;flex-shrink:0">✕</span>';
+    document.body.appendChild(b);
+    document.getElementById('_inst_yes').onclick=function(){
+      b.remove();
+      if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; }
+      localStorage.setItem(STORAGE_KEY,'1');
+    };
+    document.getElementById('_inst_x').onclick=function(){
+      b.remove();
+      localStorage.setItem(STORAGE_KEY,'1');
+    };
+  }
+
+  window.addEventListener('appinstalled', function(){
+    localStorage.setItem(STORAGE_KEY,'1');
+    var b=document.getElementById('install-banner'); if(b) b.remove();
+    toast('✅ Installed — find it on your home screen');
+  });
+})();
+
 
 
 // ── Week Follow-up Calendar — next 7 days (excluding today), horizontal strip ──
@@ -9702,6 +10459,20 @@ function generateUploadToken(){
 // first asks whether to send the link to the client, or open the upload page
 // directly so the advisor can upload documents on the client's behalf right
 // now (e.g. if the client physically handed over documents in person). ──
+// ── Native share (Web Share API) — lets the OS share sheet handle it, so
+// the advisor (or a client, on upload.html) can pick WhatsApp, Email, SMS,
+// or anything else installed, instead of being locked into a WhatsApp-only
+// flow. Falls back to the given function on unsupported browsers (desktop
+// Chrome, most non-mobile browsers) or if the person cancels the sheet. ──
+async function nativeShare(shareData, fallbackFn){
+  if(navigator.share){
+    try{ await navigator.share(shareData); return true; }
+    catch(e){ if(e && e.name==='AbortError') return false; /* cancelled — do nothing, don't fall back */ }
+  }
+  if(fallbackFn) fallbackFn();
+  return false;
+}
+
 function showUploadChoicePopup(mob, recType){
   var rec = recType==='lead' ? leads.find(function(x){return x.recordId===mob||x.mobile===mob;}) : clients.find(function(x){return x.recordId===mob||x.mobile===mob;});
   var name = rec ? toTitle(rec.name) : 'this '+recType;
@@ -9709,9 +10480,10 @@ function showUploadChoicePopup(mob, recType){
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:340px;overflow:hidden">'
     +'<div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border)">📤 Upload documents for '+name+'</div>'
-    +'<div style="padding:12px 16px;font-size:12px;color:var(--t2);line-height:1.5">Send the upload link to them via WhatsApp, or upload the documents yourself right now?</div>'
+    +'<div style="padding:12px 16px;font-size:12px;color:var(--t2);line-height:1.5">Send the upload link to them, or upload the documents yourself right now?</div>'
     +'<div style="display:flex;flex-direction:column;border-top:1px solid var(--border)">'
-    +'<button id="_uc_send" style="padding:12px;border:none;background:none;color:var(--accent);font-weight:700;cursor:pointer;border-bottom:1px solid var(--border)">💬 Send Link to Them</button>'
+    +'<button id="_uc_send" style="padding:12px;border:none;background:none;color:var(--accent);font-weight:700;cursor:pointer;border-bottom:1px solid var(--border)">💬 Send via WhatsApp</button>'
+    +(navigator.share?'<button id="_uc_share" style="padding:12px;border:none;background:none;color:var(--blue);font-weight:700;cursor:pointer;border-bottom:1px solid var(--border)">📤 Share via…</button>':'')
     +'<button id="_uc_self" style="padding:12px;border:none;background:none;color:var(--orange);font-weight:700;cursor:pointer">📤 I\'m Uploading Now</button>'
     +'</div></div>';
   document.body.appendChild(ov);
@@ -9719,6 +10491,22 @@ function showUploadChoicePopup(mob, recType){
     ov.remove();
     if(recType==='lead') sendLeadUploadLinkWA(mob); else sendUploadLinkWA(mob);
   };
+  var shareBtn=document.getElementById('_uc_share');
+  if(shareBtn){
+    shareBtn.onclick=async function(){
+      ov.remove();
+      toast('Preparing link…');
+      var token = recType==='lead' ? await getOrCreateLeadUploadToken(mob) : await getOrCreateUploadToken(mob);
+      if(!token){ toast('Could not generate link'); return; }
+      var link=buildUploadLink(token);
+      nativeShare({
+        title:'Upload documents',
+        text:'Hi '+name+', please upload your documents using this secure link — takes under 2 minutes, no login needed.',
+        url:link
+      }, function(){ if(recType==='lead') sendLeadUploadLinkWA(mob); else sendUploadLinkWA(mob); });
+      logActivity(mob, recType, 'Upload link shared', '');
+    };
+  }
   document.getElementById('_uc_self').onclick=async function(){
     ov.remove();
     toast('Preparing upload page…');
@@ -9817,6 +10605,7 @@ function showQuickMsgChoicePopup(mob, type, title){
     +'<div style="padding:12px 16px;font-size:12px;color:var(--t2);line-height:1.5">How would you like to send this?</div>'
     +'<div style="display:flex;flex-direction:column;border-top:1px solid var(--border)">'
     +'<button id="_qm_wa" style="padding:12px;border:none;background:none;color:var(--green);font-weight:700;cursor:pointer;border-bottom:1px solid var(--border)">💬 WhatsApp</button>'
+    +(navigator.share?'<button id="_qm_share" style="padding:12px;border:none;background:none;color:var(--purple);font-weight:700;cursor:pointer;border-bottom:1px solid var(--border)">📤 Share via…</button>':'')
     +'<button id="_qm_email" style="padding:12px;border:none;background:none;color:var(--blue);font-weight:700;cursor:pointer;border-bottom:1px solid var(--border)">📧 Email</button>'
     +'<button id="_qm_cancel" style="padding:12px;border:none;background:none;color:var(--t3);font-weight:700;cursor:pointer">Cancel</button>'
     +'</div></div>';
@@ -9824,8 +10613,43 @@ function showQuickMsgChoicePopup(mob, type, title){
   var digits=c?(c.mobile||'').replace(/\D/g,''):'';
   var waNum=digits.length===10?'91'+digits:digits;
   document.getElementById('_qm_wa').onclick=function(){ ov.remove(); sendWAQuick(waNum, type, mob); };
+  var qmShareBtn=document.getElementById('_qm_share');
+  if(qmShareBtn){
+    qmShareBtn.onclick=function(){
+      ov.remove();
+      nativeShare({title:title, text:buildQuickMsgText(type, name)}, function(){ sendWAQuick(waNum, type, mob); });
+    };
+  }
   document.getElementById('_qm_email').onclick=function(){ ov.remove(); sendQuickMsgEmail(mob, type); };
   document.getElementById('_qm_cancel').onclick=function(){ ov.remove(); };
+}
+
+// Client WhatsApp icon — offers a choice before sending anything, since an
+// AI-assisted message costs an API call while the pre-filled one is free
+// and instant. Only the AI path calls draftClientWAMessage (which hits
+// Gemini); the pre-filled path reuses the existing 'greet' template via
+// sendWAQuick — same message every other quick-send button already uses,
+// no AI call at all.
+function showWaMsgTypeChoicePopup(mob){
+  var c=clients.find(function(x){return x.recordId===mob||x.mobile===mob;});
+  var name=c?toTitle(c.name):'this client';
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:340px;overflow:hidden">'
+    +'<div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border)">💬 Message '+esc(name)+'</div>'
+    +'<div style="padding:12px 16px;font-size:12px;color:var(--t2);line-height:1.5">Let AI draft something personalized from their profile, or send a quick pre-filled check-in?</div>'
+    +'<div style="display:flex;flex-direction:column;border-top:1px solid var(--border)">'
+    +'<button id="_wt_ai" style="padding:12px;border:none;background:none;color:var(--purple);font-weight:700;cursor:pointer;border-bottom:1px solid var(--border)">🤖 AI-Assisted Message</button>'
+    +'<button id="_wt_pre" style="padding:12px;border:none;background:none;color:var(--green);font-weight:700;cursor:pointer">✉️ Pre-filled Message</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('_wt_ai').onclick=function(){ ov.remove(); draftClientWAMessage(mob); };
+  document.getElementById('_wt_pre').onclick=function(){
+    ov.remove();
+    var digits=c?(c.mobile||'').replace(/\D/g,''):'';
+    var waNum=digits.length===10?'91'+digits:digits;
+    sendWAQuick(waNum, 'greet', mob);
+  };
 }
 
 function showFeedbackChoicePopup(mob){
@@ -10272,8 +11096,9 @@ function renderTodaysActivity(){
   // logged to the console for debugging, and the rest continue normally.
 
   // ── 0b. Overdue/due tasks — merged into Today's Activity rather than a
-  // separate card below it. Tapping opens the Tasks page with this specific
-  // task's detail already showing, via the existing deep-link helper. ──
+  // separate card below it. Tapping goes straight to the Tasks page in one
+  // tap (not a popup-then-tap — this card summarizes multiple tasks, so a
+  // direct jump to the full Tasks list is more useful than picking one). ──
   try{
     var todayStrForTasks=todayStr;
     var dueTasks=tasks.filter(function(t){
@@ -10283,7 +11108,7 @@ function renderTodaysActivity(){
       items.push({icon:'✅',color:'var(--orange)',bg:'rgba(230,126,34,.08)',
         title:'You have '+dueTasks.length+' overdue task'+(dueTasks.length>1?'s':'')+' to complete',
         sub:dueTasks.slice(0,3).map(function(t){ return t.name?toTitle(t.name):t.taskDetails.slice(0,30); }).join(' · ')+(dueTasks.length>3?' + '+(dueTasks.length-3)+' more':''),
-        list:dueTasks, listType:'tasks'});
+        action:'goToTasksMenu()'});
     }
   }catch(e){ console.warn('Today\'s Activity — Tasks section failed:', e.message); }
 
