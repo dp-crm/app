@@ -542,6 +542,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="ph">
     <div><h1>Leads</h1><div class="sub" id="leads-sub"></div></div>
     <div style="display:flex;gap:7px;align-items:center">
+      <button class="mic" id="mic-btn" onclick="voiceAdd()" aria-label="Add lead by voice"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
       <button class="btn btn-ghost" style="width:40px;height:40px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center" onclick="toggleSharedSearchBar()" aria-label="Search">
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
@@ -569,7 +570,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <!-- DASHBOARD -->
 <div class="page active" id="pg-dash">
   <div class="ph">
-    <div><h1>Dash</h1><div id="dash-welcome" style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--t2);margin-top:2px"></div><div style="font-size:11px;color:var(--t3);margin-top:2px">Here's what's happening with your practice today.</div></div>
+    <div><h1>Dashboard</h1><div id="dash-welcome" style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--t2);margin-top:2px"></div><div style="font-size:11px;color:var(--t3);margin-top:2px">Here's what's happening with your practice today.</div></div>
   </div>
 
   <!-- 4 count tiles: 2x2 grid — borderless, rounded, subtle icon accent -->
@@ -801,6 +802,28 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
         <div class="card" style="padding:12px 14px">
           <button class="btn btn-gold btn-full" style="margin-bottom:10px" onclick="openCreateUserForm()">➕ Add User</button>
           <div id="admin-user-list"><div style="font-size:11px;color:var(--t3);text-align:center;padding:8px">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7b. Firm Branding — Admin only. Whitelabels the app: this firm name +
+         logo replace the fixed emoji on the client-facing PWA pages (feedback,
+         review, upload, gatherinfo, findoc), so the same deployment can be
+         resold to a different firm without editing any HTML by hand. -->
+    <div class="acc-section" id="acc-set-branding" style="display:none">
+      <div class="acc-header" onclick="toggleSettingsSection('set-branding')">
+        <span class="acc-icon">🏢</span><span class="acc-title">Firm Branding</span><span class="acc-chevron">▾</span>
+      </div>
+      <div class="acc-body">
+        <div class="sg">
+          <div class="si" style="font-size:10px;color:var(--t3)"><span>Sets the firm name and logo shown on the client-facing pages (feedback, review, document upload, update-details, financial documents). Use a small square image — under ~30KB works best.</span></div>
+          <div style="padding:10px 12px 4px;text-align:center">
+            <img id="branding-logo-preview" src="" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover;background:var(--s2);border:1px solid var(--border);display:none">
+          </div>
+          <div style="padding:0 12px 8px"><label class="fl">Firm Name</label><input class="fi" id="branding-firm-name" placeholder="e.g. Wealth Matrix Finserv"></div>
+          <div style="padding:0 12px 8px"><label class="fl">Firm Logo</label><input class="fi" type="file" accept="image/*" id="branding-logo-file"></div>
+          <div class="syc"><button class="btn btn-gold btn-full" id="branding-save-btn" onclick="saveFirmBranding()">💾 Save Branding</button></div>
+          <div class="savemsg" id="branding-save-msg" style="font-size:11px;text-align:center;margin-top:8px"></div>
         </div>
       </div>
     </div>
@@ -3053,6 +3076,7 @@ async function bulkDelete(){if(selectedLeads.size===0)return;if(!confirm('Delete
 // ═══════════════════════════════════════════════
 var recog=null;
 function parseVoice(t){var lo=t.toLowerCase();var p={name:'',mob:'',email:'',country:'',age:'',gender:'',status:'PROSPECT',source:'',products:'',nextFollowUp:''};var dm=t.replace(/[^0-9]/g,'').match(/(\d{10,12})/);if(dm)p.mob=dm[1].slice(-10);if(lo.includes('female'))p.gender='FEMALE';else if(lo.includes('male'))p.gender='MALE';if(lo.includes('converted'))p.status='CONVERTED';else if(lo.includes('in progress'))p.status='IN PROGRESS';else if(lo.includes('contacted'))p.status='CONTACTED';return p;}
+function voiceAdd(){var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast('Voice not available');return;}var btn=document.getElementById('mic-btn');if(recog){recog.stop();return;}recog=new SR();recog.lang='en-IN';recog.interimResults=false;btn.classList.add('on');toast('🎤 Listening…',30000);recog.onresult=function(e){var t=e.results[0][0].transcript;openAddLead(parseVoice(t));toast('Review and save');};recog.onerror=function(){toast('Mic error');};recog.onend=function(){btn.classList.remove('on');recog=null;};recog.start();}
 
 // ═══════════════════════════════════════════════
 // SETTINGS
@@ -7175,6 +7199,61 @@ function loadSettings(){
   if(gcEl) gcEl.value=cfg_.goalConv||'5';
 }
 
+// ── Firm Branding (Settings > admin-only) — pulls the currently saved
+// name/logo from the backend so the fields aren't blank on every visit. ──
+async function loadFirmBrandingIntoSettings(){
+  if(!hasScript()) return;
+  try{
+    var res=await apiFetch({action:'getFirmBranding'});
+    if(res && res.success){
+      var nameEl=document.getElementById('branding-firm-name');
+      if(nameEl && !nameEl.value) nameEl.value=res.firmName||'';
+      var prevEl=document.getElementById('branding-logo-preview');
+      if(prevEl && res.logoDataUrl){ prevEl.src=res.logoDataUrl; prevEl.style.display='inline-block'; }
+    }
+  }catch(e){ console.warn('loadFirmBrandingIntoSettings failed:', e.message); }
+}
+
+// Saves the firm name and/or a newly chosen logo file. Either can be sent
+// alone — e.g. renaming the firm without re-uploading the logo.
+async function saveFirmBranding(){
+  var session=getSession();
+  if(!session){ toast('Please log in again'); return; }
+  var nameEl=document.getElementById('branding-firm-name');
+  var fileEl=document.getElementById('branding-logo-file');
+  var msgEl=document.getElementById('branding-save-msg');
+  var btn=document.getElementById('branding-save-btn');
+  var payload={action:'saveFirmBranding', requestingUserId:session.userId, firmName:(nameEl&&nameEl.value||'').trim()};
+  var file=fileEl&&fileEl.files&&fileEl.files[0];
+  if(file){
+    if(file.size>40000){
+      msgEl.textContent='⚠️ That image is too large — please use a smaller logo (under ~30KB).';
+      msgEl.style.color='var(--red)';
+      return;
+    }
+    payload.logoBase64=await fileToBase64(file);
+    payload.mimeType=file.type;
+  }
+  btn.disabled=true; btn.textContent='Saving…';
+  try{
+    var res=await sheetWrite(payload, 20000);
+    if(res && res.success){
+      msgEl.textContent='✅ Branding saved';
+      msgEl.style.color='var(--green)';
+      var prevEl=document.getElementById('branding-logo-preview');
+      if(prevEl && res.logoDataUrl){ prevEl.src=res.logoDataUrl; prevEl.style.display='inline-block'; }
+      if(fileEl) fileEl.value='';
+    } else {
+      msgEl.textContent='⚠️ '+(res&&res.error||'Could not save — please try again.');
+      msgEl.style.color='var(--red)';
+    }
+  }catch(e){
+    msgEl.textContent='⚠️ Could not reach the server: '+e.message;
+    msgEl.style.color='var(--red)';
+  }
+  btn.disabled=false; btn.textContent='💾 Save Branding';
+}
+
 // ── URL parameter pre-fill (for iOS Shortcuts integration) ──
 // When app is opened with ?name=X&mobile=Y it auto-opens Add Lead form
 function checkURLParams(){
@@ -10278,12 +10357,15 @@ function renderAccountSection(){
   if(lineEl) lineEl.textContent=session?('Signed in as '+session.name+' ('+session.userType+')'):'Signed in as —';
   var connSec=document.getElementById('acc-set-connection');
   var usersSec=document.getElementById('acc-set-users');
+  var brandSec=document.getElementById('acc-set-branding');
   if(isAdmin()){
     if(connSec) connSec.style.display='block';
     if(usersSec){ usersSec.style.display='block'; loadAdminUserList(); }
+    if(brandSec){ brandSec.style.display='block'; loadFirmBrandingIntoSettings(); }
   } else {
     if(connSec) connSec.style.display='none';
     if(usersSec) usersSec.style.display='none';
+    if(brandSec) brandSec.style.display='none';
   }
 }
 

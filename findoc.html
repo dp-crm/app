@@ -17,6 +17,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .wrap{max-width:var(--page-w);margin:0 auto;padding:0 0 100px}
 .hdr{padding:22px 18px 16px;text-align:center;border-bottom:1px solid var(--border)}
 .hdr .logo{font-size:34px;margin-bottom:6px}
+.hdr .logo img{width:40px;height:40px;border-radius:11px;object-fit:cover;display:block;margin:0 auto}
 .hdr h1{font-size:16px;font-weight:800;margin:0 0 4px}
 .hdr p{font-size:11px;color:var(--t3);margin:0}
 .state{padding:60px 24px;text-align:center}
@@ -72,6 +73,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   :root{ --page-w:760px; }
   .hdr{padding:30px 18px 20px}
   .hdr .logo{font-size:42px}
+  .hdr .logo img{width:50px;height:50px;border-radius:13px}
   .hdr h1{font-size:19px}
   .state{padding:90px 24px}
   .row-block{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
@@ -88,8 +90,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 <body>
 <div class="wrap">
   <div class="hdr">
-    <div class="logo">🗂️</div>
-    <h1>Wealth Matrix Finserv</h1>
+    <div class="logo" id="hdr-logo">🗂️</div>
+    <h1 id="hdr-firmname">Wealth Matrix Finserv</h1>
     <p>Family Financial Information &amp; Documents Organizer</p>
   </div>
   <div id="app">
@@ -434,7 +436,37 @@ async function doGenerate(){
   }
 }
 
+// ── Firm Branding — pulls the firm name + logo set by the admin in the
+// CRM (Settings > Firm Branding) so this page shows the right firm's
+// identity instead of the fixed default. Cached in localStorage so the
+// header never flashes back to the placeholder on a later visit; falls
+// back to the built-in emoji/name if nothing has been set yet.
+function applyFirmBranding(name, logoDataUrl){
+  if(name){
+    var nameEl=document.getElementById('hdr-firmname');
+    if(nameEl) nameEl.textContent=name;
+  }
+  if(logoDataUrl){
+    var logoEl=document.getElementById('hdr-logo');
+    if(logoEl) logoEl.innerHTML='<img src="'+logoDataUrl+'" alt="">';
+  }
+}
+async function loadFirmBranding(){
+  try{
+    var cached=JSON.parse(localStorage.getItem('wm_firm_branding')||'null');
+    if(cached) applyFirmBranding(cached.firmName, cached.logoDataUrl);
+  }catch(e){}
+  try{
+    var res=await apiPost({action:'getFirmBranding'});
+    if(res && res.success && (res.firmName||res.logoDataUrl)){
+      applyFirmBranding(res.firmName, res.logoDataUrl);
+      try{ localStorage.setItem('wm_firm_branding', JSON.stringify({firmName:res.firmName,logoDataUrl:res.logoDataUrl})); }catch(e){}
+    }
+  }catch(e){ /* non-fatal — page still works with the default branding */ }
+}
+
 init();
+loadFirmBranding();
 </script>
 </body>
 </html>
