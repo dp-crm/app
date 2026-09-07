@@ -411,7 +411,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   /* Dashboard: multi-column layout instead of one stacked column */
   #pg-dash .dash-grid-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;padding:0 14px}
   #pg-dash .dash-grid-2col .sec{padding:0;margin-bottom:0}
-  #pg-dash > div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:repeat(4,1fr)!important}
   #pg-dash .dash-funnel-sec{display:block!important}
 }
 #sidebar{display:none}
@@ -601,31 +600,32 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
   <div class="ph">
-    <div><h1>Dashboard</h1><div id="dash-welcome" style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--t2);margin-top:2px"></div><div style="font-size:11px;color:var(--t3);margin-top:2px">Here's what's happening with your practice today.</div></div>
+    <div><h1>Dash Board</h1><div id="dash-welcome" style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--t2);margin-top:2px"></div><div style="font-size:11px;color:var(--t3);margin-top:2px">Here's what's happening with your practice today.</div></div>
   </div>
 
-  <!-- 4 count tiles: 2x2 grid — borderless, rounded, subtle icon accent -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 12px">
-    <div onclick="showDashList('prospect')" style="background:var(--s1);border-radius:var(--r);padding:14px;cursor:pointer">
-      <div style="width:30px;height:30px;border-radius:50%;background:var(--coraldim);display:flex;align-items:center;justify-content:center;margin-bottom:9px;font-size:14px">🎯</div>
-      <div id="dash-count-prospect" style="font-size:26px;font-weight:800;color:var(--text);line-height:1">—</div>
-      <div style="font-size:10.5px;color:var(--t2);margin-top:4px">Prospects</div>
+  <!-- 4 count tiles: single row, compact — smaller icons/numbers so this
+       whole strip takes less vertical space and Today's Activity below it
+       is reached without scrolling past a tall block first. -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 14px 10px">
+    <div onclick="showDashList('prospect')" style="background:var(--s1);border-radius:12px;padding:9px 4px;cursor:pointer;text-align:center">
+      <div style="width:20px;height:20px;border-radius:50%;background:var(--coraldim);display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:10px">🎯</div>
+      <div id="dash-count-prospect" style="font-size:17px;font-weight:800;color:var(--text);line-height:1">—</div>
+      <div style="font-size:8.5px;color:var(--t2);margin-top:4px;line-height:1.2">Prospects</div>
     </div>
-    <div onclick="showDashList('active')" style="background:var(--s1);border-radius:var(--r);padding:14px;cursor:pointer">
-      <div style="width:30px;height:30px;border-radius:50%;background:var(--coraldim);display:flex;align-items:center;justify-content:center;margin-bottom:9px;font-size:14px">📈</div>
-      <div id="dash-count-active" style="font-size:26px;font-weight:800;color:var(--text);line-height:1">—</div>
-      <div style="font-size:10.5px;color:var(--t2);margin-top:4px">Active Leads</div>
-      <div style="font-size:9px;color:var(--t3);margin-top:1px">Contacted + In Progress</div>
+    <div onclick="showDashList('active')" style="background:var(--s1);border-radius:12px;padding:9px 4px;cursor:pointer;text-align:center">
+      <div style="width:20px;height:20px;border-radius:50%;background:var(--coraldim);display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:10px">📈</div>
+      <div id="dash-count-active" style="font-size:17px;font-weight:800;color:var(--text);line-height:1">—</div>
+      <div style="font-size:8.5px;color:var(--t2);margin-top:4px;line-height:1.2">Active</div>
     </div>
-    <div onclick="showDashList('clients')" style="background:var(--s1);border-radius:var(--r);padding:14px;cursor:pointer">
-      <div style="width:30px;height:30px;border-radius:50%;background:var(--coraldim);display:flex;align-items:center;justify-content:center;margin-bottom:9px;font-size:14px">👥</div>
-      <div id="dash-total-clients" style="font-size:26px;font-weight:800;color:var(--text);line-height:1">—</div>
-      <div style="font-size:10.5px;color:var(--t2);margin-top:4px">Clients</div>
+    <div onclick="showDashList('clients')" style="background:var(--s1);border-radius:12px;padding:9px 4px;cursor:pointer;text-align:center">
+      <div style="width:20px;height:20px;border-radius:50%;background:var(--coraldim);display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:10px">👥</div>
+      <div id="dash-total-clients" style="font-size:17px;font-weight:800;color:var(--text);line-height:1">—</div>
+      <div style="font-size:8.5px;color:var(--t2);margin-top:4px;line-height:1.2">Clients</div>
     </div>
-    <div onclick="showDashList('dropped')" style="background:var(--s1);border-radius:var(--r);padding:14px;cursor:pointer">
-      <div style="width:30px;height:30px;border-radius:50%;background:var(--coraldim);display:flex;align-items:center;justify-content:center;margin-bottom:9px;font-size:14px">✕</div>
-      <div id="dash-count-dropped" style="font-size:26px;font-weight:800;color:var(--text);line-height:1">—</div>
-      <div style="font-size:10.5px;color:var(--t2);margin-top:4px">Dropped</div>
+    <div onclick="showDashList('dropped')" style="background:var(--s1);border-radius:12px;padding:9px 4px;cursor:pointer;text-align:center">
+      <div style="width:20px;height:20px;border-radius:50%;background:var(--coraldim);display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:10px">✕</div>
+      <div id="dash-count-dropped" style="font-size:17px;font-weight:800;color:var(--text);line-height:1">—</div>
+      <div style="font-size:8.5px;color:var(--t2);margin-top:4px;line-height:1.2">Dropped</div>
     </div>
   </div>
 
@@ -3134,6 +3134,32 @@ function setAiVoiceStatus(text, show){
   el.classList.toggle('show', !!show);
 }
 
+// ── Decodes the browser's SpeechRecognition error codes into an actionable
+// message — the raw API only gives a short code, and "didn't catch that"
+// for every possible failure hides the real cause (permission vs no
+// internet vs no mic vs genuinely no speech), which makes it hard to tell
+// what to actually fix. Shared by both voice-input entry points (Dashboard
+// AI assistant and the Insights chat dictation mic). ──
+function describeSpeechRecognitionError(code){
+  switch(code){
+    case 'not-allowed':
+    case 'permission-denied':
+      return 'Microphone permission is blocked — allow microphone access for this site in your browser/app settings, then try again';
+    case 'no-speech':
+      return 'No speech detected — try again, speaking a little closer to the mic';
+    case 'audio-capture':
+      return 'No microphone found — check the device has a working mic';
+    case 'network':
+      return 'Network error — voice recognition needs an internet connection';
+    case 'language-not-supported':
+      return 'This language isn\'t supported for voice input on this device/browser — try English or check Settings';
+    case 'aborted':
+      return ''; // user-initiated stop — not an error, show nothing
+    default:
+      return 'Voice input error'+(code?' ('+code+')':'')+' — tap and try again';
+  }
+}
+
 function toggleAiVoiceAssistant(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   var btn=document.getElementById('ai-voice-fab');
@@ -3154,10 +3180,13 @@ function toggleAiVoiceAssistant(){
     setAiVoiceStatus('', false);
     showAiVoiceConfirm(transcript, voiceLang);
   };
-  _aiVoiceRecog.onerror=function(){
+  _aiVoiceRecog.onerror=function(e){
     if(btn) btn.classList.remove('listening');
-    setAiVoiceStatus('⚠️ Didn\'t catch that — tap and try again', true);
-    setTimeout(function(){ setAiVoiceStatus('', false); }, 2500);
+    var msg=describeSpeechRecognitionError(e&&e.error);
+    if(msg){ // 'aborted' (user tapped stop) intentionally shows nothing
+      setAiVoiceStatus('⚠️ '+msg, true);
+      setTimeout(function(){ setAiVoiceStatus('', false); }, 3500);
+    }
   };
   _aiVoiceRecog.onend=function(){
     if(btn) btn.classList.remove('listening');
@@ -6730,9 +6759,10 @@ function toggleChatVoiceInput(){
     for(var i=0;i<e.results.length;i++){ spoken+=e.results[i][0].transcript; }
     if(input) input.value=baseText+spoken;
   };
-  _chatVoiceRecog.onerror=function(){
+  _chatVoiceRecog.onerror=function(e){
     if(btn) btn.classList.remove('on');
-    toast('Didn\'t catch that — tap the mic and try again');
+    var msg=describeSpeechRecognitionError(e&&e.error);
+    if(msg) toast(msg);
   };
   _chatVoiceRecog.onend=function(){
     if(btn) btn.classList.remove('on');
@@ -7204,9 +7234,27 @@ async function runHealthCheck(){
     else if(calRes){
       ok('Default calendar: '+(calRes.defaultCalendarName||'(unnamed)'));
       var bdayCalFound=(calRes.allCalendars||[]).some(function(c){return c.isBirthdayCalendar;});
-      if(bdayCalFound) ok('Birthday calendar detected \u2014 birthdays pull automatically');
-      else wn('No Birthday calendar found \u2014 check Google Contacts has birthdays saved');
+      if(bdayCalFound) ok('Birthday calendar visible to the script');
+      else wn('No Birthday calendar found in the calendar list \u2014 check Google Contacts has birthdays saved, and that the account running the script (not necessarily the advisor\'s own login) is the one with those contacts');
     } else { wn('Calendar check returned no response'); }
+
+    // Actually pull today's events/birthdays, the same call the Dashboard
+    // makes — this is the real test, since a calendar can be "visible" in
+    // the list above yet still return zero readable events.
+    var todayStr9=today();
+    var evRes=await apiFetch({action:'getCalendarEvents', start:todayStr9, end:todayStr9});
+    if(evRes&&evRes.error){ no('Fetching today\'s events failed: '+evRes.error); }
+    else if(evRes){
+      var evCount9=(evRes.events||[]).filter(function(e){return e.type!=='birthday';}).length;
+      var bdayCount9=evRes.birthdaysFound||0;
+      ok('Today: '+evCount9+' calendar event(s), '+bdayCount9+' birthday(s) \u2014 source: '+(evRes.birthdaySource||'none'));
+      if(bdayCount9>0){
+        var bdayNames=(evRes.events||[]).filter(function(e){return e.type==='birthday';}).map(function(e){return e.title;}).join(', ');
+        ok('Birthdays found today: '+bdayNames);
+      } else if(bdayCalFound){
+        wn('Birthday calendar is visible but returned 0 events for today \u2014 if you expect a birthday today, this points to a read-access limitation on that specific calendar rather than a missing calendar. Re-run this after any Code.gs redeploy.');
+      }
+    }
   }catch(e){ wn('Calendar check error: '+e.message); }
 
   // 12. QUICK REMINDERS — full round trip against the REAL sheet, so any
