@@ -12,7 +12,7 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="theme-color" content="#1B1512">
-<title>Wealth Matrix CRM v5.1.0</title>
+<title>Wealth Matrix CRM v5.4.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -64,7 +64,24 @@
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;overscroll-behavior:none;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
 #app{display:flex;flex-direction:column;height:100dvh;height:100vh;max-width:var(--shell-w);margin:0 auto;position:relative;overflow-x:hidden}
-#content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(88px + env(safe-area-inset-bottom, 10px));padding-top:calc(46px + env(safe-area-inset-top,0px))}
+#content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(88px + env(safe-area-inset-bottom, 10px));padding-top:calc(46px + env(safe-area-inset-top,0px));position:relative}
+
+/* ── Pull-to-refresh indicator — a small custom spinner shown above the
+   content while pulling down from the top, since native browser
+   pull-to-refresh looks/behaves inconsistently across PWA install states
+   and platforms; this gives one consistent, on-brand version everywhere. ── */
+.ptr-indicator{position:fixed;top:calc(50px + env(safe-area-inset-top,0px));left:50%;width:34px;height:34px;border-radius:50%;background:var(--s1);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;z-index:499;opacity:0;pointer-events:none;transform:translateX(-50%) translateY(-30px);transition:opacity .15s}
+.ptr-indicator.visible{opacity:1}
+.ptr-indicator svg{width:16px;height:16px;color:var(--accent)}
+.ptr-indicator.spinning svg{animation:globalRefreshSpin .7s linear infinite}
+
+/* ── Page-switch transition — a quick fade+slide instead of an instant
+   swap, on both a swipe and a normal tab tap, so navigation feels like a
+   real app transition rather than a page reload. Direction is set inline
+   per-swipe (see navigateTabBySwipe); a plain tap defaults to a gentle
+   fade with no horizontal offset. ── */
+@keyframes pageSwitchIn{from{opacity:0;transform:translateX(var(--page-slide-from,0px))}to{opacity:1;transform:translateX(0)}}
+.page.active{animation:pageSwitchIn .2s ease-out}
 #nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:calc(var(--shell-w) - 24px);background:rgba(12,20,32,.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--border);border-radius:14px 14px 0 0;display:flex;justify-content:center;z-index:100;padding:7px 19px env(safe-area-inset-bottom,8px);min-height:72px;gap:2px}
 .nb{flex:1;max-width:81px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 3px;font-size:12px;font-weight:700;color:var(--t3);cursor:pointer;border:none;background:none;gap:4px;transition:color .2s,background .2s;border-radius:17px}
 .nb.active{color:var(--accent);background:var(--s2)}
@@ -528,7 +545,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
       <span style="font-size:10px;font-weight:900;color:#000">WM</span>
     </div>
-    <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Wealth Matrix CRM</span>
+    <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Wealth Matrix CRM</span>
+    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.4.0</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
     <button id="global-refresh-btn" onclick="manualTopBarRefresh()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Refresh">
@@ -545,6 +563,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 <div id="app">
 <div id="content">
+<div class="ptr-indicator" id="ptr-indicator">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+</div>
 
 <!-- SHARED SEARCH BAR — active on Leads and Clients pages -->
 <div id="shared-search-bar" style="display:none;padding:6px 12px 4px;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50">
@@ -600,7 +621,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
   <div class="ph">
-    <div><h1>Dash Board</h1><div id="dash-welcome" style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--t2);margin-top:2px"></div><div style="font-size:11px;color:var(--t3);margin-top:2px">Here's what's happening with your practice today.</div><div style="font-size:9px;color:var(--t3);opacity:.6;margin-top:3px" id="dash-version-tag">v<span id="dash-version-num">5.1.0</span></div></div>
+    <div><h1>Dash Board</h1><div id="dash-welcome" style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--t2);margin-top:2px"></div><div style="font-size:11px;color:var(--t3);margin-top:2px">Here's what's happening with your practice today.</div><div style="font-size:9px;color:var(--t3);opacity:.6;margin-top:3px" id="dash-version-tag">v<span id="dash-version-num">5.1.1</span></div></div>
   </div>
 
   <!-- 4 count tiles: single row, compact — smaller icons/numbers so this
@@ -738,6 +759,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
             <div id="push-result" style="font-size:10px;color:var(--t3);margin-top:5px"></div>
           </div>
           <div class="si" style="font-size:10px;color:var(--t3)"><span>Auto-sync runs every 5 minutes.</span></div>
+          <div id="failed-writes-banner" style="display:none;margin:8px 12px 0;padding:10px 12px;background:var(--rdim);border:1px solid var(--red);border-radius:10px">
+            <div style="font-size:11px;font-weight:700;color:var(--red)" id="failed-writes-text"></div>
+            <div style="font-size:10px;color:var(--t2);margin-top:3px">These changes never reached the sheet after several attempts — please redo them manually.</div>
+            <button class="btn btn-ghost" style="margin-top:8px;font-size:10px;padding:6px" onclick="viewFailedWrites()">View details</button>
+            <button class="btn btn-ghost" style="margin-top:8px;margin-left:6px;font-size:10px;padding:6px" onclick="clearFailedWrites()">Clear</button>
+          </div>
         </div>
         <div class="sg" style="margin-top:10px">
           <div class="si"><span>Target leads/month</span><input class="fi" id="s-goal-leads" type="number" style="width:70px;text-align:center" value="30" onchange="cfg('goalLeads',this.value)"></div>
@@ -776,6 +803,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           <div class="si" style="font-size:10px;color:var(--t3)"><span>Full end-to-end test: leads &amp; clients add·update·delete, field-to-column sync, duplicate-proofing, activity-log add/dedupe/delete-by-RawID, Drive folder, and backup. Writes temporary test rows then deletes them.</span></div>
           <div class="syc"><button class="btn btn-gold btn-full" style="font-weight:700" onclick="runHealthCheck()">🩺 Run Full Health Check</button></div>
           <div class="syc"><pre id="health-result" style="font-size:10px;background:var(--s2);border-radius:8px;padding:10px;white-space:pre-wrap;max-height:340px;overflow-y:auto;margin:0"></pre></div>
+          <div class="syc" id="health-report-actions" style="display:none;gap:8px">
+            <button class="btn btn-ghost" style="flex:1;font-size:11px" onclick="copyHealthReport()">📋 Copy Report</button>
+            <button class="btn btn-ghost" style="flex:1;font-size:11px" onclick="emailHealthReport()">📧 Email Report</button>
+          </div>
+          <div class="si" style="font-size:10px;color:var(--t3);margin-top:4px"><span>Prefer a report that finishes and emails itself even if you close the app? Use the button below instead.</span></div>
+          <div class="syc"><button class="btn btn-gold btn-full" style="font-weight:700" onclick="runServerDiagnosticAndEmail()">📧🩺 Run Diagnosis &amp; Auto-Email Report</button></div>
+          <div class="si" style="font-size:10px;color:var(--t3)" id="server-diag-status"></div>
         </div>
         <div class="sg" style="margin-top:10px">
           <div class="si" style="font-size:10px;color:var(--t3)"><span>Checks every real client (not test data): field sync to the sheet, and whether each one has a Drive folder. Offers to create any missing folders.</span></div>
@@ -890,7 +924,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
   </div>
 
-  <div style="text-align:center;padding:20px 0 40px;font-size:10px;color:var(--t3)" id="settings-app-version">Wealth Matrix CRM v5.1.0</div>
+  <div style="text-align:center;padding:20px 0 40px;font-size:10px;color:var(--t3)" id="settings-app-version">Wealth Matrix CRM v5.1.1</div>
 </div>
 
 <!-- FOLLOW-UPS -->
@@ -2897,8 +2931,9 @@ async function saveClient(){
     var updated=clients[idx];
     closeOv('ov-client');
     renderClients();
-    syncClient(updated,'update'); // targeted — updates only this row in sheet
-    toast('✅ Client updated');
+    syncClient(updated,'update').then(function(_syncRes){ // targeted — updates only this row in sheet
+      if(_syncRes && _syncRes.success) toast('✅ Client updated');
+    });
     if(missingMandatory.length) showMissingFieldsPrompt(missingMandatory);
     // Only prompt to create a folder if one doesn't already exist.
     checkClientFolderExists(updated).then(function(exists){
@@ -3995,11 +4030,18 @@ function renderAll(){
   if(anaPage&&anaPage.classList.contains('active')){ loadAllBusinessInsights(); }
   setTimeout(addSearchClose,100);
 }
-function nav(name,btn){
+function nav(name,btn,slideFrom){
   if(name==='analytics' && !isAdmin()){
     toast('Insights is only available to Admin');
     name='dash'; btn=null;
   }
+  // Haptic tick + set the swipe slide-direction for this transition —
+  // defaults to a neutral fade (no left/right offset) for a plain tap;
+  // navigateTabBySwipe() passes an explicit direction as the 3rd arg for
+  // the swipe case, so each transition gets the direction that actually
+  // caused it, not whatever the last one happened to leave behind.
+  document.documentElement.style.setProperty('--page-slide-from', slideFrom||'0px');
+  if(navigator.vibrate) navigator.vibrate(6);
   // Pause the chat's background animations whenever leaving Insights — these
   // ran via setTimeout chains that would otherwise keep firing indefinitely
   // on every other page for the rest of the session, doing invisible work
@@ -4933,7 +4975,7 @@ function renderFuDetailInner(mob,nameHint){
 
 
 // Version marker
-var APP_VERSION='5.1.0';
+var APP_VERSION='5.4.0';
 
 
 
@@ -5325,8 +5367,15 @@ async function saveLead(){
     if(status==='CONVERTED'){
       autoConvert(leads[idx]);
     } else {
-      syncLead(leads[idx], 'update');
-      toast('✅ Lead updated');
+      // Await the actual sync result before claiming success — previously
+      // this toast fired the instant the request was sent, regardless of
+      // whether it actually succeeded, which is exactly how an edit could
+      // silently fail to reach the sheet while the advisor saw a
+      // confident "✅ Lead updated". syncLead() shows its own accurate
+      // toast on failure (queued for retry, or the fallback result), so
+      // only show this one when it's actually true.
+      var _syncRes=await syncLead(leads[idx], 'update');
+      if(_syncRes && _syncRes.success) toast('✅ Lead updated');
     }
     editLead=null;
     advanceVoiceQueueIfPending();
@@ -5405,6 +5454,16 @@ var _wq = [];
 function _loadQ(){ try{ _wq=JSON.parse(localStorage.getItem('wm_wq')||'[]'); }catch(e){ _wq=[]; } }
 function _saveQ(){ try{ localStorage.setItem('wm_wq', JSON.stringify(_wq)); }catch(e){} }
 
+// ── Permanently-failed writes (5 retries exhausted) — previously these
+// were just silently discarded with zero notification, which meant an
+// edit could be quietly lost forever with nothing on screen ever telling
+// you it happened. Now they're kept here instead, so there's always a
+// visible, persistent trail of exactly what failed to save. ──
+var _wqFailed = [];
+function _loadFailedQ(){ try{ _wqFailed=JSON.parse(localStorage.getItem('wm_wq_failed')||'[]'); }catch(e){ _wqFailed=[]; } }
+function _saveFailedQ(){ try{ localStorage.setItem('wm_wq_failed', JSON.stringify(_wqFailed)); }catch(e){} }
+function hasFailedWrites(){ _loadFailedQ(); return _wqFailed.length>0; }
+
 // ── Single row (15 cols) from a lead object ──
 function leadRow(l){
   // Delegates to leadToRow — keeps column order consistent with LEAD_COLS
@@ -5442,9 +5501,13 @@ async function syncLead(lead, action){
           if(_lIdx>=0) leads[_lIdx].recordId=res.recordId;
           saveL();
         }
-      } else if(res && res.error && res.error.indexOf('Bad action')>=0){
-        // Old Apps Script doesn't have appendLead — fall back to pushLeads
-        console.warn('appendLead not supported, falling back to pushLeads');
+      } else {
+        // ANY failure — not just the old-deployment "Bad action" signal —
+        // falls back to a full rewrite, same reasoning as the update branch
+        // above: a genuine appendLead failure (quota, transient error, etc.)
+        // used to go silently nowhere for any reason other than that one
+        // specific error string.
+        console.warn('appendLead failed ('+(res&&res.error)+'), falling back to pushLeads');
         var res2 = await _doWrite({action:'pushLeads', rows:leadsRows()});
         ok = !!(res2 && res2.success); finalRes = res2;
       }
@@ -5454,9 +5517,16 @@ async function syncLead(lead, action){
       var res3 = await _doWrite({action:'updateLead', mobile:lead.mobile, recordId:lead.recordId||'', row:leadRow(lead)});
       if(res3 && res3.success){
         ok = true; finalRes = res3;
-      } else if(res3 && res3.error && res3.error.indexOf('Bad action')>=0){
-        // Old Apps Script — fall back to pushLeads
-        console.warn('updateLead not supported, falling back to pushLeads');
+      } else {
+        // ANY failure here — not just an old-deployment "Bad action" error,
+        // but also a genuine "couldn't find a row matching this Record ID
+        // or Name+Mobile" failure (e.g. a lead added offline whose
+        // server-assigned Record ID never reconciled locally) — falls back
+        // to a full rewrite from local truth. Without this catch-all, that
+        // second failure mode used to go silently nowhere: the app showed
+        // "Lead updated" while nothing actually reached the sheet, and the
+        // retry queue kept using the same broken match criteria forever.
+        console.warn('updateLead failed ('+(res3&&res3.error)+'), falling back to pushLeads');
         var res4 = await _doWrite({action:'pushLeads', rows:leadsRows()});
         ok = !!(res4 && res4.success); finalRes = res4;
       }
@@ -5499,18 +5569,74 @@ async function flushWriteQueue(){
   if(_wq.length===0) return;
   _loadQ();
   var remaining=[];
+  var anySucceeded=false;
+  var newlyFailed=[];
   for(var i=0;i<_wq.length;i++){
     var item=_wq[i];
-    if(item.attempts>=5){ continue; } // drop after 5 fails
+    if(item.attempts>=5){
+      // Previously silently dropped here — that meant an edit could vanish
+      // forever with no trace anywhere. Now it's kept as a permanent,
+      // visible record instead, and the person is told plainly that this
+      // specific change needs to be redone manually.
+      newlyFailed.push(item);
+      continue;
+    }
     var _r=await _doWrite(item.payload);
     var ok=!!(_r&&_r.success);            // FIX: _doWrite returns an object, not a boolean.
                                           // Safe to retry now that the backend is idempotent (v2.8).
-    if(!ok){ item.attempts++; remaining.push(item); }
+    if(ok){ anySucceeded=true; }
+    else{ item.attempts++; remaining.push(item); }
   }
   _wq=remaining;
   _saveQ();
+
+  if(newlyFailed.length){
+    _loadFailedQ();
+    _wqFailed=_wqFailed.concat(newlyFailed);
+    _saveFailedQ();
+    console.error('Write queue: '+newlyFailed.length+' change(s) permanently failed after 5 attempts:', newlyFailed);
+    toast('⚠️ '+newlyFailed.length+' change(s) could not be saved after several attempts — check Settings > Sync to see what needs redoing', 6000);
+  }
+
   if(_wq.length>0) _setSyncDot('pending');
-  else _setSyncDot('ok');
+  else if(!hasFailedWrites()) _setSyncDot('ok');
+
+  // The critical fix: a successful retry here means the SHEET is now
+  // correct, but the local leads/clients arrays (and whatever's on
+  // screen) may still be showing whatever an earlier boot-time pull
+  // happened to see — which, if that pull raced ahead of this retry,
+  // would still be the pre-edit value. Silently re-pulling here is what
+  // actually closes that gap, instead of leaving the app quietly showing
+  // stale data until the next full reload happens to catch up on its own.
+  if(anySucceeded){
+    await reconcileLeadsAndClientsFromSheet();
+  }
+}
+
+// ── Lightweight, targeted re-pull of just leads+clients (not the full
+// pullFromSheet — this deliberately skips analytics/special-days/calendar/
+// sync-banner side effects, since it can fire in the background at any
+// time via flushWriteQueue and shouldn't surface as a visible "Syncing…"
+// moment). Same REPLACE-from-sheet logic as boot and manual sync, kept as
+// its own function so all three call sites can never drift apart. ──
+async function reconcileLeadsAndClientsFromSheet(){
+  if(!hasScript() || syncInProgress) return;
+  try{
+    var _fetches=await Promise.all([scriptGet('LEADS'),scriptGet('CLIENTS')]);
+    var sheetLeads=parseLeadsFromRows(_fetches[0]&&_fetches[0].rows);
+    if(sheetLeads){
+      sheetLeads.forEach(function(obj){
+        var existing=leads.find(function(l){return (obj.recordId&&l.recordId===obj.recordId)||l.mobile===obj.mobile;});
+        if(existing&&existing.notes) obj.notes=existing.notes; else obj.notes=[];
+      });
+      leads=filterRecordsForRole(sheetLeads); saveL();
+    }
+    var sheetClients=parseClientsFromRows(_fetches[1]&&_fetches[1].rows);
+    if(sheetClients){
+      clients=filterRecordsForRole(sheetClients); saveC();
+    }
+    renderAll();
+  }catch(e){ console.warn('reconcileLeadsAndClientsFromSheet failed:', e.message); }
 }
 
 // ── The actual HTTP write — POST text/plain with GET fallback ──
@@ -5677,7 +5803,18 @@ async function bootSequenceV17(){
   }catch(err){
     setTopSync('err','Sync failed — tap 🔄');setSyncBanner('err');
     console.warn('Boot sync:',err.message);
-  }finally{syncInProgress=false;}
+  }finally{
+    syncInProgress=false;
+    // Flush any pending writes from a previous session AFTER this pull has
+    // already landed, not on an independent timer racing against it —
+    // previously a standalone 4-second timer could fire before or during
+    // this pull, in either order, which is exactly how a queued edit could
+    // get silently overwritten by a pull that ran first. Sequencing it here
+    // guarantees "see current sheet, then push what's still pending" in
+    // that order, every time.
+    _loadQ(); _loadFailedQ();
+    if(_wq.length>0) flushWriteQueue();
+  }
 }
 
 
@@ -5859,7 +5996,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.17.0';
+var EXPECTED_BACKEND_VERSION = '2.19.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -7560,11 +7697,205 @@ async function runHealthCheck(){
     try{ await sheetWrite({action:'deleteReminder', date:testDate, clientName:testName, reminderText:'Updated test reminder text', reminderDate:testRemDate}); }catch(e2){}
   }
 
+  // 13. WHATSAPP DRAFT LINKAGE — validates the phone-number-to-wa.me
+  // transformation used by every "Send via WhatsApp" button in the app.
+  // This is a pure link-formatting check, not a real send: no server or
+  // network call can confirm WhatsApp itself opens/delivers a message —
+  // that part is inherently a manual, on-device check.
+  log(''); log('\u2501\u2501 13. WhatsApp draft linkage \u2501\u2501');
+  try{
+    var waTestCases=[
+      {in:'9876543210', want:'919876543210'},
+      {in:'+91 98765 43210', want:'919876543210'},
+      {in:'091-9876543210', want:'919876543210'},
+      {in:'919876543210', want:'919876543210'}
+    ];
+    var waAllOk=true;
+    waTestCases.forEach(function(tc){
+      var digits=tc.in.replace(/\D/g,'');
+      var waNum=digits.length===10?'91'+digits:digits;
+      if(waNum!==tc.want){ waAllOk=false; no('Number "'+tc.in+'" formatted to "'+waNum+'", expected "'+tc.want+'"'); }
+    });
+    if(waAllOk) ok('Phone \u2192 wa.me number formatting correct for common input formats (plain, spaced, +91, leading 0)');
+    var sampleMsg='Hi Test, this is a sample message with a link: '+location.href;
+    var sampleUrl='https://wa.me/919876543210?text='+encodeURIComponent(sampleMsg);
+    if(sampleUrl.indexOf('https://wa.me/91')===0 && decodeURIComponent(sampleUrl.split('?text=')[1])===sampleMsg){
+      ok('Message text encodes/decodes correctly in the wa.me link (no corruption)');
+    } else {
+      no('Message text did not round-trip correctly through URL encoding');
+    }
+    wn('This only checks the LINK is built correctly \u2014 actually opening WhatsApp and sending is a manual, on-device step that can\'t be automated from here');
+  }catch(e){ no('WhatsApp linkage test error: '+e.message); }
+
+  // 14. EXTERNAL PAGES — feedback/upload/gatherinfo/findoc/review.html.
+  // These must sit in the SAME folder as this file for the relative links
+  // the app builds to work — fetched here as same-origin requests, so no
+  // CORS issues, same as a real client tapping one of these links.
+  log(''); log('\u2501\u2501 14. External pages (client-facing links) \u2501\u2501');
+  try{
+    var base=location.href.replace(/[^\/]*$/, '');
+    // Saved here so the server-side diagnostic (Apps Script has no browser
+    // location of its own to read) can run this same check on its own —
+    // fire-and-forget, never blocks or fails this check if it doesn't land.
+    apiFetch({action:'setAppSetting', key:'pwaBaseUrl', value:base}).catch(function(){});
+    var extPages=['feedback.html','upload.html','gatherinfo.html','findoc.html','review.html'];
+    for(var epi=0;epi<extPages.length;epi++){
+      var epUrl=base+extPages[epi];
+      try{
+        var epRes=await fetch(epUrl, {method:'GET', cache:'no-store'});
+        if(epRes.ok){
+          var epText=await epRes.text();
+          if(epText.indexOf('<html')>=0 || epText.indexOf('<!DOCTYPE')>=0) ok(extPages[epi]+' loads correctly (HTTP '+epRes.status+')');
+          else wn(extPages[epi]+' responded HTTP '+epRes.status+' but content doesn\'t look like a real page \u2014 check the file wasn\'t replaced with an error page');
+        } else {
+          no(extPages[epi]+' returned HTTP '+epRes.status+' \u2014 confirm the file exists in the same folder as crm.html and is pushed to GitHub');
+        }
+      }catch(epErr){ no(extPages[epi]+' failed to load: '+epErr.message); }
+    }
+  }catch(e){ no('External pages test error: '+e.message); }
+
+  // 15. AI API CONNECTIVITY — both AI-backed features: the Insights chat
+  // assistant, and the AI Voice Assistant's command interpreter. Each is a
+  // real Gemini call with trivial input, just enough to confirm the API
+  // key, model name, and request format are all still working end to end.
+  log(''); log('\u2501\u2501 15. AI API connectivity (Gemini) \u2501\u2501');
+  try{
+    var chatRes=await sheetWrite({action:'practiceChat', message:'Reply with exactly the word: OK', history:[], expectsResponse:true}, 20000);
+    if(chatRes && chatRes.reply) ok('Insights AI chat responded \u2014 Gemini connection working ("'+String(chatRes.reply).slice(0,40).replace(/\n/g,' ')+'")');
+    else no('Insights AI chat failed: '+(chatRes&&chatRes.error||'no reply received \u2014 check GEMINI_API_KEY in Script Properties'));
+  }catch(e){ no('Insights AI chat error: '+e.message); }
+  try{
+    var vcRes=await sheetWrite({action:'interpretVoiceCommand', command:'add a lead named Test User mobile 9999999999', languageName:'English', candidateNames:[]}, 20000);
+    if(vcRes && vcRes.success && vcRes.result && vcRes.result.actions && vcRes.result.actions.length){
+      ok('AI Voice Assistant interpreter responded correctly \u2014 intent recognized: '+vcRes.result.actions[0].intent);
+    } else {
+      no('AI Voice Assistant interpreter failed: '+(vcRes&&vcRes.error||'no valid actions returned'));
+    }
+  }catch(e){ no('AI Voice Assistant interpreter error: '+e.message); }
+
+  // 16. FIELD \u2192 COLUMN HEADER MATCHING — items 2 & 5 already prove real
+  // writes land in the correct columns by round-tripping actual data; this
+  // is a complementary, faster check that every field the app expects can
+  // even be FOUND by header text in the live sheet \u2014 catches a renamed
+  // or missing header before it becomes a silent data-mapping bug.
+  log(''); log('\u2501\u2501 16. Field \u2192 column header matching \u2501\u2501');
+  try{
+    var lHdrRes=await scriptGet('LEADS',2);
+    var lHdrRow=(lHdrRes&&lHdrRes.rows&&lHdrRes.rows[0])||[];
+    var lHdr=lHdrRow.map(function(h){return (h||'').toLowerCase().trim();});
+    var lci=function(keys){for(var ki=0;ki<keys.length;ki++)for(var hi=0;hi<lHdr.length;hi++)if(lHdr[hi].includes(keys[ki]))return hi;return -1;};
+    var lFields={name:['name'],mobile:['mobile','phone'],email:['email'],status:['status'],source:['source'],
+      'follow-up':['follow'],products:['product','investment'],remarks:['remark','note'],
+      'record id':['record id'],'family name':['family']};
+    var lMissing=[];
+    Object.keys(lFields).forEach(function(f){ if(lci(lFields[f])<0) lMissing.push(f); });
+    if(lMissing.length===0) ok('All expected LEADS columns found by header text');
+    else no('LEADS columns not found by header text: '+lMissing.join(', ')+' \u2014 check for renamed/missing headers');
+
+    var cHdrRes=await scriptGet('CLIENTS',2);
+    var cHdrRow=(cHdrRes&&cHdrRes.rows&&cHdrRes.rows[0])||[];
+    var cHdr=cHdrRow.map(function(h){return (h||'').toLowerCase().trim();});
+    var cci=function(keys){for(var ki=0;ki<keys.length;ki++)for(var hi=0;hi<cHdr.length;hi++)if(cHdr[hi].includes(keys[ki]))return hi;return -1;};
+    var cFields={name:['name'],mobile:['mobile','phone'],email:['email'],stage:['stage'],
+      'record id':['record id'],'folder id':['folder']};
+    var cMissing=[];
+    Object.keys(cFields).forEach(function(f){ if(cci(cFields[f])<0) cMissing.push(f); });
+    if(cMissing.length===0) ok('All expected CLIENTS columns found by header text');
+    else no('CLIENTS columns not found by header text: '+cMissing.join(', ')+' \u2014 check for renamed/missing headers');
+  }catch(e){ no('Field/column matching test error: '+e.message); }
+
+  // 17. FIRM BRANDING
+  log(''); log('\u2501\u2501 17. Firm branding \u2501\u2501');
+  try{
+    var brandRes=await sheetWrite({action:'getFirmBranding'}, 15000);
+    if(brandRes && brandRes.success){
+      if(brandRes.firmName) ok('Firm name set: "'+brandRes.firmName+'"');
+      else wn('No firm name set \u2014 client-facing pages show the default placeholder name');
+      if(brandRes.logoDataUrl) ok('Firm logo is set');
+      else wn('No firm logo set \u2014 client-facing pages show the default emoji icon');
+    } else {
+      no('Could not read firm branding: '+(brandRes&&brandRes.error||'unknown error'));
+    }
+  }catch(e){ no('Firm branding check error: '+e.message); }
+
   // SUMMARY
   log(''); log('\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501');
   log('RESULT: '+pass+' passed \u00B7 '+fail+' failed \u00B7 '+warn+' warnings');
   if(fail===0) log('\uD83C\uDF89 All critical checks passed.');
   else log('Some checks failed \u2014 review the \u274C lines above.');
+
+  // Stash the full report text + a one-line summary for the Copy/Email
+  // buttons below — captured here rather than re-reading the DOM later so
+  // it's exactly what was just shown, timestamped for whoever reads it.
+  window._lastHealthCheckReport=(el?el.textContent:'')+'\n\nRun at: '+new Date().toLocaleString('en-IN')+'\nApp version: '+APP_VERSION;
+  window._lastHealthCheckSummary=pass+' passed, '+fail+' failed, '+warn+' warnings';
+  var reportActionsEl=document.getElementById('health-report-actions');
+  if(reportActionsEl) reportActionsEl.style.display='flex';
+}
+
+// ── Copies the full report text (from the last completed Run Full Health
+// Check) to the clipboard — for pasting into an email, WhatsApp, or a
+// support ticket, whichever the person actually has open. ──
+async function copyHealthReport(){
+  if(!window._lastHealthCheckReport){ toast('Run the health check first'); return; }
+  try{
+    await navigator.clipboard.writeText(window._lastHealthCheckReport);
+    toast('✅ Report copied — paste it wherever you need to share it');
+  }catch(e){
+    toast('Could not copy automatically — please select and copy the text manually');
+  }
+}
+
+// ── Opens the person's own default mail app with the report pre-filled,
+// addressed to Deep Pocket's support inbox. A mailto: link (not a
+// server-sent email) is deliberate here — this is the INTERACTIVE path,
+// used when someone is actively looking at a finished report and wants to
+// send it themselves, from their own account, with a chance to add notes
+// first. Mail bodies have a practical length limit in most clients, so a
+// short summary goes in the email body and the person is told the full
+// report is already on their clipboard to paste in. ──
+function emailHealthReport(){
+  if(!window._lastHealthCheckReport){ toast('Run the health check first'); return; }
+  copyHealthReport();
+  var subject='Wealth Matrix CRM — Diagnostic Report ('+window._lastHealthCheckSummary+')';
+  var body='Diagnostic summary: '+window._lastHealthCheckSummary+'\n\n'
+    +'The full detailed report has been copied to your clipboard — paste it below this line.\n\n'
+    +'App version: '+APP_VERSION+'\nRun at: '+new Date().toLocaleString('en-IN')+'\n\n---\n\n';
+  var mailto='mailto:deeppocket1610@gmail.com?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  window.location.href=mailto;
+}
+
+// ── Server-side diagnostic trigger. Deliberately fire-and-forget from the
+// browser's point of view: the whole point of this button is that the
+// person can close the app right after tapping it and still get the
+// email, so the UI confirms immediately rather than waiting for the
+// (potentially 30-60+ second) Apps Script execution to finish and return.
+// The fetch is still sent — just not awaited in a way that blocks the UI
+// or that matters if the tab closes before it resolves, since the
+// diagnostic keeps running server-side regardless (see the comment on
+// runServerDiagnosticAndEmail in Code.gs). ──
+function runServerDiagnosticAndEmail(){
+  if(!hasScript()){ toast('Add Apps Script URL first — check Settings'); return; }
+  var statusEl=document.getElementById('server-diag-status');
+  if(statusEl) statusEl.textContent='🩺 Diagnosis running on the server — you can safely close the app now. The report will arrive by email in a minute or two.';
+  toast('Diagnosis started — you\'ll get an emailed report shortly, even if you close the app now', 5000);
+  // Long explicit timeout — this genuinely can take a minute or more
+  // server-side (multiple sheet round-trips, a couple of Gemini calls, a
+  // few external page fetches). apiFetch()'s default 30s would abort the
+  // CLIENT's wait for a response well before that, which — while it
+  // wouldn't stop the server-side execution or the email — would show a
+  // misleading "error" here for a run that's actually still working fine.
+  sheetWrite({action:'runServerDiagnosticAndEmail'}, 120000).then(function(res){
+    if(statusEl){
+      if(res && res.success) statusEl.textContent='✅ Done — emailed to deeppocket1610@gmail.com ('+res.summary+')';
+      else if(res) statusEl.textContent='⚠️ '+(res.error||'Something went wrong — check Apps Script Executions log');
+    }
+  }).catch(function(){
+    // A network error here just means we didn't hear back — the Apps
+    // Script execution itself was already dispatched and keeps running
+    // regardless, so this is NOT necessarily a failure, just silence.
+    if(statusEl) statusEl.textContent='🩺 Diagnosis is running server-side — check your email in a couple of minutes.';
+  });
 }
 
 async function runFullSyncTest(){
@@ -7757,6 +8088,129 @@ async function quickAddFromContacts(){
 // Right swipe → quick log activity | Left swipe → cycle status
 var _swipeStartX=0, _swipeStartY=0, _swipeMob='', _swiping=false;
 
+// ═══════════════════════════════════════════════
+// NATIVE-APP GESTURES — swipe left/right between the 5 bottom-nav tabs,
+// and pull-down-to-refresh. Both are deliberately careful not to hijack
+// gestures that already belong to something else in the app: the lead/
+// client card swipe-to-log-follow-up (initSwipe, right below this), and
+// any horizontally-scrollable strip (the week calendar, status tabs,
+// chip rows, etc.) — those are detected live by actually checking
+// whether the touched element can scroll, rather than a hardcoded list
+// that would silently go stale as new horizontal strips get added later.
+// ═══════════════════════════════════════════════
+
+// True if the touch started inside something that already owns
+// horizontal gestures — either a genuinely scrollable strip (checked by
+// its real scrollWidth vs clientWidth, not just its CSS) or a lead/client
+// list card (owned by initSwipe's own touch handlers).
+function isInsideHorizontalScroller(el){
+  var contentEl=document.getElementById('content');
+  var node=el;
+  var depth=0;
+  while(node && node!==contentEl && node!==document.body && depth<12){
+    if(node.classList && node.classList.contains('li')) return true;
+    if(node.id==='lead-list' || node.id==='client-list') return true;
+    var cs=window.getComputedStyle(node);
+    if((cs.overflowX==='auto' || cs.overflowX==='scroll') && node.scrollWidth>node.clientWidth+4) return true;
+    node=node.parentElement;
+    depth++;
+  }
+  return false;
+}
+
+var TAB_SWIPE_ORDER=['leads','dash','analytics','tasks','clients'];
+var _tabSwipeStartX=0, _tabSwipeStartY=0, _tabSwiping=false, _tabSwipeBlocked=false;
+
+function initTabSwipeNav(){
+  var contentEl=document.getElementById('content');
+  if(!contentEl || contentEl._tabSwipeInit) return;
+  contentEl._tabSwipeInit=true;
+
+  contentEl.addEventListener('touchstart', function(e){
+    if(e.touches.length!==1) return;
+    // Also skip while any full-screen overlay/modal is open (add/edit
+    // forms, the AI voice confirm bubble, etc.) — a swipe there should
+    // never navigate away underneath an open form.
+    var overlayOpen=document.querySelector('div[style*="z-index:9999"], div[style*="z-index:99999"], div[style*="z-index:100000"], .ai-voice-confirm.show');
+    _tabSwipeBlocked=isInsideHorizontalScroller(e.target) || !!overlayOpen;
+    _tabSwipeStartX=e.touches[0].clientX;
+    _tabSwipeStartY=e.touches[0].clientY;
+    _tabSwiping=true;
+  }, {passive:true});
+
+  contentEl.addEventListener('touchend', function(e){
+    if(!_tabSwiping || _tabSwipeBlocked){ _tabSwiping=false; return; }
+    _tabSwiping=false;
+    var dx=e.changedTouches[0].clientX-_tabSwipeStartX;
+    var dy=e.changedTouches[0].clientY-_tabSwipeStartY;
+    // Require a clearly horizontal, deliberate swipe — well past normal
+    // scroll jitter, and much more horizontal than vertical — so a normal
+    // vertical scroll can never accidentally trigger a tab change.
+    if(Math.abs(dx)<80 || Math.abs(dx)<Math.abs(dy)*1.5) return;
+    navigateTabBySwipe(dx>0?-1:1);
+  }, {passive:true});
+}
+
+function navigateTabBySwipe(direction){
+  var order=TAB_SWIPE_ORDER.filter(function(name){ return name!=='analytics' || isAdmin(); });
+  var current=order.find(function(n){ var pg=document.getElementById('pg-'+n); return pg && pg.classList.contains('active'); });
+  var idx=order.indexOf(current);
+  if(idx<0) return; // current page isn't one of the swipeable tabs (e.g. Settings) — swipe does nothing there
+  var nextIdx=idx+direction;
+  if(nextIdx<0 || nextIdx>=order.length) return; // no wraparound at the ends, same as tapping past the first/last tab would do
+  var nextName=order[nextIdx];
+  var btn=document.querySelector('.nb[onclick*="nav(\''+nextName+'\'"]');
+  nav(nextName, btn, direction>0?'16px':'-16px');
+}
+
+// ── Pull-to-refresh — only engages when already scrolled to the very top
+// of the page (so it can never interfere with normal scrolling further
+// down), and only past a deliberate release threshold, mirroring how a
+// native app's pull-to-refresh feels rather than triggering on every
+// small downward wobble. ──
+var _ptrStartY=0, _ptrPulling=false, _ptrTriggered=false;
+var PTR_TRIGGER_DIST=70;
+
+function initPullToRefresh(){
+  var contentEl=document.getElementById('content');
+  var indicator=document.getElementById('ptr-indicator');
+  if(!contentEl || !indicator || contentEl._ptrInit) return;
+  contentEl._ptrInit=true;
+
+  contentEl.addEventListener('touchstart', function(e){
+    if(e.touches.length!==1) return;
+    _ptrPulling = contentEl.scrollTop<=0;
+    _ptrStartY=e.touches[0].clientY;
+    _ptrTriggered=false;
+  }, {passive:true});
+
+  contentEl.addEventListener('touchmove', function(e){
+    if(!_ptrPulling) return;
+    var dy=e.touches[0].clientY-_ptrStartY;
+    if(dy<=0){ indicator.classList.remove('visible'); return; }
+    // Resistance curve — pulling feels progressively "heavier" the further
+    // you go, same feel as native pull-to-refresh, capped so the indicator
+    // never flies off past a sensible max offset.
+    var pull=Math.min(60, dy*0.4);
+    indicator.style.transform='translateX(-50%) translateY('+(pull-30)+'px)';
+    indicator.classList.add('visible');
+    indicator.classList.toggle('spinning', dy>=PTR_TRIGGER_DIST);
+    if(dy>=PTR_TRIGGER_DIST && !_ptrTriggered){ _ptrTriggered=true; if(navigator.vibrate) navigator.vibrate(10); }
+  }, {passive:true});
+
+  contentEl.addEventListener('touchend', function(){
+    if(_ptrPulling && _ptrTriggered){
+      manualTopBarRefresh();
+    }
+    _ptrPulling=false;
+    setTimeout(function(){
+      indicator.classList.remove('visible','spinning');
+      indicator.style.transform='translateX(-50%) translateY(-30px)';
+    }, 200);
+  }, {passive:true});
+}
+
+
 function initSwipe(){
   var list=document.getElementById('lead-list');
   if(!list) return;
@@ -7881,6 +8335,20 @@ function exportCSV(){
 
 
 // ── Load settings into UI ──
+// ── Top bar firm name — reflects the actual branding set via
+// saveFirmBranding (backend action still exists even though its Settings
+// UI was removed) so a white-labeled deployment shows the real firm's
+// name here, falling back to the default if nothing's been set. ──
+async function loadTopbarFirmName(){
+  if(!hasScript()) return;
+  try{
+    var res=await apiFetch({action:'getFirmBranding'});
+    if(res && res.success && res.firmName){
+      var el=document.getElementById('topbar-firm-name');
+      if(el) el.textContent=res.firmName;
+    }
+  }catch(e){ /* non-fatal — keeps showing the default name */ }
+}
 function loadSettings(){
   var urlEl=document.getElementById('s-script-url');
   if(urlEl) urlEl.value=cfg_.scriptUrl||'';
@@ -7891,6 +8359,44 @@ function loadSettings(){
   renderFontSizeButtons(cfg_.fontSizeMode||'small');
   var langEl=document.getElementById('voice-language-select');
   if(langEl) langEl.value=cfg_.voiceLanguage||'en-IN|English';
+  renderFailedWritesBanner();
+}
+
+// ── Shows/hides the persistent "these changes never made it to the sheet"
+// banner in Settings — separate from the one-time toast, since a toast
+// can easily be missed and this is data that needs manual attention. ──
+function renderFailedWritesBanner(){
+  _loadFailedQ();
+  var banner=document.getElementById('failed-writes-banner');
+  var textEl=document.getElementById('failed-writes-text');
+  if(!banner) return;
+  if(_wqFailed.length>0){
+    if(textEl) textEl.textContent='⚠️ '+_wqFailed.length+' change(s) could not be saved';
+    banner.style.display='block';
+  } else {
+    banner.style.display='none';
+  }
+}
+
+// Shows exactly what failed, in plain terms, so it can be manually redone.
+function viewFailedWrites(){
+  _loadFailedQ();
+  if(!_wqFailed.length){ toast('No failed writes'); return; }
+  var lines=_wqFailed.map(function(item, i){
+    var p=item.payload||{};
+    var label=p.action||'unknown action';
+    var who=(p.row&&p.row[0])||p.mobile||p.name||'';
+    return (i+1)+'. '+label+(who?' — '+who:'')+' (tried '+(item.attempts||5)+'x)';
+  }).join('\n');
+  alert('These changes never reached the sheet:\n\n'+lines+'\n\nPlease redo them manually in the app. Once redone, you can clear this list from the same screen.');
+}
+
+// Manually clears the failed-writes list (e.g. after redoing everything by
+// hand) — deliberately not automatic, since silently clearing a record of
+// lost data is exactly the failure mode this whole feature exists to avoid.
+function clearFailedWrites(){
+  _wqFailed=[]; _saveFailedQ(); renderFailedWritesBanner();
+  toast('Cleared');
 }
 
 // ── App Settings > AI Voice Assistant Language — which language
@@ -11307,20 +11813,26 @@ function startAppAfterAuth(){
   if(isLockEnabled()){ showLockScreen(); }
   load();loadActivityLog();loadTasks();bootSequenceV17();
   applyFontSizeMode(cfg_.fontSizeMode||'small');
+  initTabSwipeNav();
+  initPullToRefresh();
   var topBar=document.getElementById('global-topbar'); if(topBar) topBar.style.display='flex';
   var dashWelcome=document.getElementById('dash-welcome');
   if(dashWelcome){
     var _welcomeSession=getSession();
     dashWelcome.textContent=_welcomeSession?('Welcome, '+_welcomeSession.name):'';
   }
-  // Single source of truth for the version shown on-screen (Dashboard tag
-  // + Settings footer) — both driven from APP_VERSION so there's never a
-  // mismatch, and so checking which build is actually live never requires
-  // opening dev tools: it's right there on the Dashboard on every load.
+  // Single source of truth for the version shown on-screen (top bar tag +
+  // Dashboard tag + Settings footer) — all driven from APP_VERSION so
+  // there's never a mismatch, and so checking which build is actually
+  // live never requires opening dev tools: it's visible everywhere on
+  // every load, including the permanent top bar.
   var dashVerEl=document.getElementById('dash-version-num');
   if(dashVerEl) dashVerEl.textContent=APP_VERSION;
   var setVerEl=document.getElementById('settings-app-version');
   if(setVerEl) setVerEl.textContent='Wealth Matrix CRM v'+APP_VERSION;
+  var topVerEl=document.getElementById('topbar-version-tag');
+  if(topVerEl) topVerEl.textContent='V '+APP_VERSION;
+  loadTopbarFirmName();
   if(!isAdmin()){
     var navBtn=document.getElementById('nav-analytics'); if(navBtn) navBtn.style.display='none';
     var sideBtn=document.getElementById('sidebar-nav-analytics'); if(sideBtn) sideBtn.style.display='none';
@@ -11355,7 +11867,8 @@ initLeadSwipe();
 //   (1) pullFromSheet() at boot, and
 //   (2) the manual "Sync Now" button (manualSync()) —
 // both already use the correct, complete parseLeadsFromRows/parseClientsFromRows.
-setTimeout(flushWriteQueue, 4000); // retry pending writes after 4s
+// (flushWriteQueue is now called from inside bootSequenceV17's finally block,
+// sequenced to run after the initial pull rather than racing it — see there.)
 
 // ── Desktop adaptation for ad-hoc popups ──
 // Many confirm/prompt dialogs throughout this app are built as one-off
