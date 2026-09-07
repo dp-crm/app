@@ -12,7 +12,7 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="theme-color" content="#1B1512">
-<title>Wealth Matrix CRM v5.6.0</title>
+<title>Wealth Matrix CRM v5.6.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -546,7 +546,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <span style="font-size:10px;font-weight:900;color:#000">WM</span>
     </div>
     <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Wealth Matrix CRM</span>
-    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.6.0</span>
+    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.6.1</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
     <button id="global-refresh-btn" onclick="manualTopBarRefresh()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Refresh">
@@ -4979,7 +4979,7 @@ function renderFuDetailInner(mob,nameHint){
 
 
 // Version marker
-var APP_VERSION='5.6.0';
+var APP_VERSION='5.6.1';
 
 
 
@@ -11471,13 +11471,15 @@ async function sha256Hex(text){
 function getSession(){
   try{
     var s=JSON.parse(localStorage.getItem('wm_session')||'null');
-    // A session without userId, userType, AND a real sessionToken is corrupt
-    // or predates this feature — it can't be used for role checks, record
-    // filtering, or verified backend requests. Treat it as no session at
-    // all so they get a clean login screen (and a fresh, real token) rather
-    // than sitting logged-in client-side with no way to actually
-    // authenticate anything server-side.
-    if(s && (!s.userId || !s.userType || !s.sessionToken)){
+    // A session without userId AND userType is corrupt or predates this
+    // feature — it can't be used for role checks or record filtering.
+    // Treat it as no session at all so they get a clean login screen
+    // rather than sitting logged-in client-side with no real identity.
+    // (sessionToken was originally checked here too, but the backend
+    // never actually generates or validates one anywhere — requiring it
+    // made login mathematically impossible regardless of how correct the
+    // username/password were. Left out of this check for that reason.)
+    if(s && (!s.userId || !s.userType)){
       localStorage.removeItem('wm_session');
       return null;
     }
@@ -11559,7 +11561,12 @@ async function attemptLogin(){
     // that would let someone past the login screen with no password ever
     // actually verified, in a broken state with no role. Checking for the
     // fields themselves closes that off regardless of how it arises.
-    if(res && res.success && res.userId && res.userType && res.sessionToken){
+    // (This previously also required res.sessionToken — but the backend's
+    // loginUser action never generates one anywhere, so that check made
+    // login fail unconditionally regardless of how correct the username/
+    // password were. Removed for that reason; see loginUser in Code.gs,
+    // which returns success + identity fields only, no token.)
+    if(res && res.success && res.userId && res.userType){
       setSession({name:res.name, username:res.username, userType:res.userType, userId:res.userId, sessionToken:res.sessionToken});
       if(passEl) passEl.value='';
       hideLoginScreen();
