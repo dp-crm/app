@@ -12,7 +12,7 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="theme-color" content="#1B1512">
-<title>Wealth Matrix CRM v5.4.0</title>
+<title>Wealth Matrix CRM v5.6.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -546,7 +546,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <span style="font-size:10px;font-weight:900;color:#000">WM</span>
     </div>
     <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Wealth Matrix CRM</span>
-    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.4.0</span>
+    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.6.0</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
     <button id="global-refresh-btn" onclick="manualTopBarRefresh()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Refresh">
@@ -802,6 +802,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
         <div class="sg">
           <div class="si" style="font-size:10px;color:var(--t3)"><span>Full end-to-end test: leads &amp; clients add·update·delete, field-to-column sync, duplicate-proofing, activity-log add/dedupe/delete-by-RawID, Drive folder, and backup. Writes temporary test rows then deletes them.</span></div>
           <div class="syc"><button class="btn btn-gold btn-full" style="font-weight:700" onclick="runHealthCheck()">🩺 Run Full Health Check</button></div>
+          <div class="si" style="font-size:10px;color:var(--t3);margin-top:8px"><span>Paste your Google Sheet's URL below — it's checked against what the backend is actually connected to. Do this once; every future check then automatically flags it if the backend ever points somewhere else.</span></div>
+          <div style="padding:0 12px 4px"><input class="fi" id="sheet-url-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="font-size:11px"></div>
+          <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="verifySheetUrlAndSave()">🔗 Verify &amp; Save</button></div>
+          <div class="si" style="font-size:10px" id="sheet-verify-result"></div>
           <div class="syc"><pre id="health-result" style="font-size:10px;background:var(--s2);border-radius:8px;padding:10px;white-space:pre-wrap;max-height:340px;overflow-y:auto;margin:0"></pre></div>
           <div class="syc" id="health-report-actions" style="display:none;gap:8px">
             <button class="btn btn-ghost" style="flex:1;font-size:11px" onclick="copyHealthReport()">📋 Copy Report</button>
@@ -4975,7 +4979,7 @@ function renderFuDetailInner(mob,nameHint){
 
 
 // Version marker
-var APP_VERSION='5.4.0';
+var APP_VERSION='5.6.0';
 
 
 
@@ -5996,7 +6000,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.19.0';
+var EXPECTED_BACKEND_VERSION = '2.22.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -7395,6 +7399,36 @@ async function runHealthCheck(){
   async function rows(tab){ try{ var j=await scriptGet(tab,2); return (j&&j.rows)?j.rows.slice(1):[]; }catch(e){ return []; } }
   function byMob(rs,mob){ return rs.filter(function(r){return String(r[1]||'').trim()===mob;}); }
 
+  // PRE-CHECK: SHEET IDENTITY — this runs before everything else on
+  // purpose. A real incident prompted it: the backend was silently
+  // connected to the WRONG spreadsheet for a stretch, and every other
+  // check below (reads, writes, field mapping, all of it) would have
+  // happily reported "working correctly" the entire time, just against
+  // the wrong sheet. If this fails, nothing else in the report can be
+  // trusted until it's fixed — that's why it comes first, loud, and
+  // separate from the numbered list below.
+  log('\u2501\u2501 SHEET IDENTITY \u2501\u2501');
+  var _confirmedSheetIdFromCheck='';
+  try{
+    var siRes=await sheetWrite({action:'getSheetIdentity'}, 15000);
+    if(siRes && siRes.success){
+      ok('Connected sheet: "'+siRes.sheetName+'"');
+      log('     ID: '+siRes.sheetId);
+      log('     '+siRes.sheetUrl);
+      _confirmedSheetIdFromCheck=siRes.confirmedSheetId||'';
+      if(!siRes.confirmedSheetId){
+        wn('No confirmed sheet ID set yet \u2014 open Settings, paste your Google Sheet URL, and tap "Verify & Save" once, so future runs can catch a mismatch automatically');
+      } else if(siRes.confirmedSheetId===siRes.sheetId){
+        ok('Matches the confirmed correct sheet');
+      } else {
+        no('MISMATCH \u2014 backend is connected to a DIFFERENT sheet than the one confirmed correct. Confirmed: '+siRes.confirmedSheetId+' \u2014 Currently connected: '+siRes.sheetId+'. Check SHEET_ID in Code.gs.');
+      }
+    } else {
+      no('Could not read sheet identity: '+(siRes&&siRes.error||'unknown error \u2014 confirm Code.gs is redeployed with the latest version'));
+    }
+  }catch(e){ no('Sheet identity check error: '+e.message); }
+  log('');
+
   // 0. BACKEND VERSION
   log('\u2501\u2501 0. Backend version \u2501\u2501');
   try{
@@ -7831,6 +7865,55 @@ async function runHealthCheck(){
   window._lastHealthCheckSummary=pass+' passed, '+fail+' failed, '+warn+' warnings';
   var reportActionsEl=document.getElementById('health-report-actions');
   if(reportActionsEl) reportActionsEl.style.display='flex';
+}
+
+// ── Locks in the currently-connected sheet as "the correct one" by
+// extracting the sheet ID straight from a pasted Google Sheets URL and
+// comparing it programmatically against what the backend actually reports
+// — no human eyeballing an ID string required. Every future diagnostic
+// (interactive or the auto-emailed one) then compares against this saved
+// value and fails loudly on any mismatch, instead of everything quietly
+// "working" against the wrong spreadsheet the way it did before this
+// existed. ──
+function extractSheetIdFromUrl(url){
+  var m=String(url||'').match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : '';
+}
+async function verifySheetUrlAndSave(){
+  var session=getSession();
+  var resultEl=document.getElementById('sheet-verify-result');
+  var urlInput=document.getElementById('sheet-url-input');
+  if(!session){ toast('Please log in again'); return; }
+  if(!isAdmin()){ toast('Only an Admin can verify this'); return; }
+  var pastedUrl=(urlInput&&urlInput.value||'').trim();
+  var pastedId=extractSheetIdFromUrl(pastedUrl);
+  if(!pastedId){
+    if(resultEl){ resultEl.textContent='⚠️ That doesn\'t look like a Google Sheets URL — paste the full link from your browser\'s address bar.'; resultEl.style.color='var(--red)'; }
+    return;
+  }
+  if(resultEl){ resultEl.textContent='Checking…'; resultEl.style.color='var(--t3)'; }
+  try{
+    var siRes=await sheetWrite({action:'getSheetIdentity'}, 15000);
+    if(!siRes || !siRes.success){
+      if(resultEl){ resultEl.textContent='⚠️ Could not read sheet identity: '+(siRes&&siRes.error||'unknown error'); resultEl.style.color='var(--red)'; }
+      return;
+    }
+    if(pastedId!==siRes.sheetId){
+      if(resultEl){
+        resultEl.innerHTML='❌ MISMATCH \u2014 the backend is connected to a different sheet.<br>Pasted URL points to: '+pastedId+'<br>Backend is actually connected to: '+siRes.sheetId+' ("'+esc(siRes.sheetName)+'")<br>Check SHEET_ID in Code.gs.';
+        resultEl.style.color='var(--red)';
+      }
+      return; // deliberately NOT saved — never lock in a confirmation that just failed
+    }
+    var confirmRes=await sheetWrite({action:'confirmSheetIdentity', requestingUserId:session.userId}, 15000);
+    if(confirmRes && confirmRes.success){
+      if(resultEl){ resultEl.textContent='✅ Verified and saved — "'+siRes.sheetName+'" — future checks will flag it if this ever changes.'; resultEl.style.color='var(--green)'; }
+    } else {
+      if(resultEl){ resultEl.textContent='⚠️ IDs matched but saving failed: '+(confirmRes&&confirmRes.error||'unknown error'); resultEl.style.color='var(--red)'; }
+    }
+  }catch(e){
+    if(resultEl){ resultEl.textContent='⚠️ Could not reach the server: '+e.message; resultEl.style.color='var(--red)'; }
+  }
 }
 
 // ── Copies the full report text (from the last completed Run Full Health
