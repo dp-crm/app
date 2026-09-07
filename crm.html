@@ -12,7 +12,7 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="theme-color" content="#1B1512">
-<title>Wealth Matrix CRM v5.0.0</title>
+<title>Wealth Matrix CRM v5.1.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -592,7 +592,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   </button>
   <div class="ai-voice-status" id="ai-voice-status"></div>
   <div class="ai-voice-confirm" id="ai-voice-confirm">
-    <div class="avc-label">🎤 DID I HEAR THAT RIGHT? (edit if needed)</div>
+    <div class="avc-label" id="ai-voice-confirm-label">🎤 DID I HEAR THAT RIGHT? (edit if needed)</div>
     <textarea class="avc-text" id="ai-voice-confirm-text" rows="2"></textarea>
     <div class="avc-btns">
       <div class="avc-btn avc-retry" onclick="cancelAiVoiceConfirm()">✕ Retry</div>
@@ -600,7 +600,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
   <div class="ph">
-    <div><h1>Dash Board</h1><div id="dash-welcome" style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--t2);margin-top:2px"></div><div style="font-size:11px;color:var(--t3);margin-top:2px">Here's what's happening with your practice today.</div></div>
+    <div><h1>Dash Board</h1><div id="dash-welcome" style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--t2);margin-top:2px"></div><div style="font-size:11px;color:var(--t3);margin-top:2px">Here's what's happening with your practice today.</div><div style="font-size:9px;color:var(--t3);opacity:.6;margin-top:3px" id="dash-version-tag">v<span id="dash-version-num">5.1.0</span></div></div>
   </div>
 
   <!-- 4 count tiles: single row, compact — smaller icons/numbers so this
@@ -890,7 +890,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
   </div>
 
-  <div style="text-align:center;padding:20px 0 40px;font-size:10px;color:var(--t3)">Wealth Matrix CRM v5.0.0</div>
+  <div style="text-align:center;padding:20px 0 40px;font-size:10px;color:var(--t3)" id="settings-app-version">Wealth Matrix CRM v5.1.0</div>
 </div>
 
 <!-- FOLLOW-UPS -->
@@ -3162,11 +3162,30 @@ function describeSpeechRecognitionError(code){
 
 function toggleAiVoiceAssistant(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  var btn=document.getElementById('ai-voice-fab');
-  if(!SR){ toast('Voice input isn\'t supported in this browser'); return; }
-  if(_aiVoiceRecog){ _aiVoiceRecog.stop(); return; }
   if(!hasScript()){ toast('Add Apps Script URL first — check Settings'); return; }
 
+  // Three-tier cascade, each one only used if the tier above isn't
+  // available:
+  //   1. SpeechRecognition — free, on-device, instant. Primary path,
+  //      reliable on Chrome/Android.
+  //   2. Record raw audio (MediaRecorder — a much older, better-supported
+  //      API than SpeechRecognition, working reliably on iOS Safari since
+  //      14.3) and send it to Gemini to transcribe. Used automatically
+  //      when tier 1 is missing or reports it fundamentally doesn't work.
+  //   3. Type the command — the final fallback if even microphone access
+  //      isn't available at all.
+  if(_aiVoiceRecog){ _aiVoiceRecog.stop(); return; }
+  if(_aiAudioRecorder){ stopAudioRecordingFallback(); return; }
+
+  if(SR){
+    startSpeechRecognitionCapture(SR);
+  } else {
+    startAudioRecordingFallback();
+  }
+}
+
+function startSpeechRecognitionCapture(SR){
+  var btn=document.getElementById('ai-voice-fab');
   hideAiVoiceConfirm(); // starting a fresh recording discards any unconfirmed one
   var voiceLang=getVoiceLanguage();
   _aiVoiceRecog=new SR();
@@ -3182,7 +3201,17 @@ function toggleAiVoiceAssistant(){
   };
   _aiVoiceRecog.onerror=function(e){
     if(btn) btn.classList.remove('listening');
-    var msg=describeSpeechRecognitionError(e&&e.error);
+    var errCode=e&&e.error;
+    _aiVoiceRecog=null;
+    // 'not-allowed'/'service-not-allowed'/'audio-capture' usually means
+    // SpeechRecognition fundamentally doesn't work in this browser context
+    // (common on iOS) rather than a one-off glitch — drop straight to the
+    // audio-recording fallback rather than just showing an error.
+    if(errCode==='not-allowed' || errCode==='service-not-allowed' || errCode==='audio-capture'){
+      startAudioRecordingFallback();
+      return;
+    }
+    var msg=describeSpeechRecognitionError(errCode);
     if(msg){ // 'aborted' (user tapped stop) intentionally shows nothing
       setAiVoiceStatus('⚠️ '+msg, true);
       setTimeout(function(){ setAiVoiceStatus('', false); }, 3500);
@@ -3193,6 +3222,122 @@ function toggleAiVoiceAssistant(){
     _aiVoiceRecog=null;
   };
   _aiVoiceRecog.start();
+}
+
+// ── Tier 2: record → upload → Gemini transcribes. Used automatically
+// whenever SpeechRecognition is missing or errors out immediately. The
+// audio is held only in browser memory during this one request — never
+// written to Drive or any other persistent storage on either side. ──
+var _aiAudioRecorder=null, _aiAudioChunks=[], _aiAudioStream=null;
+var AUDIO_FALLBACK_MAX_MS=25000; // safety cap so a forgotten "recording" can't run indefinitely
+var _audioFallbackTimer=null;
+
+function pickSupportedAudioMimeType(){
+  var candidates=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/mpeg','audio/ogg'];
+  for(var i=0;i<candidates.length;i++){
+    if(window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+  }
+  return ''; // let the browser pick its own default
+}
+
+async function startAudioRecordingFallback(){
+  var btn=document.getElementById('ai-voice-fab');
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
+    showAiVoiceTypeMode();
+    return;
+  }
+  hideAiVoiceConfirm();
+  try{
+    _aiAudioStream=await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(permErr){
+    toast('Microphone permission is blocked — you can type your command instead');
+    showAiVoiceTypeMode();
+    return;
+  }
+
+  // One-time, gentle disclosure — this fallback path sends a short audio
+  // clip to the AI for transcription, unlike the primary on-device path.
+  // Shown once per device, not on every use.
+  try{
+    if(!localStorage.getItem('wm_audio_fallback_notice_shown')){
+      toast('Voice input here processes a short recording through the AI, since on-device recognition isn\'t available on this device');
+      localStorage.setItem('wm_audio_fallback_notice_shown','1');
+    }
+  }catch(e){}
+
+  var mimeType=pickSupportedAudioMimeType();
+  try{
+    _aiAudioRecorder=mimeType?new MediaRecorder(_aiAudioStream,{mimeType:mimeType}):new MediaRecorder(_aiAudioStream);
+  }catch(mrErr){
+    releaseAudioStream();
+    showAiVoiceTypeMode();
+    return;
+  }
+  _aiAudioChunks=[];
+  _aiAudioRecorder.ondataavailable=function(e){ if(e.data && e.data.size>0) _aiAudioChunks.push(e.data); };
+  _aiAudioRecorder.onstop=function(){ handleAudioRecordingStopped(); };
+
+  if(btn) btn.classList.add('listening');
+  setAiVoiceStatus('🔴 Recording… tap again to stop', true);
+  _aiAudioRecorder.start();
+  _audioFallbackTimer=setTimeout(function(){ stopAudioRecordingFallback(); }, AUDIO_FALLBACK_MAX_MS);
+}
+
+function stopAudioRecordingFallback(){
+  if(_audioFallbackTimer){ clearTimeout(_audioFallbackTimer); _audioFallbackTimer=null; }
+  var btn=document.getElementById('ai-voice-fab');
+  if(btn) btn.classList.remove('listening');
+  if(_aiAudioRecorder && _aiAudioRecorder.state!=='inactive'){
+    _aiAudioRecorder.stop(); // onstop fires handleAudioRecordingStopped()
+  }
+}
+
+function releaseAudioStream(){
+  if(_aiAudioStream){
+    _aiAudioStream.getTracks().forEach(function(t){ t.stop(); });
+    _aiAudioStream=null;
+  }
+}
+
+async function handleAudioRecordingStopped(){
+  releaseAudioStream();
+  var chunks=_aiAudioChunks, recorder=_aiAudioRecorder;
+  _aiAudioRecorder=null; _aiAudioChunks=[];
+  if(!chunks.length){ setAiVoiceStatus('', false); return; }
+
+  var voiceLang=getVoiceLanguage();
+  var mimeType=(recorder&&recorder.mimeType)||'audio/webm';
+  var blob=new Blob(chunks,{type:mimeType});
+  setAiVoiceStatus('🧠 Transcribing…', true);
+  try{
+    var audioBase64=await fileToBase64(blob);
+    var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:mimeType, languageName:voiceLang.name});
+    setAiVoiceStatus('', false);
+    if(res && res.success && res.transcript){
+      showAiVoiceConfirm(res.transcript, voiceLang);
+    } else {
+      toast((res&&res.error)||'Could not transcribe — please try again or type your command');
+    }
+  }catch(e){
+    setAiVoiceStatus('', false);
+    toast('Could not reach the server: '+e.message);
+  }
+}
+
+// ── Typing fallback — same confirm/edit box, opened empty, for whenever
+// voice genuinely isn't available (iOS, in-app browsers, denied mic
+// permission). Reuses the exact same send path as a real transcript, so
+// nothing downstream needs to know the difference. ──
+function showAiVoiceTypeMode(){
+  _pendingVoiceRawTranscript=null; // nothing to diff against — no correction-learning for a typed command
+  _pendingVoiceLang=getVoiceLanguage();
+  var labelEl=document.getElementById('ai-voice-confirm-label');
+  if(labelEl) labelEl.textContent='⌨️ VOICE ISN\'T AVAILABLE HERE — TYPE YOUR COMMAND';
+  var textEl=document.getElementById('ai-voice-confirm-text');
+  if(textEl){ textEl.value=''; textEl.placeholder='e.g. "Add a lead named Priya, mobile 98765..."'; }
+  var el=document.getElementById('ai-voice-confirm');
+  if(el) el.classList.add('show');
+  if(textEl) setTimeout(function(){ textEl.focus(); }, 50);
 }
 
 // ── Confirm-before-send step. Speech-to-text is shown immediately and
@@ -3207,8 +3352,10 @@ var _pendingVoiceRawTranscript=null, _pendingVoiceLang=null;
 function showAiVoiceConfirm(transcript, voiceLang){
   _pendingVoiceRawTranscript=transcript;
   _pendingVoiceLang=voiceLang;
+  var labelEl=document.getElementById('ai-voice-confirm-label');
+  if(labelEl) labelEl.textContent='🎤 DID I HEAR THAT RIGHT? (edit if needed)';
   var textEl=document.getElementById('ai-voice-confirm-text');
-  if(textEl) textEl.value=applyVoiceCorrections(transcript);
+  if(textEl){ textEl.value=applyVoiceCorrections(transcript); textEl.placeholder=''; }
   var el=document.getElementById('ai-voice-confirm');
   if(el) el.classList.add('show');
 }
@@ -4786,7 +4933,7 @@ function renderFuDetailInner(mob,nameHint){
 
 
 // Version marker
-var APP_VERSION='5.0.0';
+var APP_VERSION='5.1.0';
 
 
 
@@ -6743,8 +6890,10 @@ function toggleChatVoiceInput(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   var btn=document.getElementById('chat-mic-btn');
   var input=document.getElementById('chat-input');
-  if(!SR){ toast('Voice input isn\'t supported in this browser'); return; }
   if(_chatVoiceRecog){ _chatVoiceRecog.stop(); return; }
+  if(_chatAudioRecorder){ stopChatAudioFallback(); return; }
+
+  if(!SR){ startChatAudioFallback(); return; }
 
   var voiceLang=getVoiceLanguage();
   var baseText=(input&&input.value)?input.value.trim()+' ':'';
@@ -6761,7 +6910,18 @@ function toggleChatVoiceInput(){
   };
   _chatVoiceRecog.onerror=function(e){
     if(btn) btn.classList.remove('on');
-    var msg=describeSpeechRecognitionError(e&&e.error);
+    var errCode=e&&e.error;
+    _chatVoiceRecog=null;
+    // Same pattern as the Dashboard AI assistant — 'not-allowed',
+    // 'service-not-allowed' (the one iOS Safari actually throws), and
+    // 'audio-capture' mean SpeechRecognition fundamentally doesn't work
+    // here, so fall to the record-and-transcribe path automatically
+    // instead of just showing an error.
+    if(errCode==='not-allowed' || errCode==='service-not-allowed' || errCode==='audio-capture'){
+      startChatAudioFallback();
+      return;
+    }
+    var msg=describeSpeechRecognitionError(errCode);
     if(msg) toast(msg);
   };
   _chatVoiceRecog.onend=function(){
@@ -6769,6 +6929,82 @@ function toggleChatVoiceInput(){
     _chatVoiceRecog=null;
   };
   _chatVoiceRecog.start();
+}
+
+// ── Tier 2 for the Insights chat mic — same record→upload→Gemini-
+// transcribes approach as the Dashboard AI assistant (see there for the
+// full explanation), just landing the result in the chat input field
+// instead of the confirm bubble. Uses its own state variables so it can
+// never interfere with a Dashboard recording in progress. ──
+var _chatAudioRecorder=null, _chatAudioChunks=[], _chatAudioStream=null, _chatAudioTimer=null;
+
+async function startChatAudioFallback(){
+  var btn=document.getElementById('chat-mic-btn');
+  var input=document.getElementById('chat-input');
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
+    toast('Voice input isn\'t available here — please type instead');
+    return;
+  }
+  var baseText=(input&&input.value)?input.value.trim()+' ':'';
+  try{
+    _chatAudioStream=await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(permErr){
+    toast('Microphone permission is blocked — please type instead');
+    return;
+  }
+
+  try{
+    if(!localStorage.getItem('wm_audio_fallback_notice_shown')){
+      toast('Voice input here processes a short recording through the AI, since on-device recognition isn\'t available on this device');
+      localStorage.setItem('wm_audio_fallback_notice_shown','1');
+    }
+  }catch(e){}
+
+  var mimeType=pickSupportedAudioMimeType();
+  try{
+    _chatAudioRecorder=mimeType?new MediaRecorder(_chatAudioStream,{mimeType:mimeType}):new MediaRecorder(_chatAudioStream);
+  }catch(mrErr){
+    _chatAudioStream.getTracks().forEach(function(t){ t.stop(); });
+    _chatAudioStream=null;
+    toast('Voice input isn\'t available here — please type instead');
+    return;
+  }
+  _chatAudioChunks=[];
+  _chatAudioRecorder.ondataavailable=function(e){ if(e.data && e.data.size>0) _chatAudioChunks.push(e.data); };
+  _chatAudioRecorder.onstop=async function(){
+    if(_chatAudioStream){ _chatAudioStream.getTracks().forEach(function(t){ t.stop(); }); _chatAudioStream=null; }
+    var chunks=_chatAudioChunks, recorder=_chatAudioRecorder;
+    _chatAudioRecorder=null; _chatAudioChunks=[];
+    if(btn) btn.classList.remove('on');
+    if(!chunks.length) return;
+    var voiceLang=getVoiceLanguage();
+    var recMime=(recorder&&recorder.mimeType)||'audio/webm';
+    var blob=new Blob(chunks,{type:recMime});
+    toast('Transcribing…');
+    try{
+      var audioBase64=await fileToBase64(blob);
+      var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:recMime, languageName:voiceLang.name});
+      if(res && res.success && res.transcript){
+        if(input) input.value=baseText+res.transcript;
+      } else {
+        toast((res&&res.error)||'Could not transcribe — please try again or type your message');
+      }
+    }catch(e){
+      toast('Could not reach the server: '+e.message);
+    }
+  };
+
+  if(btn) btn.classList.add('on');
+  toast('🔴 Recording… tap mic again to stop');
+  _chatAudioRecorder.start();
+  _chatAudioTimer=setTimeout(function(){ stopChatAudioFallback(); }, AUDIO_FALLBACK_MAX_MS);
+}
+
+function stopChatAudioFallback(){
+  if(_chatAudioTimer){ clearTimeout(_chatAudioTimer); _chatAudioTimer=null; }
+  if(_chatAudioRecorder && _chatAudioRecorder.state!=='inactive'){
+    _chatAudioRecorder.stop(); // triggers the onstop handler above
+  }
 }
 
 async function sendChatMessage(){
@@ -11077,6 +11313,14 @@ function startAppAfterAuth(){
     var _welcomeSession=getSession();
     dashWelcome.textContent=_welcomeSession?('Welcome, '+_welcomeSession.name):'';
   }
+  // Single source of truth for the version shown on-screen (Dashboard tag
+  // + Settings footer) — both driven from APP_VERSION so there's never a
+  // mismatch, and so checking which build is actually live never requires
+  // opening dev tools: it's right there on the Dashboard on every load.
+  var dashVerEl=document.getElementById('dash-version-num');
+  if(dashVerEl) dashVerEl.textContent=APP_VERSION;
+  var setVerEl=document.getElementById('settings-app-version');
+  if(setVerEl) setVerEl.textContent='Wealth Matrix CRM v'+APP_VERSION;
   if(!isAdmin()){
     var navBtn=document.getElementById('nav-analytics'); if(navBtn) navBtn.style.display='none';
     var sideBtn=document.getElementById('sidebar-nav-analytics'); if(sideBtn) sideBtn.style.display='none';
