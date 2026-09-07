@@ -12,7 +12,7 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="theme-color" content="#1B1512">
-<title>Wealth Matrix CRM v5.6.2</title>
+<title>Wealth Matrix CRM v5.7.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -546,7 +546,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <span style="font-size:10px;font-weight:900;color:#000">WM</span>
     </div>
     <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Wealth Matrix CRM</span>
-    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.6.2</span>
+    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.7.0</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
     <button id="global-refresh-btn" onclick="manualTopBarRefresh()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Refresh">
@@ -806,6 +806,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           <div style="padding:0 12px 4px"><input class="fi" id="sheet-url-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="font-size:11px"></div>
           <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="verifySheetUrlAndSave()">🔗 Verify &amp; Save</button></div>
           <div class="si" style="font-size:10px" id="sheet-verify-result"></div>
+
+          <div class="si" style="font-size:10px;color:var(--t3);margin-top:12px"><span>📅 <b>Reconnect Google Calendar</b> — the app previously assumed your DEFAULT calendar was the right one for client meetings/events, which can quietly be wrong if your real meetings live on a different calendar. Load the list below and pick the correct one explicitly.</span></div>
+          <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="loadAvailableCalendars()">📅 Load My Calendars</button></div>
+          <div id="calendar-picker-wrap" style="display:none">
+            <div style="padding:8px 12px 4px"><select class="fi" id="calendar-picker-select" style="font-size:11px"></select></div>
+            <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveCalendarSelection()">✅ Use This Calendar</button></div>
+          </div>
+          <div class="si" style="font-size:10px" id="calendar-picker-result"></div>
+
           <div class="syc"><pre id="health-result" style="font-size:10px;background:var(--s2);border-radius:8px;padding:10px;white-space:pre-wrap;max-height:340px;overflow-y:auto;margin:0"></pre></div>
           <div class="syc" id="health-report-actions" style="display:none;gap:8px">
             <button class="btn btn-ghost" style="flex:1;font-size:11px" onclick="copyHealthReport()">📋 Copy Report</button>
@@ -4979,7 +4988,7 @@ function renderFuDetailInner(mob,nameHint){
 
 
 // Version marker
-var APP_VERSION='5.6.2';
+var APP_VERSION='5.7.0';
 
 
 
@@ -6000,7 +6009,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.22.0';
+var EXPECTED_BACKEND_VERSION = '2.23.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -7640,6 +7649,12 @@ async function runHealthCheck(){
     if(calRes&&calRes.error){ no('Calendar check failed: '+calRes.error); }
     else if(calRes){
       ok('Default calendar: '+(calRes.defaultCalendarName||'(unnamed)'));
+      if(calRes.selectedCalendarId){
+        if(calRes.selectedCalendarName) ok('Explicitly selected calendar (used for events): "'+calRes.selectedCalendarName+'"');
+        else no('A calendar was selected in Settings but is no longer reachable — re-open Settings and pick again');
+      } else {
+        wn('No calendar explicitly selected yet \u2014 currently falling back to the default above. Open Settings and use "Load My Calendars" to pick the real one your meetings/events are actually on.');
+      }
       var bdayCalFound=(calRes.allCalendars||[]).some(function(c){return c.isBirthdayCalendar;});
       if(bdayCalFound) ok('Birthday calendar visible to the script');
       else wn('No Birthday calendar found in the calendar list \u2014 check Google Contacts has birthdays saved, and that the account running the script (not necessarily the advisor\'s own login) is the one with those contacts');
@@ -7910,6 +7925,67 @@ async function verifySheetUrlAndSave(){
       if(resultEl){ resultEl.textContent='✅ Verified and saved — "'+siRes.sheetName+'" — future checks will flag it if this ever changes.'; resultEl.style.color='var(--green)'; }
     } else {
       if(resultEl){ resultEl.textContent='⚠️ IDs matched but saving failed: '+(confirmRes&&confirmRes.error||'unknown error'); resultEl.style.color='var(--red)'; }
+    }
+  }catch(e){
+    if(resultEl){ resultEl.textContent='⚠️ Could not reach the server: '+e.message; resultEl.style.color='var(--red)'; }
+  }
+}
+
+// ── Calendar reconnect — lists every calendar the script can actually
+// see (not just assumes the default is right), lets the admin pick the
+// real one explicitly, and saves that choice. getCalendarEvents on the
+// backend then uses this saved choice instead of guessing. ──
+async function loadAvailableCalendars(){
+  var session=getSession();
+  var resultEl=document.getElementById('calendar-picker-result');
+  var wrapEl=document.getElementById('calendar-picker-wrap');
+  var selectEl=document.getElementById('calendar-picker-select');
+  if(!session){ toast('Please log in again'); return; }
+  if(resultEl){ resultEl.textContent='Loading…'; resultEl.style.color='var(--t3)'; }
+  try{
+    var res=await sheetWrite({action:'listAvailableCalendars'}, 20000);
+    if(!res || !res.success){
+      if(resultEl){ resultEl.textContent='⚠️ '+(res&&res.error||'Could not load calendars'); resultEl.style.color='var(--red)'; }
+      return;
+    }
+    if(!res.calendars || !res.calendars.length){
+      if(resultEl){ resultEl.textContent='⚠️ No calendars found for this account.'; resultEl.style.color='var(--red)'; }
+      return;
+    }
+    if(selectEl){
+      selectEl.innerHTML=res.calendars.map(function(c){
+        var selected=(c.id===res.selectedCalendarId) ? ' selected' : '';
+        return '<option value="'+esc(c.id)+'"'+selected+'>'+esc(c.name)+(c.isDefault?' (default)':'')+'</option>';
+      }).join('');
+    }
+    if(wrapEl) wrapEl.style.display='block';
+    if(resultEl){
+      resultEl.textContent=res.selectedCalendarId
+        ? 'Currently using a saved selection — pick a different one below if needed, or confirm the current one by saving again.'
+        : 'No calendar explicitly selected yet — currently falling back to the default. Pick the right one below.';
+      resultEl.style.color='var(--t3)';
+    }
+  }catch(e){
+    if(resultEl){ resultEl.textContent='⚠️ Could not reach the server: '+e.message; resultEl.style.color='var(--red)'; }
+  }
+}
+
+async function saveCalendarSelection(){
+  var session=getSession();
+  var resultEl=document.getElementById('calendar-picker-result');
+  var selectEl=document.getElementById('calendar-picker-select');
+  if(!session){ toast('Please log in again'); return; }
+  if(!isAdmin()){ toast('Only an Admin can change this'); return; }
+  var calId=selectEl&&selectEl.value;
+  if(!calId){ toast('Load and pick a calendar first'); return; }
+  if(resultEl){ resultEl.textContent='Saving…'; resultEl.style.color='var(--t3)'; }
+  try{
+    var res=await sheetWrite({action:'saveCalendarSelection', requestingUserId:session.userId, calendarId:calId}, 15000);
+    if(res && res.success){
+      if(resultEl){ resultEl.textContent='✅ Now using "'+res.calendarName+'" for events shown in Today\'s Activity.'; resultEl.style.color='var(--green)'; }
+      pullCalendarEvents().then(function(){ renderTodaysActivity(); }); // refresh immediately with the new source
+    } else {
+      if(resultEl){ resultEl.textContent='⚠️ '+(res&&res.error||'Could not save'); resultEl.style.color='var(--red)'; }
     }
   }catch(e){
     if(resultEl){ resultEl.textContent='⚠️ Could not reach the server: '+e.message; resultEl.style.color='var(--red)'; }
