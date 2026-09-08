@@ -8,11 +8,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Wealth Matrix">
+<meta name="apple-mobile-web-app-title" content="Deep Pocket">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="theme-color" content="#1B1512">
-<title>Wealth Matrix CRM v5.7.0</title>
+<title>Deep Pocket CRM v5.11.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
   /* ═══════════════════════════════════════════════════════════
-     WEALTH MATRIX THEME — every color in the app is defined here
+     DEEP POCKET THEME — every color in the app is defined here
      and nowhere else that matters. To white-label this app for a
      different firm, change ONLY the values below — every screen,
      every capsule, every button updates automatically. Nothing
@@ -65,6 +65,18 @@
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;overscroll-behavior:none;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
 #app{display:flex;flex-direction:column;height:100dvh;height:100vh;max-width:var(--shell-w);margin:0 auto;position:relative;overflow-x:hidden}
 #content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(88px + env(safe-area-inset-bottom, 10px));padding-top:calc(46px + env(safe-area-inset-top,0px));position:relative}
+
+/* ── Global activity pill — makes background work visible (saving,
+   deleting, syncing, searching, thinking, etc.) instead of things just
+   silently happening or suddenly appearing. One shared, consistent
+   component used across the app rather than a different ad-hoc spinner
+   per feature. ── */
+.activity-pill{position:fixed;top:calc(52px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%) translateY(-14px);background:var(--s1);border:1px solid var(--accent);border-radius:20px;padding:7px 16px;font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;z-index:600;opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;box-shadow:0 4px 16px rgba(0,0,0,.35);white-space:nowrap}
+.activity-pill.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.activity-pill .ap-icon{font-size:14px;display:inline-block}
+.activity-pill.spin .ap-icon{animation:globalRefreshSpin .8s linear infinite}
+.activity-pill.pulse .ap-icon{animation:apPulse 1s ease-in-out infinite}
+@keyframes apPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
 
 /* ── Pull-to-refresh indicator — a small custom spinner shown above the
    content while pulling down from the top, since native browser
@@ -460,9 +472,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <!-- APP LOCK SCREEN — shown before the app if a PIN/biometric lock is set up -->
 <div id="lock-screen" style="display:none;position:fixed;inset:0;z-index:2147483647;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;padding:24px">
   <div style="width:72px;height:72px;background:var(--s1);border-radius:18px;display:flex;align-items:center;justify-content:center;margin-bottom:20px">
-    <span style="font-size:26px;font-weight:900;color:#fff">WM</span>
+    <span style="font-size:26px;font-weight:900;color:#fff">DP</span>
   </div>
-  <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:4px">Wealth Matrix CRM</div>
+  <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:4px">Deep Pocket CRM</div>
   <div style="font-size:12px;color:#666;margin-bottom:32px">Locked for your privacy</div>
 
   <div id="lock-pin-dots" style="display:flex;gap:14px;margin-bottom:28px">
@@ -499,9 +511,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
      using the app (role-based), not just a device-level PIN. -->
 <div id="login-screen" style="display:none;position:fixed;inset:0;z-index:2147483646;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;padding:24px">
   <div style="width:72px;height:72px;background:var(--s1);border-radius:18px;display:flex;align-items:center;justify-content:center;margin-bottom:20px">
-    <span style="font-size:26px;font-weight:900;color:#fff">WM</span>
+    <span style="font-size:26px;font-weight:900;color:#fff">DP</span>
   </div>
-  <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:4px">Wealth Matrix CRM</div>
+  <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:4px">Deep Pocket CRM</div>
   <div style="font-size:12px;color:#666;margin-bottom:28px">Sign in to continue</div>
   <div style="width:100%;max-width:300px">
     <input id="login-username" placeholder="Username" autocapitalize="none" autocomplete="username" style="width:100%;background:#111;border:1px solid var(--border);border-radius:10px;padding:13px 14px;color:#fff;font-size:14px;margin-bottom:10px">
@@ -543,10 +555,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div id="global-topbar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:500;height:calc(46px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:rgba(10,10,10,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;padding-left:14px;padding-right:10px">
   <div style="display:flex;align-items:center;gap:8px;min-width:0">
     <div style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <span style="font-size:10px;font-weight:900;color:#000">WM</span>
+      <span style="font-size:10px;font-weight:900;color:#000">DP</span>
     </div>
-    <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Wealth Matrix CRM</span>
-    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.7.0</span>
+    <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Deep Pocket CRM</span>
+    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.11.0</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
     <button id="global-refresh-btn" onclick="manualTopBarRefresh()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Refresh">
@@ -566,6 +578,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div class="ptr-indicator" id="ptr-indicator">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
 </div>
+<div class="activity-pill" id="activity-pill"><span class="ap-icon">💾</span><span class="ap-label">Saving…</span></div>
 
 <!-- SHARED SEARCH BAR — active on Leads and Clients pages -->
 <div id="shared-search-bar" style="display:none;padding:6px 12px 4px;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50">
@@ -815,6 +828,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           </div>
           <div class="si" style="font-size:10px" id="calendar-picker-result"></div>
 
+          <div class="si" style="font-size:10px;color:var(--t3);margin-top:14px"><span>📅 <b>Connected Calendars (up to 3)</b> — pull events &amp; birthdays from other Google accounts too, e.g. other advisors' own calendars. Each one must first be shared with the account below via Google Calendar's own sharing settings — this app can't request that access for you, only verify it.</span></div>
+          <div class="si" style="font-size:11px" id="connected-cal-script-account">Loading account info…</div>
+          <div style="padding:6px 12px 2px" id="connected-cal-inputs">
+            <input class="fi" placeholder="Calendar 1 — Gmail address" id="connected-cal-1" style="font-size:11px;margin-bottom:6px">
+            <input class="fi" placeholder="Calendar 2 — Gmail address (optional)" id="connected-cal-2" style="font-size:11px;margin-bottom:6px">
+            <input class="fi" placeholder="Calendar 3 — Gmail address (optional)" id="connected-cal-3" style="font-size:11px">
+          </div>
+          <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveConnectedCalendars()">✅ Save &amp; Verify All</button></div>
+          <div id="connected-cal-status" style="padding:0 12px"></div>
+
           <div class="syc"><pre id="health-result" style="font-size:10px;background:var(--s2);border-radius:8px;padding:10px;white-space:pre-wrap;max-height:340px;overflow-y:auto;margin:0"></pre></div>
           <div class="syc" id="health-report-actions" style="display:none;gap:8px">
             <button class="btn btn-ghost" style="flex:1;font-size:11px" onclick="copyHealthReport()">📋 Copy Report</button>
@@ -937,7 +960,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
   </div>
 
-  <div style="text-align:center;padding:20px 0 40px;font-size:10px;color:var(--t3)" id="settings-app-version">Wealth Matrix CRM v5.1.1</div>
+  <div style="text-align:center;padding:20px 0 40px;font-size:10px;color:var(--t3)" id="settings-app-version">Deep Pocket CRM v5.1.1</div>
 </div>
 
 <!-- FOLLOW-UPS -->
@@ -1008,8 +1031,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 <aside id="sidebar">
   <div class="sidebar-brand">
-    <div style="width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:13px;font-weight:900;color:#000">WM</span></div>
-    <div><div style="font-size:14px;font-weight:900;color:var(--text)">Wealth Matrix</div><div style="font-size:9px;color:var(--t3);letter-spacing:.5px">CRM</div></div>
+    <div style="width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:13px;font-weight:900;color:#000">DP</span></div>
+    <div><div style="font-size:14px;font-weight:900;color:var(--text)">Deep Pocket</div><div style="font-size:9px;color:var(--t3);letter-spacing:.5px">CRM</div></div>
   </div>
   <button class="nb sidebar-nb" onclick="nav('dash',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></button>
   <button class="nb sidebar-nb" onclick="nav('leads',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><span>Leads</span></button>
@@ -1158,7 +1181,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       </div>
     </div>
 
-    <button class="btn btn-gold btn-full" onclick="saveLead()" style="padding:14px;font-size:15px;border-radius:10px;margin-bottom:8px">Save Lead</button>
+    <button class="btn btn-gold btn-full" id="lf-save-btn" onclick="saveLead()" style="padding:14px;font-size:15px;border-radius:10px;margin-bottom:8px">Save Lead</button>
   </div>
 </div></div>
 
@@ -1377,7 +1400,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       </div>
     </div>
 
-    <button class="btn btn-gold btn-full" onclick="saveClient()" style="padding:14px;font-size:15px;border-radius:10px;margin-bottom:8px">Save Client</button>
+    <button class="btn btn-gold btn-full" id="cf-save-btn" onclick="saveClient()" style="padding:14px;font-size:15px;border-radius:10px;margin-bottom:8px">Save Client</button>
     <button id="cf-delete-btn" onclick="deleteClientFromForm()" style="display:none;width:100%;padding:12px;font-size:13px;font-weight:700;border-radius:10px;border:1px solid var(--red);background:none;color:var(--red);cursor:pointer;margin-bottom:8px">🗑️ Delete Client</button>
   </div>
 </div></div>
@@ -1529,10 +1552,10 @@ var APP_LINK_ANDROID = 'https://play.google.com/store/apps/details?id=com.wealth
 var APP_LINK_IOS = 'https://apps.apple.com/in/app/wealth-matrix/id6748309181';
 
 var DEFMSG={
-  PROSPECT:'Hi {name},\nHope you are doing great.\nI have started my own Financial Advisory / Wealth Management Firm - Wealth Matrix Finserv LLP. Office at Ernakulam.\nRegards\nArjun',
+  PROSPECT:'Hi {name},\nHope you are doing great.\nI have started my own Financial Advisory / Wealth Management Firm - Deep Pocket Fintech Pvt. Ltd.. Office at Ernakulam.\nRegards\nArjun',
   CONTACTED:'Dear {name},\nThank you for your time earlier. I wanted to follow up on our conversation. Looking forward to helping you with {products}.\nRegards\nArjun',
   'IN PROGRESS':'Dear {name},\nJust checking in on our ongoing discussion regarding {products}. Please let me know a convenient time to connect this week.\nRegards\nArjun',
-  CONVERTED:'Dear {name},\nWelcome to Wealth Matrix Finserv LLP! We are delighted to have you on board.\nRegards\nArjun'
+  CONVERTED:'Dear {name},\nWelcome to Deep Pocket Fintech Pvt. Ltd.! We are delighted to have you on board.\nRegards\nArjun'
 };
 
 function load(){
@@ -1589,7 +1612,15 @@ function filterRecordsForRole(records){
 // ═══════════════════════════════════════════════
 // UTILS
 // ═══════════════════════════════════════════════
-var today=function(){return new Date().toISOString().split('T')[0];};
+// today() previously used toISOString(), which converts to UTC — for a
+// user in India (UTC+5:30), that makes it silently return YESTERDAY's
+// date for the first 5.5 hours of every day (00:00–05:29 local), since
+// UTC hasn't rolled over to the new calendar day yet. Every "is this due
+// today" / "is this overdue" check in the app relies on today() matching
+// the user's own local calendar day, so this is fixed to use local date
+// components instead, same pattern already used in a few places that had
+// independently worked around this by not calling today() at all.
+var today=function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 var now=function(){return new Date().toISOString();};
 function caps(s){return String(s===null||s===undefined?'':s).toUpperCase().trim();}
 function autoCaps(el){var p=el.selectionStart;el.value=el.value.toUpperCase();try{el.setSelectionRange(p,p);}catch(e){}}
@@ -1743,6 +1774,73 @@ function waMsg(l){
   return 'Hi';
 }
 function toast(m,d){d=d||2200;var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show');},d);}
+
+// ── Global activity indicator — one shared component for surfacing
+// background work (saving, deleting, syncing, searching, thinking, etc.)
+// instead of it happening silently. Call showActivity(type) right before
+// starting the work and hideActivity() once it's done — or wrap a promise
+// with withActivity() to handle both automatically, including on error. ──
+var ACTIVITY_TYPES={
+  saving:{icon:'💾', label:'Saving…'},
+  deleting:{icon:'🗑️', label:'Deleting…'},
+  syncing:{icon:'🔄', label:'Syncing…', spin:true},
+  searching:{icon:'🔍', label:'Searching…', pulse:true},
+  thinking:{icon:'🧠', label:'Thinking…', pulse:true},
+  loading:{icon:'⏳', label:'Loading…'},
+  sending:{icon:'📤', label:'Sending…'},
+  uploading:{icon:'📎', label:'Uploading…'},
+  done:{icon:'✅', label:'Done'}
+};
+var _activityHideTimer=null, _activityDepth=0;
+function showActivity(type, customLabel){
+  var cfg=ACTIVITY_TYPES[type]||ACTIVITY_TYPES.loading;
+  var pill=document.getElementById('activity-pill');
+  if(!pill) return;
+  _activityDepth++; // supports overlapping calls (e.g. a save that triggers a sync) without one's hide cutting the other off early
+  clearTimeout(_activityHideTimer);
+  var iconEl=pill.querySelector('.ap-icon'), labelEl=pill.querySelector('.ap-label');
+  if(iconEl) iconEl.textContent=cfg.icon;
+  if(labelEl) labelEl.textContent=customLabel||cfg.label;
+  pill.classList.toggle('spin', !!cfg.spin);
+  pill.classList.toggle('pulse', !!cfg.pulse);
+  pill.classList.add('show');
+}
+function hideActivity(delay){
+  var pill=document.getElementById('activity-pill');
+  if(!pill) return;
+  _activityDepth=Math.max(0,_activityDepth-1);
+  if(_activityDepth>0) return; // an outer/overlapping call is still in progress — let that one hide it
+  clearTimeout(_activityHideTimer);
+  _activityHideTimer=setTimeout(function(){ if(_activityDepth===0) pill.classList.remove('show'); }, delay===0?0:(delay||150));
+}
+// Briefly flashes a "done" checkmark before hiding — a small satisfying
+// confirmation for actions worth celebrating (vs. hideActivity() alone,
+// which is better for routine/frequent background syncs).
+function flashActivityDone(label){
+  var pill=document.getElementById('activity-pill');
+  if(!pill) return;
+  var iconEl=pill.querySelector('.ap-icon'), labelEl=pill.querySelector('.ap-label');
+  if(iconEl) iconEl.textContent='✅';
+  if(labelEl) labelEl.textContent=label||'Done';
+  pill.classList.remove('spin','pulse');
+  _activityDepth=0;
+  clearTimeout(_activityHideTimer);
+  _activityHideTimer=setTimeout(function(){ pill.classList.remove('show'); }, 700);
+}
+// Wraps any async action with automatic show/hide — the common case where
+// you just want "show X while this promise is in flight, hide it after,
+// regardless of success or failure."
+async function withActivity(type, promiseFn, customLabel){
+  showActivity(type, customLabel);
+  try{
+    var result=await promiseFn();
+    hideActivity();
+    return result;
+  }catch(e){
+    hideActivity();
+    throw e;
+  }
+}
 function waIcon(){return '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';}
 function callIcon(){return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>';}
 
@@ -2314,7 +2412,7 @@ function openDetail(mob,type,nameHint){
   var chipsHtml = V17_CHIPS.map(function(c2){
     return '<div class="qlog-chip" style="padding:4px 8px;font-size:11px" data-action="fu-qlog" data-mob="'+mob+'" data-note="'+c2[0]+' '+c2[1]+'">'+c2[0]+' '+c2[1]+'</div>';
   }).join('');
-  var wmsg = encodeURIComponent('Hello '+toTitle(c.name)+', this is Arjun from Wealth Matrix Finserv.');
+  var wmsg = encodeURIComponent('Hello '+toTitle(c.name)+', this is Arjun from Deep Pocket Fintech.');
   // "Client since" stat — days since Modified Date; if Modified Date is blank,
   // fall back to Converted Date, per the confirmed spec.
   var clientD = daysAgo(c.modifiedDate||c.convertedDate);
@@ -3115,6 +3213,7 @@ function deleteLead(mob){
   document.getElementById('_ldn').onclick=function(){ov.remove();};
   document.getElementById('_ldy').onclick=function(){
     ov.remove();
+    showActivity('deleting');
     var _delSt=(l||{status:''}).status.toUpperCase();
     var delMob=l?l.mobile:mob, delRecId=l?l.recordId:'';
     leads=leads.filter(function(x){return !((x.recordId&&delRecId)?x.recordId===delRecId:x.mobile===mob);});
@@ -3122,7 +3221,7 @@ function deleteLead(mob){
     logAnalytics(2,-1);
     var _dMap2={'PROSPECT':3,'CONTACTED':4,'IN PROGRESS':5,'CONVERTED':6,'DROPPED':7};
     if(_dMap2[_delSt]) logAnalytics(_dMap2[_delSt],-1);
-    syncLead({mobile:delMob, name:l?l.name:'', recordId:delRecId}, 'delete'); // delete only this row from sheet, matched by Record ID
+    syncLead({mobile:delMob, name:l?l.name:'', recordId:delRecId}, 'delete').finally(function(){ hideActivity(); }); // delete only this row from sheet, matched by Record ID
     // Also delete this lead's activity log rows from sheet — ACTIVITY_LOG is still mobile-keyed
     if(hasScript()) sheetWrite({action:'deleteLog', mobile:delMob});
     closeOv('ov-detail');
@@ -3134,11 +3233,13 @@ function deleteLead(mob){
 
 async function deleteClient(mob){
   if(!confirm('Delete this client?'))return;
+  showActivity('deleting');
   var c=clients.find(function(x){return x.recordId===mob||x.mobile===mob;});
   var delRecId=c?c.recordId:'';
   clients=clients.filter(function(x){return !((x.recordId&&delRecId)?x.recordId===delRecId:x.mobile===mob);});
   saveC();closeOv('ov-detail');renderClients();toast('Client deleted');
-  if(c) syncClient(c,'delete'); // targeted — deletes only this client's row, matched by Client ID
+  if(c) syncClient(c,'delete').finally(function(){ hideActivity(); }); // targeted — deletes only this client's row, matched by Client ID
+  else hideActivity();
 }
 
 
@@ -3150,7 +3251,7 @@ function toggleSelect(mob){if(selectedLeads.has(mob))selectedLeads.delete(mob);e
 function clearBulk(){bulkMode=false;selectedLeads.clear();var btb2=document.getElementById('bulk-toggle-btn');if(btb2)btb2.textContent='☑️';document.getElementById('bulk-bar').classList.remove('show');renderLeads();}
 function bulkChangeStatus(){if(selectedLeads.size===0){toast('Select leads first');return;}document.getElementById('ov-bulk').classList.add('open');}
 function applyBulkStatus(status){selectedLeads.forEach(function(mob){var l=leads.find(function(x){return x.recordId===mob||x.mobile===mob;});if(l){var prev=l.status;l.status=status;if(status==='CONVERTED'&&prev!=='CONVERTED')autoConvert(l);}});saveL();pushLeads();closeOv('ov-bulk');clearBulk();renderLeads();renderDash();}
-async function bulkDelete(){if(selectedLeads.size===0)return;if(!confirm('Delete '+selectedLeads.size+' leads?'))return;leads=leads.filter(function(l){return !selectedLeads.has(l.mobile);});saveL();clearBulk();renderLeads();renderDash();pushLeads();}
+async function bulkDelete(){if(selectedLeads.size===0)return;if(!confirm('Delete '+selectedLeads.size+' leads?'))return;showActivity('deleting');leads=leads.filter(function(l){return !selectedLeads.has(l.mobile);});saveL();clearBulk();renderLeads();renderDash();pushLeads().finally(function(){ flashActivityDone('Deleted'); });}
 
 // ═══════════════════════════════════════════════
 // CALENDAR
@@ -3244,8 +3345,9 @@ function startSpeechRecognitionCapture(SR){
 
   _aiVoiceRecog.onresult=function(e){
     var transcript=e.results[0][0].transcript;
-    setAiVoiceStatus('', false);
-    showAiVoiceConfirm(transcript, voiceLang);
+    var corrected=applyVoiceCorrections(transcript); // silently auto-fixes previously-learned mishearings — no UI needed for this part
+    setAiVoiceStatus('💭 "'+corrected+'"', true); // brief, non-blocking — processing starts immediately below, doesn't wait for this
+    runAiVoiceCommand(corrected, voiceLang);
   };
   _aiVoiceRecog.onerror=function(e){
     if(btn) btn.classList.remove('listening');
@@ -3362,7 +3464,9 @@ async function handleAudioRecordingStopped(){
     var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:mimeType, languageName:voiceLang.name});
     setAiVoiceStatus('', false);
     if(res && res.success && res.transcript){
-      showAiVoiceConfirm(res.transcript, voiceLang);
+      var corrected2=applyVoiceCorrections(res.transcript); // silently auto-fixes previously-learned mishearings
+      setAiVoiceStatus('💭 "'+corrected2+'"', true);
+      runAiVoiceCommand(corrected2, voiceLang);
     } else {
       toast((res&&res.error)||'Could not transcribe — please try again or type your command');
     }
@@ -4757,7 +4861,8 @@ async function saveLeadPotAum(mob, newVal){
   l.potentialAum=caps((newVal||'').trim());
   saveL();
   toast('✅ Potential AUM: '+(l.potentialAum||'cleared'));
-  syncLead(l, 'update');
+  showActivity('saving');
+  syncLead(l, 'update').finally(function(){ hideActivity(); });
   setTimeout(function(){renderLeads();},300);
 }
 async function saveLeadPotSip(mob, newVal){
@@ -4765,7 +4870,8 @@ async function saveLeadPotSip(mob, newVal){
   l.potentialSip=caps((newVal||'').trim());
   saveL();
   toast('✅ Potential SIP: '+(l.potentialSip||'cleared'));
-  syncLead(l, 'update');
+  showActivity('saving');
+  syncLead(l, 'update').finally(function(){ hideActivity(); });
   setTimeout(function(){renderLeads();},300);
 }
 
@@ -4843,7 +4949,7 @@ function renderFuDetailInner(mob,nameHint){
   var digits=(l.mobile||'').replace(/\D/g,'');
   var waNum=digits.length===10?'91'+digits:digits;
   var wmsg=encodeURIComponent(waMsg(l));
-  var meetTitle=encodeURIComponent('Meeting: '+toTitle(l.name)+' - Wealth Matrix');
+  var meetTitle=encodeURIComponent('Meeting: '+toTitle(l.name)+' - Deep Pocket');
   var ms2=new Date();ms2.setDate(ms2.getDate()+1);ms2.setHours(10,0,0,0);
   var me2=new Date(ms2.getTime()+3600000);
   var fcc=function(dd){return dd.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';};
@@ -4988,7 +5094,7 @@ function renderFuDetailInner(mob,nameHint){
 
 
 // Version marker
-var APP_VERSION='5.7.0';
+var APP_VERSION='5.11.0';
 
 
 
@@ -5387,8 +5493,10 @@ async function saveLead(){
       // confident "✅ Lead updated". syncLead() shows its own accurate
       // toast on failure (queued for retry, or the fallback result), so
       // only show this one when it's actually true.
+      showActivity('saving');
       var _syncRes=await syncLead(leads[idx], 'update');
-      if(_syncRes && _syncRes.success) toast('✅ Lead updated');
+      if(_syncRes && _syncRes.success){ flashActivityDone('Saved'); toast('✅ Lead updated'); }
+      else hideActivity();
     }
     editLead=null;
     advanceVoiceQueueIfPending();
@@ -5419,6 +5527,7 @@ async function saveLead(){
         // Convert immediately — autoConvert handles sheet sync
         autoConvert(newLead);
       } else {
+        showActivity('saving');
         syncLead(newLead, 'add').then(function(res){
           // Capture the server-assigned Record ID (L1, L2...) immediately, so
           // this lead can be opened/edited/deleted correctly even if two leads
@@ -5429,7 +5538,8 @@ async function saveLead(){
             if(nIdx>=0) leads[nIdx].recordId=res.recordId;
             saveL();
           }
-        });
+          hideActivity();
+        }).catch(function(){ hideActivity(); });
         toast('✅ Lead added');
         logAnalytics(2,1); // Lead Entries
         logAnalytics(3,1); // Prospects (new leads default to PROSPECT)
@@ -6009,7 +6119,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.23.0';
+var EXPECTED_BACKEND_VERSION = '2.25.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -6625,7 +6735,7 @@ function confirmAndLoadInsights(){
     window._chatUnlocked=true;
     var bar=document.getElementById('chat-input-bar'); if(bar) bar.style.display='flex';
     startChatPlaceholderCycle();
-    setTimeout(startChatChipCarousel, 3000); // suggested questions flash in after a brief pause, not instantly
+    startChatChipCarousel(); // now loads immediately instead of after an artificial 3s delay
   };
 }
 
@@ -7592,7 +7702,7 @@ async function runHealthCheck(){
   log(''); log('\u2501\u2501 7. Backup \u2501\u2501');
   try{
     var bRes=await sheetWrite({action:'backupNow'});
-    if(bRes&&bRes.success) ok('Manual backup ran (see "Wealth Matrix CRM Backups" folder in Drive)');
+    if(bRes&&bRes.success) ok('Manual backup ran (see "Deep Pocket CRM Backups" folder in Drive)');
     else wn('Backup call returned without success \u2014 check Apps Script logs');
   }catch(e){ wn('Backup error: '+e.message); }
 
@@ -7660,6 +7770,16 @@ async function runHealthCheck(){
       else wn('No Birthday calendar found in the calendar list \u2014 check Google Contacts has birthdays saved, and that the account running the script (not necessarily the advisor\'s own login) is the one with those contacts');
     } else { wn('Calendar check returned no response'); }
 
+    var connInfo=await apiFetch({action:'getConnectedCalendarsInfo'});
+    if(connInfo && connInfo.success && connInfo.calendars && connInfo.calendars.length){
+      connInfo.calendars.forEach(function(c){
+        if(c.name) ok('Connected calendar "'+c.email+'" \u2014 reachable ("'+c.name+'")');
+        else no('Connected calendar "'+c.email+'" \u2014 NOT reachable, share it with '+(connInfo.scriptAccountEmail||'the script\'s account'));
+      });
+    } else {
+      wn('No additional connected calendars configured \u2014 add up to 3 in Settings if events from other Google accounts should show here too');
+    }
+
     // Actually pull today's events/birthdays, the same call the Dashboard
     // makes — this is the real test, since a calendar can be "visible" in
     // the list above yet still return zero readable events.
@@ -7670,6 +7790,7 @@ async function runHealthCheck(){
       var evCount9=(evRes.events||[]).filter(function(e){return e.type!=='birthday';}).length;
       var bdayCount9=evRes.birthdaysFound||0;
       ok('Today: '+evCount9+' calendar event(s), '+bdayCount9+' birthday(s) \u2014 source: '+(evRes.birthdaySource||'none'));
+      if(evRes.calendarsUsed && evRes.calendarsUsed.length) ok('Calendars actually read from: '+evRes.calendarsUsed.join(', '));
       if(bdayCount9>0){
         var bdayNames=(evRes.events||[]).filter(function(e){return e.type==='birthday';}).map(function(e){return e.title;}).join(', ');
         ok('Birthdays found today: '+bdayNames);
@@ -7992,6 +8113,67 @@ async function saveCalendarSelection(){
   }
 }
 
+// ── Connected Calendars (up to 3) — pulls events/birthdays from other
+// Google accounts' calendars too. Google's own security model means this
+// app can never grant that access itself: each calendar's owner has to
+// explicitly share it with the script's account first, in Google
+// Calendar's own sharing settings. What this DOES do: show exactly which
+// account to share with, and verify live whether each entry actually
+// worked, rather than silently missing events from a calendar nobody
+// finished sharing. ──
+async function loadConnectedCalendarsInfo(){
+  var accountEl=document.getElementById('connected-cal-script-account');
+  try{
+    var res=await sheetWrite({action:'getConnectedCalendarsInfo'}, 15000);
+    if(res && res.success){
+      if(accountEl){
+        accountEl.innerHTML=res.scriptAccountEmail
+          ? 'Share each calendar with: <b style="color:var(--accent)">'+esc(res.scriptAccountEmail)+'</b>'
+          : 'Could not determine this script\'s account email \u2014 check the Apps Script project\'s authorized account directly.';
+      }
+      var saved=res.calendars||[];
+      for(var i=0;i<3;i++){
+        var inputEl=document.getElementById('connected-cal-'+(i+1));
+        if(inputEl && saved[i] && saved[i].email) inputEl.value=saved[i].email;
+      }
+    } else if(accountEl){
+      accountEl.textContent='⚠️ '+(res&&res.error||'Could not load');
+    }
+  }catch(e){
+    if(accountEl) accountEl.textContent='⚠️ Could not reach the server: '+e.message;
+  }
+}
+async function saveConnectedCalendars(){
+  var session=getSession();
+  var statusEl=document.getElementById('connected-cal-status');
+  if(!session){ toast('Please log in again'); return; }
+  if(!isAdmin()){ toast('Only an Admin can change this'); return; }
+  var emails=[1,2,3].map(function(i){
+    var el=document.getElementById('connected-cal-'+i);
+    return el ? el.value.trim() : '';
+  }).filter(function(e){ return e; });
+  if(statusEl){ statusEl.innerHTML='<div style="font-size:10px;color:var(--t3);padding:6px 0">Verifying…</div>'; }
+  try{
+    var res=await sheetWrite({action:'saveConnectedCalendars', requestingUserId:session.userId, emails:emails}, 25000);
+    if(res && res.success){
+      if(statusEl){
+        statusEl.innerHTML=(res.results||[]).map(function(r){
+          return '<div style="font-size:10.5px;padding:5px 0;border-bottom:1px solid var(--border);color:'+(r.ok?'var(--green)':'var(--red)')+'">'
+            +(r.ok?'✅ '+esc(r.email)+' \u2014 "'+esc(r.name)+'"':'❌ '+esc(r.email)+' \u2014 '+esc(r.error||'not accessible'))
+            +'</div>';
+        }).join('') || '<div style="font-size:10px;color:var(--t3);padding:6px 0">No calendars entered.</div>';
+      }
+      if((res.results||[]).some(function(r){return r.ok;})){
+        pullCalendarEvents().then(function(){ renderTodaysActivity(); }); // refresh immediately with whatever now works
+      }
+    } else if(statusEl){
+      statusEl.innerHTML='<div style="font-size:10px;color:var(--red);padding:6px 0">⚠️ '+esc(res&&res.error||'Could not save')+'</div>';
+    }
+  }catch(e){
+    if(statusEl) statusEl.innerHTML='<div style="font-size:10px;color:var(--red);padding:6px 0">⚠️ Could not reach the server: '+esc(e.message)+'</div>';
+  }
+}
+
 // ── Copies the full report text (from the last completed Run Full Health
 // Check) to the clipboard — for pasting into an email, WhatsApp, or a
 // support ticket, whichever the person actually has open. ──
@@ -8016,7 +8198,7 @@ async function copyHealthReport(){
 function emailHealthReport(){
   if(!window._lastHealthCheckReport){ toast('Run the health check first'); return; }
   copyHealthReport();
-  var subject='Wealth Matrix CRM — Diagnostic Report ('+window._lastHealthCheckSummary+')';
+  var subject='Deep Pocket CRM — Diagnostic Report ('+window._lastHealthCheckSummary+')';
   var body='Diagnostic summary: '+window._lastHealthCheckSummary+'\n\n'
     +'The full detailed report has been copied to your clipboard — paste it below this line.\n\n'
     +'App version: '+APP_VERSION+'\nRun at: '+new Date().toLocaleString('en-IN')+'\n\n---\n\n';
@@ -8519,6 +8701,7 @@ function loadSettings(){
   var langEl=document.getElementById('voice-language-select');
   if(langEl) langEl.value=cfg_.voiceLanguage||'en-IN|English';
   renderFailedWritesBanner();
+  loadConnectedCalendarsInfo();
 }
 
 // ── Shows/hides the persistent "these changes never made it to the sheet"
@@ -8641,7 +8824,7 @@ document.getElementById('ov-detail').addEventListener('click',function(e){
     var mailTo=mailBtn.dataset.mail;
     var mailName=mailBtn.dataset.mailname||'';
     if(mailTo){
-      window.open('mailto:'+mailTo+'?subject='+encodeURIComponent('Wealth Matrix Finserv')+'&body='+encodeURIComponent('Hi '+mailName+',\n\n'),'_blank');
+      window.open('mailto:'+mailTo+'?subject='+encodeURIComponent('Deep Pocket Fintech')+'&body='+encodeURIComponent('Hi '+mailName+',\n\n'),'_blank');
     } else {
       toast('No email address on file for this client');
     }
@@ -9240,14 +9423,14 @@ function buildQuickMsgText(type, name){
   }
   if(type==='welcome'){
     return 'Dear '+(name||'')+','
-      +'\n\nWelcome to Wealth Matrix Finserv — we\'re genuinely glad to have you with us.'
+      +'\n\nWelcome to Deep Pocket Fintech — we\'re genuinely glad to have you with us.'
       +'\n\nAs a boutique wealth management firm, we believe your financial journey deserves more than a one-size-fits-all approach. Every recommendation we make starts with a real understanding of your goals, not a standard checklist.'
       +'\n\nYou can track your investments anytime through our mobile app, or visit www.wealthmatrix.in to access your account online.'
       +'\n\nIf there\'s ever anything you need — a question, a concern, or just a second opinion — please don\'t hesitate to reach out to me directly. And if I\'m not immediately available, our office is always just a call away. Ph: 9745014475.'
       +'\n\nLooking forward to being a trusted part of your financial journey.'
       +'\n\nWarm regards'
       +'\nArjun K T M'
-      +'\nPartner, Wealth Matrix'
+      +'\nPartner, Deep Pocket'
       +'\n8th Floor, Alappat Heritage'
       +'\nMG Road, Ernakulam';
   }
@@ -9274,7 +9457,7 @@ function sendWAQuick(waNum, type, mob){
       +'\n\nPlease ensure that sufficient funds are available in your bank account to avoid missing this month\'s investment.'
       +'\n\nRegards,'
       +'\nArjun K T M'
-      +'\nWealth Matrix Finserv LLP';
+      +'\nDeep Pocket Fintech Pvt. Ltd.';
   } else if(type==='chg'){
     msg='Hi'
       +'\n\nYou can change the mobile number and mail id of all your mutual fund folios using the following links'
@@ -10338,8 +10521,8 @@ async function setupBiometric(){
     var cred=await navigator.credentials.create({
       publicKey:{
         challenge:challenge,
-        rp:{name:'Wealth Matrix CRM'},
-        user:{id:userId, name:'wm-user', displayName:'Wealth Matrix User'},
+        rp:{name:'Deep Pocket CRM'},
+        user:{id:userId, name:'wm-user', displayName:'Deep Pocket User'},
         pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
         authenticatorSelection:{authenticatorAttachment:'platform', userVerification:'required'},
         timeout:60000
@@ -10754,7 +10937,7 @@ async function sendFinDocLinkWA(mob){
     +'\n\nNo login needed, works right from your phone.'
     +'\n\nRegards'
     +'\nArjun K T M'
-    +'\nWealth Matrix Finserv LLP';
+    +'\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
   logActivity(mob,'client','Fin Doc link sent via WhatsApp','');
 }
@@ -10779,7 +10962,7 @@ async function sendFeedbackLinkWA(mob){
     +'\n\nThank you for helping us improve.'
     +'\n\nRegards'
     +'\nArjun K T M'
-    +'\nWealth Matrix Finserv LLP';
+    +'\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
   logActivity(mob,'client','Feedback link sent via WhatsApp','');
 }
@@ -10839,8 +11022,8 @@ function sendQuickMsgEmail(mob, type){
   if(!body) return;
   var subject = type==='app' ? 'Mobile App Download Link'
     : type==='cas' ? 'CAMS Consolidated Account Statement'
-    : type==='welcome' ? 'Welcome to Wealth Matrix Finserv'
-    : 'Wealth Matrix Finserv';
+    : type==='welcome' ? 'Welcome to Deep Pocket Fintech'
+    : 'Deep Pocket Fintech';
   var toAddr = (c && c.email) ? encodeURIComponent(c.email) : '';
   window.open('mailto:'+toAddr+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body),'_blank');
   var label = type==='app' ? 'App Link' : type==='cas' ? 'CAMS CAS' : type==='welcome' ? 'Welcome Message' : type;
@@ -10860,7 +11043,7 @@ async function sendFeedbackLinkEmail(mob){
     +'We\'d really value your honest feedback on our service. It takes just a couple of minutes, and you\'re welcome to submit it anonymously if you\'d prefer.\n\n'
     +'Please use this link: '+link+'\n\n'
     +'Thank you for helping us improve.\n\n'
-    +'Regards\nArjun K T M\nWealth Matrix Finserv LLP';
+    +'Regards\nArjun K T M\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('mailto:'+encodeURIComponent(c.email)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body),'_blank');
   logActivity(mob,'client','Feedback link sent via Email','');
 }
@@ -10879,7 +11062,7 @@ async function sendUploadLinkWA(mob){
     +'\n\nTakes under 2 minutes, works right from your phone \u2014 no login needed.'
     +'\n\nRegards'
     +'\nArjun K T M'
-    +'\nWealth Matrix Finserv LLP';
+    +'\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
   logActivity(mob,'client','Upload link sent via WhatsApp','');
 }
@@ -10902,7 +11085,7 @@ async function sendGatherInfoLinkWA(mob){
     +'\n\nTakes under a minute, works right from your phone \u2014 no login needed.'
     +'\n\nRegards'
     +'\nArjun K T M'
-    +'\nWealth Matrix Finserv LLP';
+    +'\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
   logActivity(mob,'client','Gather Info link sent via WhatsApp','');
 }
@@ -10932,7 +11115,7 @@ async function sendLeadUploadLinkWA(mob){
     +'\n\nTakes under 2 minutes, works right from your phone \u2014 no login needed.'
     +'\n\nRegards'
     +'\nArjun K T M'
-    +'\nWealth Matrix Finserv LLP';
+    +'\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
   logActivity(mob,'lead','Upload link sent via WhatsApp','');
 }
@@ -11433,9 +11616,17 @@ function showTodaysActivityList(idx){
   // anything was ever appended to the page, with zero visible sign
   // anything went wrong). Now any failure at least shows what broke,
   // instead of the tap just appearing to do nothing.
+  // A brief, harmless confirmation toast fires FIRST, before anything else
+  // — this exists purely to answer one diagnostic question definitively:
+  // if this toast never appears when tapped, the tap isn't reaching this
+  // function AT ALL (a DOM/event-wiring issue upstream of this code); if
+  // it DOES appear but no popup follows, the bug is inside this function
+  // instead. Safe to remove once the actual cause is confirmed.
+  toast('Opening…', 900);
   try{
   var item=window._todaysActivityItems&&window._todaysActivityItems[idx];
   if(!item||!item.list){ toast('Nothing to show for this item'); return; }
+  var todayStr=today(); // used below for the overdue-vs-due-today tag on task rows — this function is separate from renderTodaysActivity(), so it needs its own copy rather than relying on that function's local variable
   var ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
 
@@ -11761,7 +11952,7 @@ async function sendProductFeedback(){
       headers:{'Content-Type':'text/plain'},
       body:JSON.stringify({
         action:'submitProductFeedback',
-        firmName:document.title.replace(/\s*v[\d.]+\s*$/,'').trim(), // e.g. "Wealth Matrix CRM" — reads from whatever this deployment is actually titled, so it's automatically correct per firm without a separate field to keep in sync
+        firmName:document.title.replace(/\s*v[\d.]+\s*$/,'').trim(), // e.g. "Deep Pocket CRM" — reads from whatever this deployment is actually titled, so it's automatically correct per firm without a separate field to keep in sync
         submittedBy:session?session.name:'',
         role:session?session.userType:'',
         category:catEl?catEl.value:'Other',
@@ -12005,7 +12196,7 @@ function startAppAfterAuth(){
   var dashVerEl=document.getElementById('dash-version-num');
   if(dashVerEl) dashVerEl.textContent=APP_VERSION;
   var setVerEl=document.getElementById('settings-app-version');
-  if(setVerEl) setVerEl.textContent='Wealth Matrix CRM v'+APP_VERSION;
+  if(setVerEl) setVerEl.textContent='Deep Pocket CRM v'+APP_VERSION;
   var topVerEl=document.getElementById('topbar-version-tag');
   if(topVerEl) topVerEl.textContent='V '+APP_VERSION;
   loadTopbarFirmName();

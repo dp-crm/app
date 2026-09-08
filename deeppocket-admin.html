@@ -689,13 +689,12 @@ function closeJourneyModal(){ document.getElementById('journey-modal').classList
 // via WhatsApp or email straight from the journey view. Uses cfg.clientFormUrl
 // (Settings → Client Form Link), separate from the Apps Script exec URL.
 function shareClientForm(channel, e){
-  var link = (cfg.clientFormUrl||'').trim();
-  if(!link){ toast('⚠️ Set the Client Form Link in Settings first'); return; }
-  var migrationLink = (cfg.migrationToolUrl||DEFAULT_MIGRATION_URL).trim();
-  var body = 'Dear Sir,\n\nThank you so much for contacting us. We shall contact you as soon as possible.\n\n'
-    + 'If you are looking for a customized CRM, please visit this link and fill in the details:\n' + link + '\n\n'
-    + 'If you already have existing client or lead data you would like brought across, you can prepare it here:\n' + migrationLink + '\n\n'
-    + 'Regards,\nArjun K T M\nFounder- Deep pocket fintech Pvt. Ltd.';
+  var link = (cfg.clientFormUrl||'').trim() || 'https://dp-crm.github.io/app/deep-pocket-crm-form.html';
+  var name = (e.firmName||'').trim() || 'Sir/Madam';
+  var body = 'Dear '+name+',\n\n'
+    + 'Thank you so much for showing interest in our CRM web & mobile application service. We provide a complete customised CRM app for your business. Please help us to understand your business by filling the form. Form link is given below. We shall process your request immediately and deliver the required customised files to you.\n\n'
+    + link + '\n\n'
+    + 'Regards,\nTeam Deep Pocket Fintech Pvt. Ltd.';
   if(channel==='whatsapp'){
     if(!e.contactNo){ toast('No contact number on file'); return; }
     var digits = e.contactNo.replace(/[^0-9]/g,'');
@@ -807,7 +806,7 @@ async function pullFeedback(){
     var r = await fetch(cfg.scriptUrl+'?action=readTab&tab=FEEDBACK&t='+Date.now());
     var j = await r.json();
     var rows = (j.rows||[]).slice(1);
-    feedback = rows.map(function(r){ return {firmName:r[0], message:r[1]}; }).reverse();
+    feedback = rows.map(function(r){ return {firmName:r[0], category:r[1], message:r[2]}; }).reverse();
     renderFeedback();
     toast('✅ Loaded '+feedback.length+' feedback items');
   }catch(e){
@@ -819,7 +818,7 @@ function renderFeedback(){
   if(feedback.length===0){ el.innerHTML='<div class="empty mono">No feedback yet.</div>'; return; }
   el.innerHTML = feedback.map(function(f){
     return '<div class="fbitem">'
-      + '<div class="hd"><span class="who">'+esc(f.firmName||'Unknown firm')+'</span></div>'
+      + '<div class="hd"><span class="who">'+esc(f.firmName||'Unknown firm')+'</span>'+(f.category?' <span class="badge" style="color:var(--cyan);border-color:rgba(55,214,198,.4);background:var(--cyan-dim);margin-left:6px">'+esc(f.category)+'</span>':'')+'</div>'
       + '<div class="msg">'+esc(f.message)+'</div>'
       + '</div>';
   }).join('');
@@ -829,7 +828,7 @@ function renderFeedback(){
 // APPS SCRIPT CODE VIEWER
 // ═══════════════════════════════════════════════
 var CODE_GS = [
-"const SHEET_ID = 'PASTE_YOUR_NEW_GOOGLE_SHEET_ID_HERE'; // create a new Sheet under deeppocket1610@gmail.com, copy the ID from its URL",
+"const SHEET_ID = '1fPv8EJJTAkjl82eMcnyV34aLQJZ_BzAiXMRYL9ydwTc'; // Deep Pocket CRM \u2014 Admin",
 "const ENQUIRIES_TAB = 'ENQUIRIES', FEEDBACK_TAB = 'FEEDBACK';",
 "const VERSION = '1.1.0';",
 "",
@@ -962,14 +961,18 @@ var CODE_GS = [
 "  if(data.action==='appendFeedback'){",
 "    var sh=ss.getSheetByName(FEEDBACK_TAB)||ss.insertSheet(FEEDBACK_TAB);",
 "    if(sh.getLastRow()===0){",
-"      var hdr=[['Firm Name','Feedback']];",
-"      var hr=sh.getRange(1,1,1,2); hr.setValues(hdr); hr.setFontWeight('bold').setBackground('#0A0E14').setFontColor('#F4B942');",
+"      var hdr=[['Firm Name','Category','Feedback']];",
+"      var hr=sh.getRange(1,1,1,3); hr.setValues(hdr); hr.setFontWeight('bold').setBackground('#0A0E14').setFontColor('#F4B942');",
 "      sh.setFrozenRows(1);",
-"      try{ sh.setColumnWidth(1,180); sh.setColumnWidth(2,600); }catch(e){}",
+"      try{ sh.setColumnWidth(1,180); sh.setColumnWidth(2,160); sh.setColumnWidth(3,600); }catch(e){}",
 "    }",
+"    // crm.html's own feedback feature may send the category under any of",
+"    // these keys depending on which build a client is running \u2014 checking",
+"    // all of them keeps this compatible without needing an exact match.",
+"    var category = data.category || data.feedbackCategory || data.type || data.feedbackType || '';",
 "    var msg = data.senderName ? '['+data.senderName+'] '+(data.message||'') : (data.message||'');",
-"    sh.appendRow([data.appName||'', msg]);",
-"    var lr=sh.getLastRow(); sh.getRange(lr,1,1,2).setNumberFormat('@').setWrap(true);",
+"    sh.appendRow([data.appName||'', category, msg]);",
+"    var lr=sh.getLastRow(); sh.getRange(lr,1,1,3).setNumberFormat('@').setWrap(true);",
 "    return out({success:true});",
 "  }",
 "",
@@ -978,7 +981,7 @@ var CODE_GS = [
 "  // normal checkInbox() + AI classification pipeline picks it up like any",
 "  // other mail (keeps one single source of truth for how enquiries update).",
 "  if(data.action==='clientIntakeSubmitted'){",
-"    var adminEmail = PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL') || Session.getEffectiveUser().getEmail();",
+"    var adminEmail = PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL') || 'deeppocket1610@gmail.com';",
 "    var subject = 'Deep Pocket Customization Details - ' + (data.firmName || 'New Firm');",
 "    var summary = buildIntakeSummaryText_(data);",
 "    var body = summary",
@@ -1019,7 +1022,7 @@ var CODE_GS = [
 "    matchEnquiryByFirmName_(ss, firmName2);",
 "",
 "    try{",
-"      var adminEmail2 = PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL') || Session.getEffectiveUser().getEmail();",
+"      var adminEmail2 = PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL') || 'deeppocket1610@gmail.com';",
 "      var wordBlob = buildPromptsWordBlob_(firmName2, promptTexts);",
 "      var attachments = [wordBlob];",
 "      var hasIcon = (data.iconMode==='upload' && data.iconBase64);",
@@ -1046,7 +1049,7 @@ var CODE_GS = [
 "  if(data.action==='sendEnquiryWelcome'){",
 "    var email = String(data.email||'').trim();",
 "    if(email){",
-"      GmailApp.sendEmail(email, 'Thank you for your CRM enquiry', autoReplyBody_());",
+"      GmailApp.sendEmail(email, 'Thank you for your CRM enquiry', autoReplyBody_(data.firmName));",
 "    }",
 "    if(data.recordId){",
 "      var sh=ss.getSheetByName(ENQUIRIES_TAB);",
@@ -1257,7 +1260,7 @@ var CODE_GS = [
 "        var row=[id, cls.firmName||'', cls.contactNo||'', senderEmail, today, 'Enquiry', subject, today, today, '', today, '', '', ''];",
 "        sh.appendRow(row);",
 "        sh.getRange(sh.getLastRow(),1,1,row.length).setNumberFormat('@');",
-"        sendAutoReply_(msg, senderEmail);",
+"        sendAutoReply_(msg, senderEmail, cls.firmName);",
 "        thread.addLabel(lblEnquiry);",
 "        msg.markRead();",
 "",
@@ -1331,22 +1334,18 @@ var CODE_GS = [
 "  }",
 "}",
 "",
-"function autoReplyBody_(){",
-"  var formUrl = PropertiesService.getScriptProperties().getProperty('CLIENT_FORM_URL') || 'PASTE_CLIENT_FORM_URL_HERE';",
-"  var migrationUrl = PropertiesService.getScriptProperties().getProperty('MIGRATION_TOOL_URL') || 'https://arjunwealthmatrix-netizen.github.io/wealth-matrix-crm/deep-pocket-data-migration.html';",
-"  return 'Dear Sir,\\n\\n'",
-"    + 'Thank you so much for contacting us. We shall contact you as soon as possible.\\n\\n'",
-"    + 'If you are looking for a customized CRM, please visit this link and fill in the details:\\n'",
+"function autoReplyBody_(firmName){",
+"  var formUrl = PropertiesService.getScriptProperties().getProperty('CLIENT_FORM_URL') || 'https://dp-crm.github.io/app/deep-pocket-crm-form.html';",
+"  var name = (firmName||'').trim() || 'Sir/Madam';",
+"  return 'Dear '+name+',\\n\\n'",
+"    + 'Thank you so much for showing interest in our CRM web & mobile application service. We provide a complete customised CRM app for your business. Please help us to understand your business by filling the form. Form link is given below. We shall process your request immediately and deliver the required customised files to you.\\n\\n'",
 "    + formUrl + '\\n\\n'",
-"    + 'If you already have existing client or lead data you would like brought across, you can prepare it here:\\n'",
-"    + migrationUrl + '\\n\\n'",
 "    + 'Regards,\\n'",
-"    + 'Arjun K T M\\n'",
-"    + 'Founder- Deep pocket fintech Pvt. Ltd.';",
+"    + 'Team Deep Pocket Fintech Pvt. Ltd.';",
 "}",
 "",
-"function sendAutoReply_(msg, senderEmail){",
-"  var body = autoReplyBody_();",
+"function sendAutoReply_(msg, senderEmail, firmName){",
+"  var body = autoReplyBody_(firmName);",
 "  try{ msg.reply(body); }",
 "  catch(e){ GmailApp.sendEmail(senderEmail, 'Re: Your CRM Enquiry', body); }",
 "}",
@@ -2065,7 +2064,8 @@ function loadEnquiryIntoIntake(recordId){
 loadCfg();
 loadLocal();
 document.getElementById('s-script-url').value = cfg.scriptUrl||'';
-document.getElementById('s-client-form-url').value = cfg.clientFormUrl||'';
+if(!cfg.clientFormUrl){ cfg.clientFormUrl = 'https://dp-crm.github.io/app/deep-pocket-crm-form.html'; saveCfg(); }
+document.getElementById('s-client-form-url').value = cfg.clientFormUrl;
 if(!cfg.migrationToolUrl){ cfg.migrationToolUrl = DEFAULT_MIGRATION_URL; saveCfg(); }
 document.getElementById('s-migration-url').value = cfg.migrationToolUrl;
 document.getElementById('s-migration-url-inline').value = cfg.migrationToolUrl;
