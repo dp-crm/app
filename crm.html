@@ -12,7 +12,7 @@
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="theme-color" content="#1B1512">
-<title>Deep Pocket CRM v5.11.0</title>
+<title>Deep Pocket CRM v5.14.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -558,7 +558,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <span style="font-size:10px;font-weight:900;color:#000">DP</span>
     </div>
     <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Deep Pocket CRM</span>
-    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.11.0</span>
+    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.14.0</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
     <button id="global-refresh-btn" onclick="manualTopBarRefresh()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Refresh">
@@ -1539,12 +1539,12 @@ function leadToRow(l){
 }
 
 
-// Deep Pocket's own product-feedback endpoint — the SAME URL across every
-// deployed CRM, owned and run entirely on Deep Pocket's Google account,
-// completely separate from this firm's own cfg_.scriptUrl. Deliberately a
-// fixed constant, not a Settings field: no firm should ever need to (or be
-// able to) redirect this to somewhere else.
-var PRODUCT_FEEDBACK_URL = 'PASTE_DEEP_POCKET_FEEDBACK_ENDPOINT_URL_HERE';
+// (Product feedback now routes through this firm's own cfg_.scriptUrl —
+// see sendProductFeedback() — rather than a separate dedicated endpoint.
+// That separate endpoint was never actually configured in practice, which
+// meant the feature failed on every single attempt with no real error
+// shown; reusing the existing, already-working connection removes that
+// whole class of failure and any need to configure a second URL per firm.)
 
 // ── App store links — per-firm configurable. Replace both when rebranding
 // for a new firm; these are the ONLY two places these URLs live. ──
@@ -5094,7 +5094,7 @@ function renderFuDetailInner(mob,nameHint){
 
 
 // Version marker
-var APP_VERSION='5.11.0';
+var APP_VERSION='5.14.0';
 
 
 
@@ -6119,7 +6119,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.25.0';
+var EXPECTED_BACKEND_VERSION = '2.28.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -7987,6 +7987,22 @@ async function runHealthCheck(){
       no('Could not read firm branding: '+(brandRes&&brandRes.error||'unknown error'));
     }
   }catch(e){ no('Firm branding check error: '+e.message); }
+
+  // 18. CENTRAL FEEDBACK SHEET — app/product feedback from the firms Deep
+  // Pocket sells this CRM to, ONLY. Retail client feedback (about their
+  // own advisor) is local to each firm's own sheet and never touches this
+  // central one.
+  log(''); log('\u2501\u2501 18. Central feedback sheet (app/product feedback) \u2501\u2501');
+  try{
+    var cfsRes=await sheetWrite({action:'testCentralFeedbackSheet'}, 15000);
+    if(cfsRes && cfsRes.success){
+      ok('Reachable \u2014 "'+cfsRes.sheetName+'"');
+      if(cfsRes.feedbackTabExists) ok('FEEDBACK tab exists ('+cfsRes.rowCount+' submission(s) so far)');
+      else wn('FEEDBACK tab doesn\'t exist yet \u2014 it will be created automatically on the first product-feedback submission');
+    } else {
+      no((cfsRes&&cfsRes.error)||'Could not reach the central feedback sheet \u2014 product feedback submissions will fail until this account is shared as an editor on it');
+    }
+  }catch(e){ no('Central feedback sheet check error: '+e.message); }
 
   // SUMMARY
   log(''); log('\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501');
@@ -11939,33 +11955,29 @@ async function sendProductFeedback(){
   var catEl=document.getElementById('dp-fb-category');
   var message=(msgEl?msgEl.value:'').trim();
   if(!message){ toast('Please write a message first'); return; }
-  if(PRODUCT_FEEDBACK_URL.indexOf('PASTE_')===0){
-    toast('⚠️ This isn\'t set up yet — the Deep Pocket feedback link hasn\'t been configured for this deployment.');
-    return;
-  }
-  var session=getSession();
+  if(!hasScript()){ toast('Add Apps Script URL first — check Settings'); return; }
   var btn=document.getElementById('dp-fb-send-btn');
   if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
   try{
-    var res=await fetch(PRODUCT_FEEDBACK_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({
-        action:'submitProductFeedback',
-        firmName:document.title.replace(/\s*v[\d.]+\s*$/,'').trim(), // e.g. "Deep Pocket CRM" — reads from whatever this deployment is actually titled, so it's automatically correct per firm without a separate field to keep in sync
-        submittedBy:session?session.name:'',
-        role:session?session.userType:'',
-        category:catEl?catEl.value:'Other',
-        message:message,
-        appVersion:(document.title.match(/v[\d.]+/)||[''])[0]
-      })
-    });
-    var data=await res.json().catch(function(){ return {success:true}; }); // a non-JSON 200 still likely means it went through
-    if(data && data.success!==false){
+    // Routed through this firm's own already-working Apps Script connection
+    // (same one everything else in the app uses) rather than a separate,
+    // dedicated endpoint — that separate endpoint was never actually
+    // configured (a literal unfilled "PASTE_URL_HERE" placeholder), which
+    // meant this failed on every single attempt with no exception. Reusing
+    // the existing connection means nothing new has to be set up per firm
+    // when this gets resold, and it lands in the same central feedback
+    // sheet already shared for client feedback — just a separate tab.
+    var res=await sheetWrite({
+      action:'submitProductFeedback',
+      firmName:document.title.replace(/\s*v[\d.]+\s*$/,'').trim(), // e.g. "Deep Pocket CRM" — whatever this deployment is actually titled
+      category:catEl?catEl.value:'Other',
+      message:message
+    }, 15000);
+    if(res && res.success){
       toast('✅ Thank you — sent to Deep Pocket');
       if(msgEl) msgEl.value='';
     } else {
-      toast('❌ Could not send: '+(data&&data.error||'please try again'));
+      toast('❌ Could not send: '+(res&&res.error||'please try again'));
     }
   }catch(e){
     toast('❌ Could not reach Deep Pocket: '+e.message);
