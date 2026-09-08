@@ -197,6 +197,7 @@ input[type=color]{padding:3px;min-height:0}
     <div class="tabs" id="tabs">
       <button class="tab active" data-view="dashboard">📊 Dashboard</button>
       <button class="tab" data-view="intake">📝 Intake</button>
+      <button class="tab" data-view="migration">🔄 Migration</button>
       <button class="tab" data-view="feedbacks">💬 Feedbacks</button>
       <button class="tab" data-view="settings">⚙️ Settings</button>
     </div>
@@ -362,6 +363,20 @@ input[type=color]{padding:3px;min-height:0}
     <div id="in-prompts-wrap" style="display:none"></div>
   </div>
 
+  <!-- ═══ MIGRATION ═══ -->
+  <!-- Embeds the standalone data-migration tool (converts an existing
+       client/lead export into this CRM's Sheet format) so it lives inside
+       the console rather than being a link you have to go find elsewhere. -->
+  <div class="view" id="view-migration">
+    <div class="hint" style="margin-bottom:12px">Converts a firm's existing Excel/CSV lead or client list into this CRM's Google Sheet format — the same link included in the welcome mail, in case a firm brings data across themselves.</div>
+    <div class="row" style="gap:8px;margin-bottom:12px">
+      <input id="s-migration-url-inline" placeholder="Migration tool URL" oninput="setMigrationUrl(this.value)" style="flex:1">
+      <button class="btn btn-cyan" onclick="openMigrationTool()">🔗 Open in New Tab</button>
+    </div>
+    <iframe id="migration-iframe" style="width:100%;height:70vh;border:1px solid var(--border);border-radius:var(--r);background:#fff" title="Data Migration Tool"></iframe>
+    <div class="hint" style="margin-top:8px">If the tool doesn't appear above, some browsers block embedding external pages — use "Open in New Tab" instead.</div>
+  </div>
+
   <!-- ═══ FEEDBACKS ═══ -->
   <div class="view" id="view-feedbacks">
     <div class="toolbar">
@@ -393,6 +408,17 @@ input[type=color]{padding:3px;min-height:0}
           <input id="s-client-form-url" placeholder="https://…/deep-pocket-crm-intake.html" oninput="setClientFormUrl(this.value)">
         </div>
         <div class="hint" style="margin-top:0">Used by the "Share Form" buttons on each enquiry's journey, and should match the same URL set as CLIENT_FORM_URL in Apps Script Script Properties.</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🔄 Data Migration Tool Link</div>
+      <div class="panel">
+        <div class="fg">
+          <label class="fl">Where deep-pocket-data-migration.html is hosted</label>
+          <input id="s-migration-url" placeholder="https://…/deep-pocket-data-migration.html" oninput="setMigrationUrl(this.value)">
+        </div>
+        <div class="hint" style="margin-top:0">Powers the Migration tab and is included in the welcome mail — should match MIGRATION_TOOL_URL in Apps Script Script Properties.</div>
       </div>
     </div>
 
@@ -491,6 +517,26 @@ function loadCfg(){ try{ cfg=JSON.parse(localStorage.getItem('dp_admin_cfg')||'{
 function saveCfg(){ localStorage.setItem('dp_admin_cfg', JSON.stringify(cfg)); }
 function setScriptUrl(v){ cfg.scriptUrl=v.trim(); saveCfg(); updateConnStatus(); }
 function setClientFormUrl(v){ cfg.clientFormUrl=v.trim(); saveCfg(); }
+
+var DEFAULT_MIGRATION_URL = 'https://arjunwealthmatrix-netizen.github.io/wealth-matrix-crm/deep-pocket-data-migration.html';
+function setMigrationUrl(v){
+  cfg.migrationToolUrl=v.trim();
+  saveCfg();
+  // keep the Settings field and the Migration tab's inline field in sync,
+  // whichever one was just edited
+  var a=document.getElementById('s-migration-url'), b=document.getElementById('s-migration-url-inline');
+  if(a && a.value!==cfg.migrationToolUrl) a.value=cfg.migrationToolUrl;
+  if(b && b.value!==cfg.migrationToolUrl) b.value=cfg.migrationToolUrl;
+}
+function openMigrationTool(){ window.open(cfg.migrationToolUrl||DEFAULT_MIGRATION_URL, '_blank'); }
+// Loads the iframe only once, the first time the Migration tab is opened —
+// avoids fetching an external page on every load of the admin console.
+var _migrationIframeLoaded=false;
+function loadMigrationIframeIfNeeded(){
+  if(_migrationIframeLoaded) return;
+  var f=document.getElementById('migration-iframe');
+  if(f){ f.src = cfg.migrationToolUrl||DEFAULT_MIGRATION_URL; _migrationIframeLoaded=true; }
+}
 function hasScript(){ return !!(cfg.scriptUrl && cfg.scriptUrl.includes('script.google.com')); }
 function updateConnStatus(){
   var el=document.getElementById('conn-status');
@@ -511,6 +557,7 @@ document.getElementById('tabs').addEventListener('click', function(e){
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   btn.classList.add('active');
   document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  if(btn.dataset.view==='migration') loadMigrationIframeIfNeeded();
 });
 
 // ═══════════════════════════════════════════════
@@ -644,8 +691,10 @@ function closeJourneyModal(){ document.getElementById('journey-modal').classList
 function shareClientForm(channel, e){
   var link = (cfg.clientFormUrl||'').trim();
   if(!link){ toast('⚠️ Set the Client Form Link in Settings first'); return; }
+  var migrationLink = (cfg.migrationToolUrl||DEFAULT_MIGRATION_URL).trim();
   var body = 'Dear Sir,\n\nThank you so much for contacting us. We shall contact you as soon as possible.\n\n'
     + 'If you are looking for a customized CRM, please visit this link and fill in the details:\n' + link + '\n\n'
+    + 'If you already have existing client or lead data you would like brought across, you can prepare it here:\n' + migrationLink + '\n\n'
     + 'Regards,\nArjun K T M\nFounder- Deep pocket fintech Pvt. Ltd.';
   if(channel==='whatsapp'){
     if(!e.contactNo){ toast('No contact number on file'); return; }
@@ -1284,10 +1333,13 @@ var CODE_GS = [
 "",
 "function autoReplyBody_(){",
 "  var formUrl = PropertiesService.getScriptProperties().getProperty('CLIENT_FORM_URL') || 'PASTE_CLIENT_FORM_URL_HERE';",
+"  var migrationUrl = PropertiesService.getScriptProperties().getProperty('MIGRATION_TOOL_URL') || 'https://arjunwealthmatrix-netizen.github.io/wealth-matrix-crm/deep-pocket-data-migration.html';",
 "  return 'Dear Sir,\\n\\n'",
 "    + 'Thank you so much for contacting us. We shall contact you as soon as possible.\\n\\n'",
 "    + 'If you are looking for a customized CRM, please visit this link and fill in the details:\\n'",
 "    + formUrl + '\\n\\n'",
+"    + 'If you already have existing client or lead data you would like brought across, you can prepare it here:\\n'",
+"    + migrationUrl + '\\n\\n'",
 "    + 'Regards,\\n'",
 "    + 'Arjun K T M\\n'",
 "    + 'Founder- Deep pocket fintech Pvt. Ltd.';",
@@ -2014,6 +2066,9 @@ loadCfg();
 loadLocal();
 document.getElementById('s-script-url').value = cfg.scriptUrl||'';
 document.getElementById('s-client-form-url').value = cfg.clientFormUrl||'';
+if(!cfg.migrationToolUrl){ cfg.migrationToolUrl = DEFAULT_MIGRATION_URL; saveCfg(); }
+document.getElementById('s-migration-url').value = cfg.migrationToolUrl;
+document.getElementById('s-migration-url-inline').value = cfg.migrationToolUrl;
 updateConnStatus();
 renderPipeline();
 renderEnquiries();
