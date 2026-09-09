@@ -1,0 +1,2603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Deep Pocket — Admin Console</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DP Admin">
+<meta name="theme-color" content="#0A0E14">
+<link rel="manifest" href="./client-form-manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:#0A0E14; --panel:#10151F; --panel2:#0D1219;
+  --border:#1C2432; --border-hi:#2A3446;
+  --ink:#E7ECF2; --ink-dim:#8B95A5; --ink-faint:#4B5568;
+  --amber:#F4B942; --amber-dim:rgba(244,185,66,.10);
+  --cyan:#37D6C6; --cyan-dim:rgba(55,214,198,.10);
+  --danger:#EF6461; --danger-dim:rgba(239,100,97,.10);
+  --success:#34D399; --success-dim:rgba(52,211,153,.10);
+  --r:10px;
+  --shadow:0 2px 14px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',-apple-system,sans-serif;min-height:100vh;font-size:14px;line-height:1.5}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+.display{font-family:'Space Grotesk',sans-serif}
+.blueprint{
+  background-image:
+    linear-gradient(rgba(55,214,198,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(55,214,198,.05) 1px, transparent 1px);
+  background-size:28px 28px;
+  min-height:100vh;
+}
+a{color:inherit}
+::selection{background:var(--amber);color:#0A0E14}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+
+/* ── Header ── */
+header{position:sticky;top:0;z-index:40;background:rgba(10,14,20,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);overflow:hidden}
+header::before{content:'';position:absolute;top:-60px;left:-40px;width:220px;height:160px;background:radial-gradient(closest-side,rgba(55,214,198,.14),transparent);pointer-events:none}
+header::after{content:'';position:absolute;top:-60px;right:-40px;width:220px;height:160px;background:radial-gradient(closest-side,rgba(244,185,66,.10),transparent);pointer-events:none}
+.hwrap{max-width:1100px;margin:0 auto;padding:14px 14px 0;position:relative}
+.brand{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.brand .eyebrow{font-size:10px;letter-spacing:.2em;color:var(--cyan);text-transform:uppercase}
+.brand h1{font-size:19px;margin:2px 0 0;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  .brand h1{background:linear-gradient(100deg,var(--ink) 15%,var(--cyan) 65%,var(--amber) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+}
+/* Floating icon nav — 5 items, 3+2 across two rows, mobile-first PWA menu */
+.nav-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding-bottom:14px}
+.navitem{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:13px 4px;border-radius:16px;background:var(--panel);border:1px solid var(--border);box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;transition:transform .12s,background .15s,border-color .15s;color:var(--ink-dim);-webkit-tap-highlight-color:transparent}
+.navitem:active{transform:scale(.95)}
+.navitem .navicon{font-size:21px;line-height:1}
+.navitem .navlabel{font-size:9.5px;font-family:'JetBrains Mono',monospace;letter-spacing:.02em;text-transform:uppercase}
+.navitem.active{background:var(--amber-dim);border-color:rgba(244,185,66,.45);color:var(--amber);box-shadow:0 4px 18px rgba(244,185,66,.18)}
+
+main{max-width:1100px;margin:0 auto;padding:16px 14px 90px}
+.view{display:none}
+.view.active{display:block;animation:fadein .25s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Pipeline strip (dashboard signature element) ── */
+.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-bottom:20px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.pnode{background:var(--panel);padding:13px 6px;text-align:center;cursor:pointer;border:none;color:var(--ink);position:relative;transition:.15s}
+.pnode:hover{background:var(--panel2)}
+.pnode.on{background:var(--amber-dim);box-shadow:inset 0 -2px 0 var(--amber)}
+.pnode .n{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--ink-faint);letter-spacing:.1em}
+.pnode .cnt{font-size:20px;font-weight:700;font-family:'Space Grotesk',sans-serif;margin:4px 0 2px}
+.pnode .lbl{font-size:9.5px;color:var(--ink-dim);line-height:1.25}
+.pnode.on .lbl{color:var(--amber)}
+.pnode:not(:last-child)::after{content:'';position:absolute;right:-1px;top:50%;width:6px;height:6px;border-right:1px solid var(--border-hi);border-top:1px solid var(--border-hi);transform:translateY(-50%) rotate(45deg)}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:0}
+input,select,textarea{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--ink);font-family:'Inter',sans-serif;font-size:13.5px;outline:none;width:100%;min-height:42px;transition:border-color .15s}
+textarea{min-height:0}
+input:focus,select:focus,textarea:focus{border-color:var(--cyan)}
+select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238B95A5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:28px}
+input[type=checkbox]{width:16px;height:16px;min-height:0;accent-color:var(--cyan);flex-shrink:0}
+input[type=color]{padding:3px;min-height:0}
+.btn{padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--ink);font-size:12px;font-family:'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap;transition:.15s;min-height:40px}
+.btn:hover{border-color:var(--border-hi);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-amber{background:var(--amber-dim);border-color:rgba(244,185,66,.4);color:var(--amber);font-weight:600}
+.btn-amber:hover{background:rgba(244,185,66,.18)}
+.btn-cyan{background:var(--cyan-dim);border-color:rgba(55,214,198,.4);color:var(--cyan)}
+.btn-danger{background:var(--danger-dim);border-color:rgba(239,100,97,.4);color:var(--danger)}
+.btn-sm{padding:6px 10px;font-size:11px;border-radius:6px;min-height:0}
+.btn:disabled{opacity:.4;cursor:default;transform:none}
+.btn-full{width:100%;text-align:center}
+
+/* ── Enquiry capsules ── */
+.elist{display:flex;flex-direction:column;gap:10px}
+.ecard{border:1px solid var(--border);border-radius:22px;padding:14px 16px;background:var(--panel);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
+.ecard .toprow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.ecard .main{flex:1;min-width:0;cursor:pointer}
+.ecard .firm{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ecard .meta{font-size:11px;color:var(--ink-dim);font-family:'JetBrains Mono',monospace;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+.badge{font-size:10px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.05em;padding:4px 9px;border-radius:20px;border:1px solid;white-space:nowrap}
+.b-Enquiry{color:#9CA3AF;border-color:#374151;background:rgba(156,163,175,.08)}
+.b-Mail-Sent{color:var(--cyan);border-color:rgba(55,214,198,.4);background:var(--cyan-dim)}
+.b-Prompt-Generated{color:#A78BFA;border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.1)}
+.b-File-Generated{color:var(--amber);border-color:rgba(244,185,66,.4);background:var(--amber-dim)}
+.b-Deployment-Done{color:var(--success);border-color:rgba(52,211,153,.4);background:var(--success-dim)}
+.ecard select.statussel{width:auto;font-size:11px;padding:6px 22px 6px 8px;font-family:'JetBrains Mono',monospace;min-height:0;flex-shrink:0}
+.ecard .actionrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.iconbtn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;border:1px solid var(--border);background:var(--panel2);cursor:pointer;flex-shrink:0;transition:transform .12s;-webkit-tap-highlight-color:transparent}
+.iconbtn:active{transform:scale(.9)}
+.iconbtn.call{color:var(--success);border-color:rgba(52,211,153,.35)}
+.iconbtn.mail{color:var(--cyan);border-color:rgba(55,214,198,.35)}
+.iconbtn.wa{color:#25D366;border-color:rgba(37,211,102,.35)}
+.ecard .spacer{flex:1}
+.empty{text-align:center;padding:56px 20px;color:var(--ink-faint);font-size:13px}
+.empty .big{font-size:28px;margin-bottom:8px}
+
+/* ── Modal ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;align-items:center;justify-content:center;padding:16px}
+.overlay.show{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border-hi);border-radius:14px;width:100%;max-width:440px;max-height:88vh;overflow-y:auto;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.modal h2{font-size:15px;margin:0 0 16px;font-family:'Space Grotesk',sans-serif}
+.fg{margin-bottom:14px}
+.fl{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-dim);margin-bottom:6px;font-family:'JetBrains Mono',monospace}
+.check-label{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink);cursor:pointer}
+.modal-actions{display:flex;gap:8px;margin-top:18px}
+.modal-actions .btn{flex:1;text-align:center}
+
+/* ── Journey timeline ── */
+.jstep{display:flex;gap:12px;position:relative;padding-bottom:20px}
+.jstep:last-child{padding-bottom:0}
+.jstep::before{content:'';position:absolute;left:13px;top:28px;bottom:0;width:1px;background:var(--border)}
+.jstep:last-child::before{display:none}
+.jstep-dot{width:27px;height:27px;border-radius:50%;background:var(--panel2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;z-index:1}
+.jstep.reached .jstep-dot{background:var(--success-dim);border-color:rgba(52,211,153,.4)}
+.jstep-label{font-size:13px;font-weight:600;color:var(--ink-faint)}
+.jstep.reached .jstep-label{color:var(--ink)}
+.jstep-date{font-size:11px;color:var(--ink-faint);margin-top:2px}
+.jstep.reached .jstep-date{color:var(--success)}
+
+/* ── Settings / Intake sections ── */
+.sec{margin-bottom:24px}
+.sec-title{display:flex;align-items:center;gap:9px;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--cyan);margin-bottom:10px;font-family:'JetBrains Mono',monospace;cursor:pointer;user-select:none}
+.sec-title .chev{margin-left:auto;font-size:10px;color:var(--ink-faint);transition:transform .15s}
+.sec.collapsed .sec-title{margin-bottom:0}
+.sec.collapsed .sec-title .chev{transform:rotate(-90deg)}
+.sec-body{overflow:hidden}
+.sec.collapsed .sec-body{display:none}
+.secnum{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;flex-shrink:0;border-radius:5px;border:1px solid rgba(55,214,198,.4);background:var(--cyan-dim);font-size:10px;color:var(--cyan)}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+.hint{font-size:11.5px;color:var(--ink-dim);line-height:1.6;margin-top:6px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.color-row{display:flex;gap:10px;align-items:center}
+.color-row input[type=color]{width:44px;height:42px;border-radius:8px;flex-shrink:0}
+.color-row input:not([type=color]){flex:1;min-width:0}
+
+/* Product checkbox grid (Intake) */
+.prod-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+.prod-check{display:flex;align-items:center;gap:8px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--ink-dim);padding:6px 2px}
+
+/* Feature scope rows (Intake) — stacked for mobile safety */
+.featrow{border-bottom:1px solid var(--border);padding:11px 0}
+.featrow:last-child{border-bottom:none}
+.featrow-label{font-size:12.5px;font-weight:600;margin-bottom:8px;color:var(--ink)}
+.featrow-controls{display:flex;gap:8px}
+.featrow-controls select{width:118px;flex-shrink:0}
+.featrow-controls input{flex:1;min-width:0}
+
+/* ── Dashboard summary cards + action-required ── */
+.dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.dcard{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+.dcard .dval{font-size:24px;font-weight:700;font-family:'Space Grotesk',sans-serif;color:var(--ink)}
+.dcard .dlabel{font-size:10.5px;color:var(--ink-dim);margin-top:3px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.03em}
+.dcard.warn .dval{color:var(--amber)}
+.arow{border:1px solid rgba(244,185,66,.3);background:var(--amber-dim);border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer}
+.arow .atext{font-size:12.5px;color:var(--ink)}
+.arow .afirm{font-weight:600}
+.arow .adays{font-size:10.5px;color:var(--amber);font-family:'JetBrains Mono',monospace;margin-top:2px}
+
+/* ── Activity list ── */
+.actitem{border:1px solid var(--border);border-radius:12px;padding:11px 14px;margin-bottom:8px;background:var(--panel)}
+.actitem .ahd{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.actitem .aevent{font-size:12.5px;font-weight:600}
+.actitem .atime{font-size:10px;color:var(--ink-faint);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.actitem .afirmline{font-size:11px;color:var(--ink-dim);margin-top:3px}
+.srcbadge{font-size:9px;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:20px;border:1px solid;margin-left:6px}
+.srcbadge.automated{color:var(--cyan);border-color:rgba(55,214,198,.4);background:var(--cyan-dim)}
+.srcbadge.manual{color:var(--ink-dim);border-color:var(--border)}
+
+/* ── Feedback list ── */
+.fbitem{border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;background:var(--panel);box-shadow:var(--shadow)}
+.fbitem .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.fbitem .who{font-size:12px;font-weight:600}
+.fbitem .when{font-size:10px;color:var(--ink-faint);font-family:'JetBrains Mono',monospace}
+.fbitem .msg{font-size:13px;line-height:1.5;color:var(--ink)}
+.fbitem .status-new{display:inline-block;font-size:9px;color:var(--amber);border:1px solid rgba(244,185,66,.4);background:var(--amber-dim);padding:2px 7px;border-radius:20px;margin-left:8px;text-transform:uppercase;letter-spacing:.05em}
+
+/* ── Toast ── */
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--panel);border:1px solid var(--border-hi);color:var(--ink);font-size:12px;padding:10px 18px;border-radius:20px;opacity:0;pointer-events:none;transition:.25s;z-index:200;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── Code viewer ── */
+#code-modal .modal{max-width:700px}
+#code-pre{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:50vh;overflow-y:auto;font-family:'JetBrains Mono',monospace}
+
+@media(max-width:640px){
+  .pipeline{grid-template-columns:repeat(3,1fr)}
+  .pnode:nth-child(3)::after{display:none}
+  .brand h1{font-size:18px}
+  main{padding:16px 12px 90px}
+}
+@media(max-width:420px){
+  .featrow-controls{flex-wrap:wrap}
+  .featrow-controls select,.featrow-controls input{width:100%}
+  .prod-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand">
+      <div>
+        <div class="eyebrow mono">Deep Pocket</div>
+        <h1 class="display">Admin Console</h1>
+      </div>
+    </div>
+    <div class="nav-grid" id="tabs">
+      <button class="navitem active" data-view="dashboard"><span class="navicon">📊</span><span class="navlabel">Dashboard</span></button>
+      <button class="navitem" data-view="pipeline"><span class="navicon">🧭</span><span class="navlabel">Pipeline</span></button>
+      <button class="navitem" data-view="activity"><span class="navicon">🕓</span><span class="navlabel">Activity</span></button>
+      <button class="navitem" data-view="feedbacks"><span class="navicon">💬</span><span class="navlabel">Feedbacks</span></button>
+      <button class="navitem" data-view="settings"><span class="navicon">⚙️</span><span class="navlabel">Settings</span></button>
+    </div>
+  </div>
+</header>
+
+<div class="blueprint">
+<main>
+
+  <!-- ═══ DASHBOARD ═══ -->
+  <!-- Overview only — counts + what needs attention. The working list of
+       enquiries lives in Pipeline; this is the "should I open something?"
+       screen you land on first. -->
+  <div class="view active" id="view-dashboard">
+    <div class="sec">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <div class="sec-title" style="margin:0">📊 Overview</div>
+        <button class="btn btn-sm btn-cyan" onclick="runSyncNow()">🔄 Run Sync Now</button>
+      </div>
+      <div class="hint" id="sync-status-line" style="margin-top:0;margin-bottom:12px">Not synced yet.</div>
+      <div class="dash-grid" id="dash-cards"></div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">⚠️ Action Required</div>
+      <div id="action-required-list"><div class="empty mono">Sync to check for anything needing attention.</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ PIPELINE ═══ -->
+  <!-- The working list — stage strip filters it, search narrows it further,
+       full add/edit/delete lives here. This also covers what a separate
+       "Enquiries" screen would show (same records), so day-to-day
+       management stays in one place instead of two near-identical lists. -->
+  <div class="view" id="view-pipeline">
+    <div class="pipeline" id="pipeline"></div>
+
+    <div class="toolbar">
+      <input class="search" id="e-search" placeholder="Search firm or contact…" oninput="renderEnquiries()">
+      <button class="btn btn-cyan" onclick="pullEnquiries()">⬇️ Sync</button>
+      <button class="btn btn-amber" onclick="openEnquiryModal()">＋ New Enquiry</button>
+    </div>
+
+    <div class="elist" id="e-list"></div>
+  </div>
+
+  <!-- ═══ ACTIVITY ═══ -->
+  <!-- Reads ACTIVITY_LOG from the sheet — every automated and manual
+       workflow event (enquiry created, mail sent, prompt detected, file
+       delivery detected, deployment marked complete). Not a Gmail inbox
+       copy — just the workflow-relevant events. -->
+  <div class="view" id="view-activity">
+    <div class="toolbar">
+      <div class="hint" style="margin:0;flex:1">Chronological log of every automated and manual workflow event.</div>
+      <button class="btn btn-cyan" onclick="pullActivity()">⬇️ Refresh</button>
+    </div>
+    <div id="activity-list"><div class="empty mono">No activity loaded yet — tap Refresh.</div></div>
+  </div>
+
+  <!-- ═══ INTAKE ═══ -->
+  <!-- Mirrors deep-pocket-crm-form.html (the public client-facing form)
+       field-for-field, so Generate produces the same 5-step prompts either
+       way. A submission loaded via Dashboard → Open in Intake drops straight
+       into this same form. You fill this in yourself while on a call —
+       nothing here is ever sent to the client. -->
+  <div class="view" id="view-intake">
+    <div class="hint" style="margin-bottom:18px">Ask the client these questions yourself and fill it in here — nothing on this tab is ever sent to them. One working draft, autosaved as you type.</div>
+
+    <div class="sec">
+      <div class="sec-title" onclick="toggleSec(this)"><span class="secnum">01</span>About the Firm<span class="chev">▾</span></div>
+      <div class="sec-body">
+      <div class="panel">
+        <div class="fg"><label class="fl">Firm's Full Legal Name</label><input id="in-firmName" placeholder="Sunrise Wealth Advisors LLP" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">App Name</label><input id="in-productName" placeholder="Leave blank for '[Firm] CRM'" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Main Advisor's Name</label><input id="in-ownerName" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Their Title</label><input id="in-ownerTitle" placeholder="e.g. Managing Partner, Founder" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Office Address</label><textarea id="in-address" rows="2" oninput="inSave()"></textarea></div>
+        <div class="fg"><label class="fl">Phone Clients Can Call</label><input id="in-phone" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Email Clients Can Write To</label><input id="in-email" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Weekly Summary Recipient Email</label><input id="in-insightsEmail" placeholder="Leave blank to use the email above" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Welcome-Message Office Number</label><input id="in-welcomePhone" placeholder="Leave blank to use the phone above" oninput="inSave()"></div>
+      </div>
+      </div>
+    </div>
+
+    <div class="sec collapsed">
+      <div class="sec-title" onclick="toggleSec(this)"><span class="secnum">02</span>Colours<span class="chev">▾</span></div>
+      <div class="sec-body">
+      <div class="hint" style="margin-bottom:10px">Optional — if the firm has no particular brand colours, just skip this section entirely.</div>
+      <div class="panel">
+        <div style="font-size:11.5px;color:var(--ink-dim);line-height:1.6;margin-bottom:14px;background:rgba(255,255,255,.04);padding:10px 12px;border-radius:8px">The app already looks good as-is. Only change colours here if the firm has specific brand colours they want used. Click any colour square to pick a new one, from the full colour spectrum — not a limited set of swatches — and anything you don't touch stays exactly as it is.</div>
+        <div id="in-theme"></div>
+      </div>
+      </div>
+    </div>
+
+    <div class="sec collapsed">
+      <div class="sec-title" onclick="toggleSec(this)"><span class="secnum">03</span>Logo &amp; Lettering<span class="chev">▾</span></div>
+      <div class="sec-body">
+      <div class="panel">
+        <div class="fg"><label class="fl">Logo</label>
+          <select id="in-logoMode" onchange="inSave()"><option value="initials">Use initials</option><option value="image">Use a logo image</option></select>
+        </div>
+        <div class="fg"><label class="fl">Firm's Initials</label><input id="in-logoInitials" placeholder="SW" maxlength="3" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Logo Image URL</label><input id="in-logoUrl" placeholder="https://.../logo.png" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">App Icon</label>
+          <select id="in-iconMode" onchange="inIconModeChanged()"><option value="auto">Create one for them</option><option value="upload">Upload their logo</option></select>
+        </div>
+        <div id="in-icon-area" style="margin-bottom:14px"></div>
+        <input type="file" id="in-iconInput" accept="image/*" style="display:none" onchange="inHandleIconUpload(this)">
+        <div class="fg"><label class="fl">Lettering Style</label>
+          <select id="in-typographyMode" onchange="inSave()"><option value="default">Keep as is (recommended)</option><option value="custom">Use different fonts</option></select>
+        </div>
+        <div class="fg"><label class="fl">Heading Font</label><input id="in-displayFont" placeholder="e.g. Playfair Display" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Body Font</label><input id="in-bodyFont" placeholder="e.g. Source Sans Pro" oninput="inSave()"></div>
+      </div>
+      </div>
+    </div>
+
+    <div class="sec collapsed">
+      <div class="sec-title" onclick="toggleSec(this)"><span class="secnum">04</span>Feature Scope<span class="chev">▾</span></div>
+      <div class="sec-body">
+      <div class="hint" style="margin-bottom:10px">Everything's included by default — leave on Keep unless the firm's specifically asked you to change or drop something.</div>
+      <div class="panel" id="in-features"></div>
+      </div>
+    </div>
+
+    <div class="sec collapsed">
+      <div class="sec-title" onclick="toggleSec(this)"><span class="secnum">05</span>Business Details<span class="chev">▾</span></div>
+      <div class="sec-body">
+      <div class="panel">
+        <div class="fg"><label class="fl">Business Model</label>
+          <select id="in-modelType" onchange="inSave()"><option value="MFD">MFD (commission)</option><option value="RIA">RIA (fee-only)</option><option value="BOTH">Both</option></select>
+        </div>
+        <div class="fg"><label class="fl">SEBI Registration No. (RIA only)</label><input id="in-sebiReg" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">AMFI ARN Code (MFD only)</label><input id="in-arn" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">GST Number</label><input id="in-gstNumber" placeholder="Leave blank if not registered" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Client Onboarding Steps</label><textarea id="in-stages" rows="2" placeholder="Leave blank to keep the current stages" oninput="inSave()"></textarea></div>
+        <div class="fg"><label class="fl">Products Offered</label><textarea id="in-products" rows="2" placeholder="Mutual Funds, Life Insurance, Health Insurance, NPS" oninput="inSave()"></textarea></div>
+      </div>
+      </div>
+    </div>
+
+    <div class="sec collapsed">
+      <div class="sec-title" onclick="toggleSec(this)"><span class="secnum">06</span>Messages to Clients<span class="chev">▾</span></div>
+      <div class="sec-body">
+      <div class="panel">
+        <div class="fg"><label class="fl">Message Tone</label>
+          <select id="in-tone" onchange="inSave()"><option value="warm">Warm &amp; personal</option><option value="formal">More formal</option><option value="custom">I'll write my own</option></select>
+        </div>
+        <div class="fg"><label class="fl">Has Its Own Mobile App?</label>
+          <select id="in-hasOwnApp" onchange="inSave()"><option value="yes">Yes</option><option value="no">No</option></select>
+        </div>
+        <div class="fg"><label class="fl">Google Play Link</label><input id="in-playStoreLink" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Apple App Store Link</label><input id="in-appStoreLink" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Firm's Website</label><input id="in-websiteLink" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Custom Welcome Message</label><textarea id="in-customWelcome" rows="3" placeholder="Leave blank to adapt the reference wording" oninput="inSave()"></textarea></div>
+      </div>
+      </div>
+    </div>
+
+    <div class="sec collapsed">
+      <div class="sec-title" onclick="toggleSec(this)"><span class="secnum">07</span>Privacy &amp; Complaints Contact<span class="chev">▾</span></div>
+      <div class="sec-body">
+      <div class="panel">
+        <div class="fg"><label class="fl">Grievance Officer Name</label><input id="in-grievanceName" placeholder="Leave blank to use the advisor's name" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Their Title</label><input id="in-grievanceTitle" placeholder="e.g. Grievance Officer" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Complaints Email</label><input id="in-grievanceEmail" placeholder="Leave blank to use the firm's main email" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Complaints Phone</label><input id="in-grievancePhone" placeholder="Leave blank to use the firm's main phone" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Additional Disclosures</label><textarea id="in-extraDisclosures" rows="3" placeholder="Most firms leave this blank" oninput="inSave()"></textarea></div>
+      </div>
+      </div>
+    </div>
+
+    <div class="sec collapsed">
+      <div class="sec-title" onclick="toggleSec(this)"><span class="secnum">08</span>Technical Settings<span class="chev">▾</span></div>
+      <div class="sec-body">
+      <div class="hint" style="margin-bottom:10px">All optional — leave blank to keep current defaults.</div>
+      <div class="panel">
+        <div class="fg"><label class="fl">Google Sheet ID</label><input id="in-sheetId" placeholder="Leave blank if the sheet doesn't exist yet" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Google Calendar ID</label><input id="in-calendarId" placeholder="yourname@gmail.com or xxxx@group.calendar.google.com" oninput="inSave()"></div>
+        <div class="hint" style="margin-top:-8px;margin-bottom:12px">For appointment sync and auto-generated Google Meet links — found in Google Calendar → Settings → (their calendar) → Integrate calendar → Calendar ID.</div>
+        <div class="fg"><label class="fl">Days Before a Lead "Goes Quiet"</label><input id="in-followUpDays" placeholder="14" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">SIP Reminder — Days Ahead</label><input id="in-sipReminderDays" placeholder="5, 2" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">SIP Bounce Check — Days After</label><input id="in-sipBounceDays" placeholder="7" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Monthly Target — New Leads</label><input id="in-goalLeads" placeholder="30" oninput="inSave()"></div>
+        <div class="fg"><label class="fl">Monthly Target — Conversions</label><input id="in-goalConversions" placeholder="5" oninput="inSave()"></div>
+      </div>
+      </div>
+    </div>
+
+    <div class="row" style="gap:8px;flex-wrap:nowrap">
+      <button class="btn btn-amber btn-full" onclick="inGeneratePrompts()" style="font-size:13px">🚀 Generate</button>
+    </div>
+    <div class="row" style="gap:8px;margin-top:8px">
+      <button class="btn" style="flex:1" onclick="copyIntakeSummary()">📋 Copy Raw Summary</button>
+      <button class="btn btn-danger" onclick="clearIntake()">🗑️ Clear</button>
+    </div>
+
+    <div id="in-prompts-wrap" style="display:none"></div>
+  </div>
+
+  <!-- ═══ MIGRATION ═══ -->
+  <!-- Embeds the standalone data-migration tool (converts an existing
+       client/lead export into this CRM's Sheet format) so it lives inside
+       the console rather than being a link you have to go find elsewhere. -->
+  <div class="view" id="view-migration">
+    <div class="hint" style="margin-bottom:12px">Converts a firm's existing Excel/CSV lead or client list into this CRM's Google Sheet format — the same link included in the welcome mail, in case a firm brings data across themselves.</div>
+    <div class="row" style="gap:8px;margin-bottom:12px">
+      <input id="s-migration-url-inline" placeholder="Migration tool URL" oninput="setMigrationUrl(this.value)" style="flex:1">
+      <button class="btn btn-cyan" onclick="openMigrationTool()">🔗 Open in New Tab</button>
+    </div>
+    <iframe id="migration-iframe" style="width:100%;height:70vh;border:1px solid var(--border);border-radius:var(--r);background:#fff" title="Data Migration Tool"></iframe>
+    <div class="hint" style="margin-top:8px">If the tool doesn't appear above, some browsers block embedding external pages — use "Open in New Tab" instead.</div>
+  </div>
+
+  <!-- ═══ FEEDBACKS ═══ -->
+  <div class="view" id="view-feedbacks">
+    <div class="toolbar">
+      <div class="hint" style="margin:0;flex:1">Feedback sent from every deployed CRM's Settings → Send Feedback, pulled from your sheet's FEEDBACK tab.</div>
+      <button class="btn btn-cyan" onclick="pullFeedback()">⬇️ Refresh</button>
+    </div>
+    <div id="fb-list"><div class="empty mono">No feedback loaded yet — tap Refresh.</div></div>
+  </div>
+
+  <!-- ═══ SETTINGS ═══ -->
+  <div class="view" id="view-settings">
+
+    <div class="sec">
+      <div class="sec-title">🛠️ Tools</div>
+      <div class="panel">
+        <div class="hint" style="margin-top:0;margin-bottom:10px">Intake and Migration moved out of the main menu to keep day-to-day navigation to five screens — they're still fully here, just one tap away.</div>
+        <div class="row" style="gap:8px">
+          <button class="btn btn-amber" style="flex:1" onclick="activateView('intake')">📝 Open Intake</button>
+          <button class="btn btn-cyan" style="flex:1" onclick="activateView('migration')">🔄 Open Migration</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🔗 Backend Connection</div>
+      <div class="panel">
+        <div class="fg">
+          <label class="fl">Apps Script Exec URL (deeppocket1610@gmail.com)</label>
+          <input id="s-script-url" placeholder="Paste your /exec URL" oninput="setScriptUrl(this.value)">
+        </div>
+        <div class="hint" id="conn-status">Not connected yet.</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🔗 Client Form Link</div>
+      <div class="panel">
+        <div class="fg">
+          <label class="fl">Where deep-pocket-crm-form.html is hosted</label>
+          <input id="s-client-form-url" placeholder="https://…/deep-pocket-crm-form.html" oninput="setClientFormUrl(this.value)">
+        </div>
+        <div class="hint" style="margin-top:0">Used by the "Share Form" buttons on each enquiry's journey, and should match the same URL set as CLIENT_FORM_URL in Apps Script Script Properties.</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🔄 Data Migration Tool Link</div>
+      <div class="panel">
+        <div class="fg">
+          <label class="fl">Where deep-pocket-data-migration.html is hosted</label>
+          <input id="s-migration-url" placeholder="https://…/deep-pocket-data-migration.html" oninput="setMigrationUrl(this.value)">
+        </div>
+        <div class="hint" style="margin-top:0">Powers the Migration tab and is included in the welcome mail — should match MIGRATION_TOOL_URL in Apps Script Script Properties.</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">🤖 Inbox Automation</div>
+      <div class="panel">
+        <div class="hint" style="margin-top:0">These live in Apps Script's <b>Script Properties</b> (Project Settings → Script Properties), not here — a client-side app is the wrong place for a secret API key. Set:</div>
+        <ul class="hint" style="margin:8px 0 0;padding-left:18px">
+          <li><span class="mono">GEMINI_API_KEY</span> — your Gemini API key (free from aistudio.google.com), used to classify inbound mail</li>
+          <li><span class="mono">CLIENT_FORM_URL</span> — where you host <span class="mono">deep-pocket-crm-form.html</span></li>
+          <li><span class="mono">ADMIN_EMAIL</span> — usually deeppocket1610@gmail.com</li>
+        </ul>
+        <div class="hint">Then run <span class="mono">setup()</span> once from the Apps Script editor to install the 5-minute inbox-check trigger.</div>
+        <div class="hint" id="settings-sync-status" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">Sync status: not checked yet.</div>
+        <button class="btn btn-cyan btn-full" style="margin-top:8px" onclick="runSyncNow()">🔄 Run Sync Now</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-title">⚙️ Apps Script Backend Code</div>
+      <div class="panel">
+        <div class="hint" style="margin-top:0;margin-bottom:12px">Paste this into a new Apps Script project bound to a new Google Sheet, both created under <b>deeppocket1610@gmail.com</b>. Deploy as a Web App (Execute as: Me, Access: Anyone), then paste the exec URL above — and also into <span class="mono">SCRIPT_URL</span> in deep-pocket-crm-form.html and into the <span class="mono">DEEPPOCKET_FEEDBACK_URL</span> constant of every crm.html you deploy to a client firm.</div>
+        <button class="btn btn-amber" onclick="showCode()">📋 View / Copy Code.gs</button>
+        <button class="btn" onclick="copySheetSetup()" style="margin-left:8px">📄 Copy Sheet Setup Notes</button>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+</div>
+
+<!-- Enquiry Modal -->
+<div class="overlay" id="e-modal">
+  <div class="modal">
+    <h2 class="display" id="e-modal-title">New Enquiry</h2>
+    <input type="hidden" id="ef-recordId">
+    <div class="fg"><label class="fl">Firm Name</label><input id="ef-firm" placeholder="e.g. Sundaram Capital Advisors"></div>
+    <div class="fg"><label class="fl">Contact No.</label><input id="ef-contact" placeholder="10-digit number"></div>
+    <div class="fg"><label class="fl">Email (optional)</label><input id="ef-email" placeholder="name@firm.com"></div>
+    <div class="fg"><label class="fl">Date</label><input type="date" id="ef-date"></div>
+    <div class="fg"><label class="fl">Status</label>
+      <select id="ef-status">
+        <option>Enquiry</option><option>Mail Sent</option><option>Prompt Generated</option><option>File Generated</option><option>Deployment Done</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fl">Notes</label><textarea id="ef-notes" rows="3"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeEnquiryModal()">Cancel</button>
+      <button class="btn btn-amber" onclick="saveEnquiryForm()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Journey Modal -->
+<div class="overlay" id="journey-modal">
+  <div class="modal">
+    <h2 class="display" id="journey-title">Firm</h2>
+    <div id="journey-contact" style="margin-bottom:16px"></div>
+    <div id="journey-steps"></div>
+    <div class="row" style="gap:8px;margin-top:18px">
+      <button class="btn btn-cyan" style="flex:1" id="journey-share-wa">💬 Share via WhatsApp</button>
+      <button class="btn btn-cyan" style="flex:1" id="journey-share-mail">✉️ Share via Email</button>
+    </div>
+    <button class="btn btn-full" style="margin-top:8px;display:none" id="journey-mark-deployed">✅ Mark Deployment Complete</button>
+    <div class="modal-actions">
+      <button class="btn" style="flex:1" onclick="closeJourneyModal()">Close</button>
+      <button class="btn btn-amber" id="journey-open-prompts" style="display:none;flex:1">📝 Open in Intake</button>
+    </div>
+  </div>
+</div>
+
+<!-- Code Modal -->
+<div class="overlay" id="code-modal">
+  <div class="modal">
+    <h2 class="display">Code.gs — Deep Pocket Admin Backend</h2>
+    <pre id="code-pre" class="mono"></pre>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('code-modal').classList.remove('show')">Close</button>
+      <button class="btn btn-amber" onclick="copyCode()">📋 Copy Code</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG & STATE
+// ═══════════════════════════════════════════════
+var STATUSES = ['Enquiry','Mail Sent','Prompt Generated','File Generated','Deployment Done'];
+var cfg = {};
+var enquiries = [];
+var feedback = [];
+
+function toast(m,d){ d=d||2200; var t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(function(){t.classList.remove('show');},d); }
+
+function loadCfg(){ try{ cfg=JSON.parse(localStorage.getItem('dp_admin_cfg')||'{}'); }catch(e){ cfg={}; } }
+function saveCfg(){ localStorage.setItem('dp_admin_cfg', JSON.stringify(cfg)); }
+function setScriptUrl(v){ cfg.scriptUrl=v.trim(); saveCfg(); updateConnStatus(); }
+function setClientFormUrl(v){ cfg.clientFormUrl=v.trim(); saveCfg(); }
+
+var DEFAULT_MIGRATION_URL = 'https://arjunwealthmatrix-netizen.github.io/wealth-matrix-crm/deep-pocket-data-migration.html';
+function setMigrationUrl(v){
+  cfg.migrationToolUrl=v.trim();
+  saveCfg();
+  // keep the Settings field and the Migration tab's inline field in sync,
+  // whichever one was just edited
+  var a=document.getElementById('s-migration-url'), b=document.getElementById('s-migration-url-inline');
+  if(a && a.value!==cfg.migrationToolUrl) a.value=cfg.migrationToolUrl;
+  if(b && b.value!==cfg.migrationToolUrl) b.value=cfg.migrationToolUrl;
+}
+function openMigrationTool(){ window.open(cfg.migrationToolUrl||DEFAULT_MIGRATION_URL, '_blank'); }
+// Loads the iframe only once, the first time the Migration tab is opened —
+// avoids fetching an external page on every load of the admin console.
+var _migrationIframeLoaded=false;
+function loadMigrationIframeIfNeeded(){
+  if(_migrationIframeLoaded) return;
+  var f=document.getElementById('migration-iframe');
+  if(f){ f.src = cfg.migrationToolUrl||DEFAULT_MIGRATION_URL; _migrationIframeLoaded=true; }
+}
+function hasScript(){ return !!(cfg.scriptUrl && cfg.scriptUrl.includes('script.google.com')); }
+function updateConnStatus(){
+  var el=document.getElementById('conn-status');
+  el.textContent = hasScript() ? '🟢 Connected — Sync will read/write your Deep Pocket admin sheet.' : '⚪ Not connected — paste your Apps Script exec URL above, then Sync from the Dashboard.';
+}
+
+function loadLocal(){
+  try{ enquiries=JSON.parse(localStorage.getItem('dp_enquiries')||'[]'); }catch(e){ enquiries=[]; }
+}
+function saveLocal(){ localStorage.setItem('dp_enquiries', JSON.stringify(enquiries)); }
+
+// ═══════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════
+// Generic view switcher — used both by nav clicks and by any action that
+// jumps to a view that no longer has its own permanent nav button (Intake,
+// Migration — reachable via Settings/quick-actions instead).
+function activateView(viewId){
+  document.querySelectorAll('.navitem').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+  var navBtn = document.querySelector('.navitem[data-view="'+viewId+'"]');
+  if(navBtn) navBtn.classList.add('active');
+  var view = document.getElementById('view-'+viewId);
+  if(view) view.classList.add('active');
+  if(viewId==='migration') loadMigrationIframeIfNeeded();
+  if(viewId==='activity' && !_activityLoaded) pullActivity();
+  if(viewId==='dashboard') renderDashboardCards();
+}
+
+document.getElementById('tabs').addEventListener('click', function(e){
+  var btn=e.target.closest('.navitem'); if(!btn) return;
+  activateView(btn.dataset.view);
+});
+
+// ═══════════════════════════════════════════════
+// DASHBOARD — pipeline strip + enquiry list
+// ═══════════════════════════════════════════════
+var pipelineFilter = 'All';
+
+function renderPipeline(){
+  var wrap=document.getElementById('pipeline');
+  var counts={}; STATUSES.forEach(function(s){counts[s]=0;});
+  enquiries.forEach(function(e){ if(counts[e.status]!==undefined) counts[e.status]++; });
+  var html='';
+  STATUSES.forEach(function(s,i){
+    var on = pipelineFilter===s;
+    html += '<button class="pnode'+(on?' on':'')+'" onclick="setPipelineFilter(\''+s.replace(/'/g,"\\'")+'\')">'
+      + '<div class="n">0'+(i+1)+'</div>'
+      + '<div class="cnt">'+counts[s]+'</div>'
+      + '<div class="lbl">'+s+'</div>'
+      + '</button>';
+  });
+  wrap.innerHTML=html;
+}
+function setPipelineFilter(s){ pipelineFilter = (pipelineFilter===s) ? 'All' : s; renderPipeline(); renderEnquiries(); }
+
+// ═══════════════════════════════════════════════
+// NEW DASHBOARD — summary cards + action-required, computed client-side
+// from whatever's already loaded in `enquiries` (no extra sheet reads).
+// ═══════════════════════════════════════════════
+function daysSince_(dateStr){
+  if(!dateStr) return null;
+  var d=new Date(dateStr+'T00:00:00');
+  if(isNaN(d.getTime())) return null;
+  var now=new Date(); now.setHours(0,0,0,0);
+  return Math.floor((now-d)/86400000);
+}
+
+var ACTION_THRESHOLDS = { mailSent:3, promptGenerated:3, fileGenerated:5 };
+
+function renderDashboardCards(){
+  var counts={}; STATUSES.forEach(function(s){counts[s]=0;});
+  enquiries.forEach(function(e){ if(counts[e.status]!==undefined) counts[e.status]++; });
+  var totalActive = enquiries.filter(function(e){ return e.status!=='Deployment Done'; }).length;
+
+  var cards = [
+    { label:'Total Active Prospects', val: totalActive },
+    { label:'Enquiries', val: counts['Enquiry'] },
+    { label:'Mail Sent', val: counts['Mail Sent'] },
+    { label:'Awaiting Client Form', val: counts['Mail Sent'] },
+    { label:'Prompt Generated', val: counts['Prompt Generated'] },
+    { label:'File Generation Pending', val: counts['Prompt Generated'] },
+    { label:'Deployment Pending', val: counts['File Generated'] },
+    { label:'Completed', val: counts['Deployment Done'] }
+  ];
+  document.getElementById('dash-cards').innerHTML = cards.map(function(c){
+    return '<div class="dcard"><div class="dval">'+c.val+'</div><div class="dlabel">'+c.label+'</div></div>';
+  }).join('');
+
+  var items=[];
+  enquiries.forEach(function(e){
+    if(e.status==='Mail Sent'){
+      var d=daysSince_(e.mailSentDate);
+      if(d!==null && d>=ACTION_THRESHOLDS.mailSent) items.push({e:e, text:'Client form not submitted', days:d});
+    } else if(e.status==='Prompt Generated'){
+      var d2=daysSince_(e.promptGeneratedDate);
+      if(d2!==null && d2>=ACTION_THRESHOLDS.promptGenerated) items.push({e:e, text:'Prompt generated but files not sent', days:d2});
+    } else if(e.status==='File Generated'){
+      var d3=daysSince_(e.fileGeneratedDate);
+      if(d3!==null && d3>=ACTION_THRESHOLDS.fileGenerated) items.push({e:e, text:'Files sent but deployment pending', days:d3});
+    }
+  });
+  items.sort(function(a,b){ return b.days-a.days; });
+
+  var el=document.getElementById('action-required-list');
+  if(!items.length){
+    el.innerHTML='<div class="empty mono">Nothing needs attention right now.</div>';
+  } else {
+    el.innerHTML = items.map(function(it){
+      return '<div class="arow" onclick="openJourneyModal(\''+it.e.recordId+'\')">'
+        + '<div class="atext"><div class="afirm">'+esc(it.e.firmName)+'</div><div>'+it.text+'</div><div class="adays">'+it.days+' day'+(it.days===1?'':'s')+'</div></div>'
+        + '<div>›</div></div>';
+    }).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════
+// SYNC — calls the backend's syncNow action on demand (same code path the
+// 5-minute trigger runs internally), then refreshes local data.
+// ═══════════════════════════════════════════════
+async function runSyncNow(){
+  if(!hasScript()){ toast('⚠️ Paste your Apps Script URL in Settings first'); return; }
+  var line1=document.getElementById('sync-status-line'), line2=document.getElementById('settings-sync-status');
+  if(line1) line1.textContent='Syncing…';
+  if(line2) line2.textContent='Syncing…';
+  try{
+    var payload={action:'syncNow'};
+    var r=await fetch(cfg.scriptUrl+'?payload='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now());
+    var j=await r.json();
+    var msg=j.message||(j.success?'Sync complete.':'Sync failed.');
+    if(line1) line1.textContent=msg;
+    if(line2) line2.textContent=msg;
+    toast(j.success?'✅ Synced':'⚠️ Sync error');
+    await pullEnquiries();
+    renderDashboardCards();
+  }catch(e){
+    if(line1) line1.textContent='Sync failed — check your connection.';
+    if(line2) line2.textContent='Sync failed — check your connection.';
+    toast('⚠️ Sync failed');
+  }
+}
+
+// ═══════════════════════════════════════════════
+// ACTIVITY — reads ACTIVITY_LOG, chronological, most recent first.
+// ═══════════════════════════════════════════════
+var _activityLoaded=false;
+async function pullActivity(){
+  if(!hasScript()){ toast('⚠️ Paste your Apps Script URL in Settings first'); return; }
+  toast('Loading activity…');
+  try{
+    var r=await fetch(cfg.scriptUrl+'?action=readTab&tab=ACTIVITY_LOG&t='+Date.now());
+    var j=await r.json();
+    var rows=(j.rows||[]).slice(1);
+    var events=rows.map(function(row){ return {ts:row[0],recordId:row[1],firmName:row[2],event:row[3],source:row[4],gmailRef:row[5],notes:row[6]}; }).reverse();
+    renderActivity(events);
+    _activityLoaded=true;
+    toast('✅ Loaded '+events.length+' event(s)');
+  }catch(e){ toast('⚠️ Could not load activity'); }
+}
+function renderActivity(events){
+  var el=document.getElementById('activity-list');
+  if(!events.length){ el.innerHTML='<div class="empty mono">No activity yet.</div>'; return; }
+  el.innerHTML = events.map(function(ev){
+    var src=(ev.source||'').toLowerCase()==='automated'?'automated':'manual';
+    return '<div class="actitem">'
+      + '<div class="ahd"><span class="aevent">'+esc(ev.event)+'<span class="srcbadge '+src+'">'+esc(ev.source||'')+'</span></span><span class="atime">'+esc(ev.ts||'')+'</span></div>'
+      + (ev.firmName?'<div class="afirmline">'+esc(ev.firmName)+'</div>':'')
+      + '</div>';
+  }).join('');
+}
+
+function statusClass(s){ return 'b-'+s.replace(/\s+/g,'-'); }
+
+function renderEnquiries(){
+  var q=(document.getElementById('e-search').value||'').toLowerCase().trim();
+  var list = enquiries.filter(function(e){
+    if(pipelineFilter!=='All' && e.status!==pipelineFilter) return false;
+    if(!q) return true;
+    return (e.firmName||'').toLowerCase().indexOf(q)>=0 || (e.contactNo||'').toLowerCase().indexOf(q)>=0;
+  }).sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+
+  var el=document.getElementById('e-list');
+  if(list.length===0){
+    el.innerHTML='<div class="empty"><div class="big">🗂️</div>No enquiries here yet.<br>Tap "＋ New Enquiry" to log one.</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(e){
+    return '<div class="ecard">'
+      + '<div class="toprow">'
+      +   '<div class="main" onclick="openJourneyModal(\''+e.recordId+'\')" title="View journey">'
+      +     '<div class="firm">'+esc(e.firmName)+'</div>'
+      +     '<div class="meta"><span>📞 '+esc(e.contactNo||'—')+'</span><span>📅 '+esc(e.date||'—')+'</span></div>'
+      +   '</div>'
+      +   '<select class="statussel" onchange="quickStatus(\''+e.recordId+'\',this.value)">'
+      +     STATUSES.map(function(s){ return '<option'+(s===e.status?' selected':'')+'>'+s+'</option>'; }).join('')
+      +   '</select>'
+      + '</div>'
+      + '<div class="actionrow">'
+      +   (e.contactNo ? '<button class="iconbtn call" onclick="callEnquiry(\''+e.recordId+'\')" title="Call">📞</button>' : '')
+      +   (e.email ? '<button class="iconbtn mail" onclick="shareClientForm(\'email\',enquiries.find(function(x){return x.recordId===\''+e.recordId+'\';}))" title="Email">✉️</button>' : '')
+      +   (e.contactNo ? '<button class="iconbtn wa" onclick="shareClientForm(\'whatsapp\',enquiries.find(function(x){return x.recordId===\''+e.recordId+'\';}))" title="WhatsApp">💬</button>' : '')
+      +   '<div class="spacer"></div>'
+      +   (e.intakeJson ? '<button class="btn btn-sm btn-amber" onclick="loadEnquiryIntoIntake(\''+e.recordId+'\')">📝</button>' : '')
+      +   '<button class="btn btn-sm" onclick="openEnquiryModal(\''+e.recordId+'\')">✏️</button>'
+      +   '<button class="btn btn-sm btn-danger" onclick="deleteEnquiryConfirm(\''+e.recordId+'\')">🗑️</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+function callEnquiry(recordId){
+  var e=enquiries.find(function(x){return x.recordId===recordId;});
+  if(!e || !e.contactNo){ toast('No contact number on file'); return; }
+  window.location.href = 'tel:'+e.contactNo.replace(/[^0-9+]/g,'');
+}
+
+// Accordion toggle for the Intake tab's numbered sections.
+function toggleSec(titleEl){ titleEl.parentElement.classList.toggle('collapsed'); }
+
+// Stage-date field a given status maps to, for "first time reached" journey
+// tracking. Enquiry itself just uses e.date/createdDate — no separate field.
+function stageDateField_(status){
+  if(status==='Mail Sent') return 'mailSentDate';
+  if(status==='Prompt Generated') return 'promptGeneratedDate';
+  if(status==='File Generated') return 'fileGeneratedDate';
+  if(status==='Deployment Done') return 'deploymentDoneDate';
+  return null;
+}
+function stampStageDate(e, status){
+  var f=stageDateField_(status);
+  if(f && !e[f]) e[f]=todayStr();
+}
+
+function quickStatus(recordId, status){
+  var e=enquiries.find(function(x){return x.recordId===recordId;});
+  if(!e) return;
+  e.status=status; e.modifiedDate=todayStr();
+  stampStageDate(e, status);
+  saveLocal(); renderPipeline(); renderEnquiries(); renderDashboardCards();
+  pushEnquiry('updateEnquiry', e);
+}
+
+// Section 13's explicit "MARK DEPLOYMENT COMPLETE" action — deployment
+// stays fully manual by design, this just makes the single-tap version of
+// picking "Deployment Done" from the status dropdown, with an optional note.
+function markDeploymentComplete(recordId){
+  var e=enquiries.find(function(x){return x.recordId===recordId;});
+  if(!e) return;
+  if(!confirm('Mark "'+e.firmName+'" as deployment complete?')) return;
+  var note = prompt('Optional deployment note (leave blank to skip):','');
+  if(note){ e.notes = (e.notes ? e.notes+'\n' : '') + 'Deployment note: '+note; }
+  quickStatus(recordId, 'Deployment Done');
+  closeJourneyModal();
+  toast('✅ Marked deployment complete for '+e.firmName);
+}
+
+function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function newId(){ return 'E'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+// ── Journey modal ──
+var JOURNEY_STEPS = [
+  { status:'Enquiry', field:null, icon:'📝', label:'Enquiry Created' },
+  { status:'Mail Sent', field:'mailSentDate', icon:'📧', label:'Thank You Mail Sent' },
+  { status:'Prompt Generated', field:'promptGeneratedDate', icon:'📨', label:'Prompt Generated' },
+  { status:'File Generated', field:'fileGeneratedDate', icon:'📄', label:'File Generated' },
+  { status:'Deployment Done', field:'deploymentDoneDate', icon:'✅', label:'Deployed' },
+];
+function openJourneyModal(recordId){
+  var e=enquiries.find(function(x){return x.recordId===recordId;});
+  if(!e) return;
+  document.getElementById('journey-title').textContent=e.firmName||'Firm';
+  document.getElementById('journey-contact').innerHTML =
+      '<div class="row" style="gap:16px;flex-wrap:wrap">'
+    + '<span class="mono" style="font-size:12px;color:var(--ink-dim)">📞 '+esc(e.contactNo||'—')+'</span>'
+    + '<span class="mono" style="font-size:12px;color:var(--ink-dim)">✉️ '+esc(e.email||'—')+'</span>'
+    + '</div>'
+    + (e.notes ? '<div class="hint" style="margin-top:8px">'+esc(e.notes)+'</div>' : '');
+
+  var currentIdx = STATUSES.indexOf(e.status);
+  document.getElementById('journey-steps').innerHTML = JOURNEY_STEPS.map(function(step, i){
+    var date = step.field ? e[step.field] : (e.date||e.createdDate);
+    var reached = !!date || i<=currentIdx;
+    var dateLabel = date ? date : (reached ? '—' : 'Not yet');
+    return '<div class="jstep'+(reached?' reached':'')+'">'
+      + '<div class="jstep-dot">'+(reached?step.icon:'○')+'</div>'
+      + '<div class="jstep-body"><div class="jstep-label">'+step.label+'</div><div class="jstep-date mono">'+esc(dateLabel)+'</div></div>'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('journey-open-prompts').style.display = e.intakeJson ? 'block' : 'none';
+  document.getElementById('journey-open-prompts').onclick = function(){ closeJourneyModal(); loadEnquiryIntoIntake(e.recordId); };
+
+  var waBtn=document.getElementById('journey-share-wa'), mailBtn=document.getElementById('journey-share-mail');
+  waBtn.disabled = !e.contactNo; mailBtn.disabled = !e.email;
+  waBtn.onclick = function(){ shareClientForm('whatsapp', e); };
+  mailBtn.onclick = function(){ shareClientForm('email', e); };
+
+  var deployBtn=document.getElementById('journey-mark-deployed');
+  if(e.status==='File Generated'){
+    deployBtn.style.display='block';
+    deployBtn.onclick = function(){ markDeploymentComplete(e.recordId); };
+  } else {
+    deployBtn.style.display='none';
+  }
+
+  document.getElementById('journey-modal').classList.add('show');
+}
+function closeJourneyModal(){ document.getElementById('journey-modal').classList.remove('show'); }
+
+// Manual share — same wording as the automated auto-reply, sent yourself
+// via WhatsApp or email straight from the journey view. Uses cfg.clientFormUrl
+// (Settings → Client Form Link), separate from the Apps Script exec URL.
+function shareClientForm(channel, e){
+  var link = (cfg.clientFormUrl||'').trim() || 'https://dp-crm.github.io/app/deep-pocket-crm-form.html';
+  var name = (e.firmName||'').trim() || 'Sir/Madam';
+  var body = 'Dear '+name+',\n\n'
+    + 'Thank you so much for showing interest in our CRM web & mobile application service. We provide a complete customised CRM app for your business. Please help us to understand your business by filling the form. Form link is given below. We shall process your request immediately and deliver the required customised files to you.\n\n'
+    + link + '\n\n'
+    + 'Regards,\nTeam Deep Pocket Fintech Pvt. Ltd.';
+  if(channel==='whatsapp'){
+    if(!e.contactNo){ toast('No contact number on file'); return; }
+    var digits = e.contactNo.replace(/[^0-9]/g,'');
+    window.open('https://wa.me/'+digits+'?text='+encodeURIComponent(body), '_blank');
+  } else {
+    if(!e.email){ toast('No email on file'); return; }
+    window.open('mailto:'+encodeURIComponent(e.email)+'?subject='+encodeURIComponent('Thank you for your CRM enquiry')+'&body='+encodeURIComponent(body), '_blank');
+  }
+}
+
+// ── Modal ──
+function openEnquiryModal(recordId){
+  var e = recordId ? enquiries.find(function(x){return x.recordId===recordId;}) : null;
+  document.getElementById('e-modal-title').textContent = e ? 'Edit Enquiry' : 'New Enquiry';
+  document.getElementById('ef-recordId').value = e ? e.recordId : '';
+  document.getElementById('ef-firm').value = e ? e.firmName : '';
+  document.getElementById('ef-contact').value = e ? e.contactNo : '';
+  document.getElementById('ef-email').value = e ? (e.email||'') : '';
+  document.getElementById('ef-date').value = e ? e.date : todayStr();
+  document.getElementById('ef-status').value = e ? e.status : 'Enquiry';
+  document.getElementById('ef-notes').value = e ? (e.notes||'') : '';
+  document.getElementById('e-modal').classList.add('show');
+}
+function closeEnquiryModal(){ document.getElementById('e-modal').classList.remove('show'); }
+
+function saveEnquiryForm(){
+  var firm=document.getElementById('ef-firm').value.trim();
+  if(!firm){ toast('Firm name is required'); return; }
+  var recordId=document.getElementById('ef-recordId').value;
+  var isNew = !recordId;
+  var emailVal=document.getElementById('ef-email').value.trim();
+
+  // Same prospect must not appear twice just because the same email was
+  // typed in again — check against what's already loaded, by normalized
+  // email, before creating anything.
+  if(isNew && emailVal){
+    var norm=emailVal.toLowerCase();
+    var dup = enquiries.find(function(x){ return (x.email||'').trim().toLowerCase()===norm; });
+    if(dup){
+      closeEnquiryModal();
+      if(confirm('"'+dup.firmName+'" already has this email on file. Open that record instead of creating a new one?')){
+        openJourneyModal(dup.recordId);
+      }
+      return;
+    }
+  }
+
+  var e = isNew ? {recordId:newId(), createdDate:todayStr()} : enquiries.find(function(x){return x.recordId===recordId;});
+  e.firmName=firm;
+  e.contactNo=document.getElementById('ef-contact').value.trim();
+  e.email=emailVal;
+  e.date=document.getElementById('ef-date').value || todayStr();
+  e.status=document.getElementById('ef-status').value;
+  e.notes=document.getElementById('ef-notes').value.trim();
+  e.modifiedDate=todayStr();
+  stampStageDate(e, e.status);
+
+  if(isNew) enquiries.push(e);
+  saveLocal(); renderPipeline(); renderEnquiries(); renderDashboardCards(); closeEnquiryModal();
+  pushEnquiry(isNew?'appendEnquiry':'updateEnquiry', e);
+  if(isNew) sendEnquiryWelcome(e);
+  toast(isNew ? (e.email ? '✅ Enquiry added — welcome mail sent' : '✅ Enquiry added (no email on file)') : '✅ Enquiry updated');
+}
+
+// Fires the same welcome email + client-form-link template the inbox
+// automation sends automatically — triggered here for enquiries you add by
+// hand, since there's no inbound email for checkInbox() to reply to. Also
+// stamps this enquiry's Mail Sent Date, locally and on the sheet.
+function sendEnquiryWelcome(e){
+  if(!e.mailSentDate) e.mailSentDate=todayStr();
+  if(!hasScript() || !e.email) return;
+  try{
+    var payload = { action:'sendEnquiryWelcome', email: e.email, firmName: e.firmName, recordId: e.recordId };
+    fetch(cfg.scriptUrl+'?payload='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now(), {method:'GET', mode:'no-cors'});
+  }catch(err){ /* fire-and-forget */ }
+}
+
+function deleteEnquiryConfirm(recordId){
+  if(!confirm('Delete this enquiry? This cannot be undone.')) return;
+  enquiries = enquiries.filter(function(x){return x.recordId!==recordId;});
+  saveLocal(); renderPipeline(); renderEnquiries(); renderDashboardCards();
+  pushEnquiry('deleteEnquiry', {recordId:recordId});
+  toast('🗑️ Deleted');
+}
+
+// ═══════════════════════════════════════════════
+// SYNC — Apps Script backend
+// ═══════════════════════════════════════════════
+function enquiryToRow(e){
+  // Column H is intentionally left blank now — e.date (col E) already
+  // captures the enquiry's creation date, so a second copy was redundant.
+  // Column O (Normalized Email) is recomputed server-side from col D on
+  // every write regardless of what's sent here — kept blank client-side.
+  return [e.recordId, e.firmName||'', e.contactNo||'', e.email||'', e.date||'', e.status||'Enquiry', e.notes||'', '', e.modifiedDate||'', e.intakeJson||'', e.mailSentDate||'', e.promptGeneratedDate||'', e.fileGeneratedDate||'', e.deploymentDoneDate||'', ''];
+}
+function rowToEnquiry(r){
+  return {recordId:r[0], firmName:r[1], contactNo:r[2], email:r[3], date:r[4], status:r[5]||'Enquiry', notes:r[6], createdDate:r[7], modifiedDate:r[8], intakeJson:r[9]||'', mailSentDate:r[10]||'', promptGeneratedDate:r[11]||'', fileGeneratedDate:r[12]||'', deploymentDoneDate:r[13]||'', normalizedEmail:r[14]||''};
+}
+
+async function pushEnquiry(action, e){
+  if(!hasScript()) return;
+  try{
+    var payload = {action:action, recordId:e.recordId, row: action==='deleteEnquiry' ? undefined : enquiryToRow(e)};
+    await fetch(cfg.scriptUrl+'?payload='+encodeURIComponent(JSON.stringify(payload))+'&t='+Date.now(), {method:'GET', mode:'no-cors'});
+  }catch(err){ /* fire-and-forget */ }
+}
+
+async function pullEnquiries(){
+  if(!hasScript()){ toast('⚠️ Paste your Apps Script URL in Settings first'); return; }
+  toast('Syncing…');
+  try{
+    var r = await fetch(cfg.scriptUrl+'?action=readTab&tab=ENQUIRIES&t='+Date.now());
+    var j = await r.json();
+    var rows = (j.rows||[]).slice(1); // skip header
+    enquiries = rows.filter(function(r){return r[0];}).map(rowToEnquiry);
+    saveLocal(); renderPipeline(); renderEnquiries(); renderDashboardCards();
+    toast('✅ Synced '+enquiries.length+' enquiries');
+  }catch(e){
+    toast('⚠️ Sync failed — check the URL and your connection');
+  }
+}
+
+// ═══════════════════════════════════════════════
+// FEEDBACK INBOX
+// ═══════════════════════════════════════════════
+async function pullFeedback(){
+  if(!hasScript()){ toast('⚠️ Paste your Apps Script URL in Settings first'); return; }
+  toast('Loading feedback…');
+  try{
+    var r = await fetch(cfg.scriptUrl+'?action=readTab&tab=FEEDBACK&t='+Date.now());
+    var j = await r.json();
+    var rows = (j.rows||[]).slice(1);
+    feedback = rows.map(function(r){ return {firmName:r[0], category:r[1], message:r[2]}; }).reverse();
+    renderFeedback();
+    toast('✅ Loaded '+feedback.length+' feedback items');
+  }catch(e){
+    toast('⚠️ Could not load feedback');
+  }
+}
+function renderFeedback(){
+  var el=document.getElementById('fb-list');
+  if(feedback.length===0){ el.innerHTML='<div class="empty mono">No feedback yet.</div>'; return; }
+  el.innerHTML = feedback.map(function(f){
+    return '<div class="fbitem">'
+      + '<div class="hd"><span class="who">'+esc(f.firmName||'Unknown firm')+'</span>'+(f.category?' <span class="badge" style="color:var(--cyan);border-color:rgba(55,214,198,.4);background:var(--cyan-dim);margin-left:6px">'+esc(f.category)+'</span>':'')+'</div>'
+      + '<div class="msg">'+esc(f.message)+'</div>'
+      + '</div>';
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// APPS SCRIPT CODE VIEWER
+// ═══════════════════════════════════════════════
+var CODE_GS = [
+"const SHEET_ID = '1fPv8EJJTAkjl82eMcnyV34aLQJZ_BzAiXMRYL9ydwTc'; // Deep Pocket CRM \u2014 Admin",
+"const ENQUIRIES_TAB = 'ENQUIRIES', FEEDBACK_TAB = 'FEEDBACK', ACTIVITY_TAB = 'ACTIVITY_LOG';",
+"const VERSION = '2.0.0';",
+"const STAGE_ORDER = ['Enquiry','Mail Sent','Prompt Generated','File Generated','Deployment Done'];",
+"",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"// ONE-TIME SETUP \u2014 run this once from the Apps Script editor (select",
+"// setup from the function dropdown, click Run). It creates the 5-minute",
+"// inbox-check trigger. Re-running it is safe; it won't create duplicates.",
+"// Before running, set your Script Properties (Project Settings > Script",
+"// Properties): GEMINI_API_KEY, CLIENT_FORM_URL, ADMIN_EMAIL.",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"function setup(){",
+"  ScriptApp.getProjectTriggers().forEach(function(t){",
+"    if(t.getHandlerFunction()==='checkInbox') ScriptApp.deleteTrigger(t);",
+"  });",
+"  ScriptApp.newTrigger('checkInbox').timeBased().everyMinutes(5).create();",
+"  Logger.log('Trigger installed: checkInbox will run every 5 minutes.');",
+"}",
+"",
+"function doGet(e){",
+"  try{",
+"    var p=e.parameter||{};",
+"    if(p.ping||p.action==='version') return out({version:VERSION, ok:true});",
+"    if(p.action==='syncNow') return out(syncMailNow());",
+"    if(p.action==='syncStatus') return out(getSyncStatus_());",
+"    if(p.payload) return writeData(JSON.parse(decodeURIComponent(p.payload)));",
+"    if(p.action==='readTab') return readTab(p.tab||ENQUIRIES_TAB);",
+"    return readTab(ENQUIRIES_TAB);",
+"  }catch(err){ return out({error:err.message}); }",
+"}",
+"function doPost(e){",
+"  try{",
+"    var d;",
+"    if(e.postData&&e.postData.contents) d=JSON.parse(e.postData.contents);",
+"    else if(e.parameter&&e.parameter.payload) d=JSON.parse(decodeURIComponent(e.parameter.payload));",
+"    if(d && d.action==='syncNow') return out(syncMailNow());",
+"    return writeData(d);",
+"  }catch(err){ return out({error:err.message}); }",
+"}",
+"",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"// EMAIL \u2014 the single source of truth for prospect identity. Every match",
+"// against ENQUIRIES goes through this, never firm name, unless email is",
+"// genuinely unavailable (only the AI-detected email-body prompt-marker",
+"// path, as a last resort).",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"function normalizeEmail(email){",
+"  return String(email||'').trim().toLowerCase();",
+"}",
+"",
+"function readTab(t){",
+"  var ss=SpreadsheetApp.openById(SHEET_ID);",
+"  var sh=ss.getSheetByName(t);",
+"  if(!sh) return out({rows:[]});",
+"  var lr=sh.getLastRow(), lc=sh.getLastColumn();",
+"  if(lr===0||lc===0) return out({rows:[]});",
+"  var raw=sh.getRange(1,1,lr,lc).getValues();",
+"  var cleaned=raw.map(function(row){",
+"    return row.map(function(c){",
+"      if(c===null||c===undefined||c==='') return '';",
+"      if(c instanceof Date){ var y=c.getFullYear(),m=String(c.getMonth()+1).padStart(2,'0'),d=String(c.getDate()).padStart(2,'0'); return y+'-'+m+'-'+d; }",
+"      return String(c).trim();",
+"    });",
+"  });",
+"  return out({rows:cleaned});",
+"}",
+"",
+"function nextId(sheet,colIndex,prefix){",
+"  var lr=sheet.getLastRow(); if(lr<2) return prefix+'1';",
+"  var vals=sheet.getRange(2,colIndex,lr-1,1).getValues();",
+"  var max=0; var re=new RegExp('^'+prefix+'(\\\\d+)$','i');",
+"  vals.forEach(function(v){ var mm=String(v[0]||'').trim().match(re); if(mm){ var n=parseInt(mm[1],10); if(n>max)max=n; } });",
+"  return prefix+(max+1);",
+"}",
+"",
+"// 15 columns. Column H stays intentionally blank (legacy \u2014 Enquiry Created",
+"// Date in col E already covers it). Column O (Normalized Email) is new \u2014",
+"// added at the END so existing rows/columns are never disturbed.",
+"function ensureEnquiriesHeader_(sh){",
+"  if(sh.getLastRow()===0){",
+"    var hdr=[['Record ID','Firm Name','Contact No','Email','Enquiry Created Date','Status','Notes','','Modified Date','Intake JSON','Thank You Mail Sent Date','Prompt Generated Date','File Generated Date','Deployment Done Date','Normalized Email']];",
+"    var hr=sh.getRange(1,1,1,15); hr.setValues(hdr); hr.setFontWeight('bold').setBackground('#0A0E14').setFontColor('#F4B942');",
+"    sh.setFrozenRows(1);",
+"  } else if(sh.getLastColumn()<15){",
+"    // Upgrading an existing sheet that predates the Normalized Email column.",
+"    sh.getRange(1,15).setValue('Normalized Email').setFontWeight('bold').setBackground('#0A0E14').setFontColor('#F4B942');",
+"    backfillNormalizedEmails_(sh);",
+"  }",
+"}",
+"",
+"// One-time backfill for rows that existed before column O was added, so",
+"// findProspectByEmail_ works correctly on old data without you having to",
+"// touch anything by hand.",
+"function backfillNormalizedEmails_(sh){",
+"  var n=sh.getLastRow();",
+"  if(n<2) return;",
+"  var emails=sh.getRange(2,4,n-1,1).getValues();",
+"  var norm=emails.map(function(r){ return [normalizeEmail(r[0])]; });",
+"  sh.getRange(2,15,n-1,1).setValues(norm);",
+"}",
+"",
+"function ensureActivityHeader_(sh){",
+"  if(sh.getLastRow()===0){",
+"    var hdr=[['Timestamp','Record ID','Firm Name','Event','Source','Gmail Ref','Notes']];",
+"    var hr=sh.getRange(1,1,1,7); hr.setValues(hdr); hr.setFontWeight('bold').setBackground('#0A0E14').setFontColor('#F4B942');",
+"    sh.setFrozenRows(1);",
+"    try{ sh.setColumnWidth(1,150); sh.setColumnWidth(3,180); sh.setColumnWidth(4,160); sh.setColumnWidth(7,400); }catch(e){}",
+"  }",
+"}",
+"",
+"// Appends one row to ACTIVITY_LOG \u2014 every automated or manual workflow",
+"// event goes through here, so Section 15's timeline is always complete",
+"// rather than reconstructed after the fact from scattered timestamps.",
+"function logAutomationEvent(ss, recordId, firmName, eventType, source, gmailRef, notes){",
+"  try{",
+"    var sh = ss.getSheetByName(ACTIVITY_TAB) || ss.insertSheet(ACTIVITY_TAB);",
+"    ensureActivityHeader_(sh);",
+"    var ts = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');",
+"    sh.appendRow([ts, recordId||'', firmName||'', eventType||'', source||'', gmailRef||'', notes||'']);",
+"  }catch(e){ Logger.log('logAutomationEvent failed: '+e.message); }",
+"}",
+"",
+"// Stamps a stage-reached date into the given row, but only if that column",
+"// is still empty \u2014 first-time-reached semantics, so re-syncing or moving a",
+"// status back and forth doesn't overwrite genuine history.",
+"function stampStageDateIfEmpty_(sh, rowNum, col, dateStr){",
+"  var cur = sh.getRange(rowNum, col).getValue();",
+"  if(!cur){ sh.getRange(rowNum, col).setValue(dateStr).setNumberFormat('@'); }",
+"}",
+"",
+"// The one place status transitions happen. Forward-only, always \u2014 an",
+"// automated OR manual call to move a record to an earlier stage than it's",
+"// already reached is silently ignored (the date-stamp columns are",
+"// first-time-only anyway, so this just protects the Status cell itself).",
+"// Returns true if the status actually changed.",
+"function advanceStatusSafely(sh, rowNum, newStatus, dateCol, currentStatus){",
+"  var idx = STAGE_ORDER.indexOf(newStatus);",
+"  var curIdx = STAGE_ORDER.indexOf(currentStatus||'Enquiry');",
+"  var today = todayStr_();",
+"  if(dateCol) stampStageDateIfEmpty_(sh, rowNum, dateCol, today);",
+"  sh.getRange(rowNum,9).setValue(today); // Modified Date, col I",
+"  if(idx > curIdx){",
+"    sh.getRange(rowNum,6).setValue(newStatus);",
+"    return true;",
+"  }",
+"  return false;",
+"}",
+"",
+"function todayStr_(){ return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'); }",
+"",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"// PROSPECT LOOKUP \u2014 email-first, always. This is the one function every",
+"// automated and manual matching path should call; nothing else should",
+"// loop over the sheet independently searching by email or firm name.",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"function findProspectByEmail_(sh, email){",
+"  var norm = normalizeEmail(email);",
+"  if(!norm) return -1;",
+"  var n=sh.getLastRow();",
+"  if(n<2) return -1;",
+"  var emails=sh.getRange(2,15,n-1,1).getValues(); // col O, Normalized Email",
+"  for(var i=0;i<emails.length;i++){",
+"    if(String(emails[i][0]||'').trim()===norm) return i+2; // 1-based row number",
+"  }",
+"  return -1;",
+"}",
+"",
+"// Fallback only \u2014 used solely when a genuinely unmatched-by-email prompt",
+"// email carries no reliable email at all (shouldn't normally happen, since",
+"// senderEmail is always available for inbound mail). Never used for the",
+"// client-form submission path, which always has an email now.",
+"function findProspectByFirmNameFallback_(sh, firmName){",
+"  if(!firmName) return -1;",
+"  var n=sh.getLastRow();",
+"  if(n<2) return -1;",
+"  var names=sh.getRange(2,2,n-1,1).getValues();",
+"  var target=firmName.trim().toLowerCase();",
+"  for(var i=0;i<names.length;i++){",
+"    if(String(names[i][0]||'').trim().toLowerCase()===target) return i+2;",
+"  }",
+"  return -1;",
+"}",
+"",
+"function writeData(data){",
+"  var _lock=LockService.getScriptLock();",
+"  try{ _lock.waitLock(20000); }catch(e){ return out({error:'Server busy, retry'}); }",
+"  try{ return _writeInner(data); } finally { try{SpreadsheetApp.flush();}catch(e){} try{_lock.releaseLock();}catch(e){} }",
+"}",
+"",
+"function _writeInner(data){",
+"  var ss=SpreadsheetApp.openById(SHEET_ID);",
+"",
+"  if(data.action==='appendEnquiry'){",
+"    var sh=ss.getSheetByName(ENQUIRIES_TAB)||ss.insertSheet(ENQUIRIES_TAB);",
+"    ensureEnquiriesHeader_(sh);",
+"    var row=data.row||[];",
+"    // Server-side duplicate guard, in addition to whatever check the admin",
+"    // console already did client-side \u2014 the same prospect must not appear",
+"    // twice just because two people (or two tabs) tried to add them at once.",
+"    var email = row[3]||'';",
+"    var existingRow = findProspectByEmail_(sh, email);",
+"    if(existingRow>0){",
+"      return out({success:false, duplicate:true, existingRecordId: String(sh.getRange(existingRow,1).getValue())});",
+"    }",
+"    if(!String(row[0]||'').trim()) row[0]=nextId(sh,1,'E');",
+"    row[14] = normalizeEmail(email); // col O",
+"    sh.appendRow(row);",
+"    var lr=sh.getLastRow(); sh.getRange(lr,1,1,row.length).setNumberFormat('@');",
+"    logAutomationEvent(ss, row[0], row[1], 'Enquiry created', 'Manual', '', '');",
+"    return out({success:true, recordId:row[0]});",
+"  }",
+"",
+"  if(data.action==='updateEnquiry'){",
+"    var sh=ss.getSheetByName(ENQUIRIES_TAB);",
+"    if(sh && sh.getLastRow()>1){",
+"      var id=String(data.recordId||'').trim();",
+"      var n=sh.getLastRow();",
+"      var ids=sh.getRange(2,1,n-1,1).getValues();",
+"      for(var i=0;i<ids.length;i++){",
+"        if(String(ids[i][0]||'').trim()===id){",
+"          var row=data.row||[];",
+"          row[14] = normalizeEmail(row[3]||'');",
+"          sh.getRange(i+2,1,1,row.length).setValues([row]);",
+"          sh.getRange(i+2,1,1,row.length).setNumberFormat('@');",
+"          break;",
+"        }",
+"      }",
+"    }",
+"    return out({success:true});",
+"  }",
+"",
+"  if(data.action==='deleteEnquiry'){",
+"    var sh=ss.getSheetByName(ENQUIRIES_TAB);",
+"    if(sh && sh.getLastRow()>1){",
+"      var id=String(data.recordId||'').trim();",
+"      var n=sh.getLastRow();",
+"      var ids=sh.getRange(2,1,n-1,1).getValues();",
+"      for(var i=ids.length-1;i>=0;i--){",
+"        if(String(ids[i][0]||'').trim()===id){ sh.deleteRow(i+2); break; }",
+"      }",
+"    }",
+"    return out({success:true});",
+"  }",
+"",
+"  if(data.action==='appendFeedback'){",
+"    var sh=ss.getSheetByName(FEEDBACK_TAB)||ss.insertSheet(FEEDBACK_TAB);",
+"    if(sh.getLastRow()===0){",
+"      var hdr=[['Firm Name','Category','Feedback']];",
+"      var hr=sh.getRange(1,1,1,3); hr.setValues(hdr); hr.setFontWeight('bold').setBackground('#0A0E14').setFontColor('#F4B942');",
+"      sh.setFrozenRows(1);",
+"      try{ sh.setColumnWidth(1,180); sh.setColumnWidth(2,160); sh.setColumnWidth(3,600); }catch(e){}",
+"    }",
+"    var category = data.category || data.feedbackCategory || data.type || data.feedbackType || '';",
+"    var msg = data.senderName ? '['+data.senderName+'] '+(data.message||'') : (data.message||'');",
+"    sh.appendRow([data.appName||'', category, msg]);",
+"    var lr=sh.getLastRow(); sh.getRange(lr,1,1,3).setNumberFormat('@').setWrap(true);",
+"    return out({success:true});",
+"  }",
+"",
+"  // Older email-based intake path (kept working, superseded in practice by",
+"  // notifySubmission below, which the current client form actually uses).",
+"  if(data.action==='clientIntakeSubmitted'){",
+"    var adminEmail = PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL') || 'deeppocket1610@gmail.com';",
+"    var subject = 'Deep Pocket Customization Details - ' + (data.firmName || 'New Firm');",
+"    var summary = buildIntakeSummaryText_(data);",
+"    var body = summary",
+"      + '\\n\\n---\\nDo not remove the line below, it lets our system link this to your enquiry automatically---\\n'",
+"      + 'DEEPPOCKET_INTAKE_JSON: ' + JSON.stringify(data);",
+"    var opts = {};",
+"    if(data.email) opts.replyTo = data.email;",
+"    GmailApp.sendEmail(adminEmail, subject, body, opts);",
+"    return out({success:true});",
+"  }",
+"",
+"  // Called when Generate is pressed in the admin app's Intake tab. Saves",
+"  // the 5 generated setup prompts into their own sheet tab, named after the",
+"  // firm, for future reference. Re-generating for the same firm overwrites",
+"  // that firm's row in place rather than creating duplicate tabs.",
+"  if(data.action==='savePrompts'){",
+"    var firmName = String(data.firmName||'').trim() || 'Untitled Firm';",
+"    var tabName = saveFirmPromptTexts_(ss, firmName, data.prompts||[]);",
+"    var driveSelf = {};",
+"    try{ driveSelf = saveClientDriveDeliverables_(firmName, data.prompts||[], data.iconBase64||''); }catch(e){ driveSelf = {}; }",
+"    return out({success:true, tab: tabName, folderUrl: driveSelf.folderUrl||'', docUrl: driveSelf.docUrl||'', iconUrl: driveSelf.iconUrl||''});",
+"  }",
+"",
+"  // Sent by the public client-facing form on submit, with the 5 finished",
+"  // prompts already generated in the client's browser AND (as of this",
+"  // version) their email address \u2014 the primary key for matching this to",
+"  // the right enquiry. Firm name is used only as a last-resort fallback if",
+"  // email is somehow blank.",
+"  if(data.action==='notifySubmission'){",
+"    var firmName2 = String(data.firmName||'').trim() || 'Untitled Firm';",
+"    var submitEmail = String(data.email||'').trim();",
+"    var promptTitles = ['Step 1 \u2014 Identity Replacement','Step 2 \u2014 Visual Identity','Step 3 \u2014 Feature Scope','Step 4 \u2014 Communications & Compliance','Step 5 \u2014 Technical & Handover'];",
+"    var promptTexts = (data.prompts||[]).map(function(p){ return (p && typeof p==='object') ? (p.text||'') : String(p||''); });",
+"    saveFirmPromptTexts_(ss, firmName2, promptTexts);",
+"    matchProspectAndAdvance_(ss, submitEmail, firmName2, data.phone||'', 'Prompt Generated', 12, 'Client form submitted', 'Automated', '');",
+"",
+"    try{",
+"      var adminEmail2 = PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL') || 'deeppocket1610@gmail.com';",
+"      var wordBlob = buildPromptsWordBlob_(firmName2, promptTexts);",
+"      var attachments = [wordBlob];",
+"      var hasIcon = (data.iconMode==='upload' && data.iconBase64);",
+"      if(hasIcon){",
+"        try{",
+"          attachments.push(Utilities.newBlob(Utilities.base64Decode(data.iconBase64), 'image/png', firmName2+' icon-192.png'));",
+"        }catch(e){ /* icon attach is best-effort \u2014 the prompts still go out either way */ }",
+"      }",
+"      var subject = firmName2 + ' CRM application prompt';",
+"",
+"      var nBody = 'A new CRM customization submission has come in from '+firmName2+'.\\n\\n';",
+"      for(var pi=0; pi<5; pi++){",
+"        nBody += '\u2500\u2500\u2500\u2500\u2500 '+promptTitles[pi]+' \u2500\u2500\u2500\u2500\u2500\\n\\n'+(promptTexts[pi]||'(not generated)')+'\\n\\n';",
+"      }",
+"      nBody += (hasIcon ? 'The firm\\'s uploaded logo is attached, along with a Word copy of these prompts.' : 'This firm asked for an auto-generated initials icon rather than uploading a logo. A Word copy of these prompts is attached.')",
+"        + '\\n\\nAlso logged in the \"'+sanitizeSheetName_(firmName2)+'\" tab in your sheet for reference:\\n'+ss.getUrl();",
+"",
+"      var hBody = '<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:13.5px;line-height:1.6;color:#222;max-width:600px\">'",
+"        + '<p>A new CRM customization submission has come in from <b>'+firmName2+'</b>.</p>';",
+"      for(var hi=0; hi<5; hi++){",
+"        hBody += '<div style=\"margin:18px 0;padding:14px 16px;background:#f4f4f4;border-left:3px solid #F4B942;border-radius:4px\">'",
+"          + '<div style=\"font-weight:bold;margin-bottom:8px\">'+promptTitles[hi]+'</div>'",
+"          + '<div style=\"white-space:pre-wrap;font-family:monospace;font-size:12px;color:#333\">'+(promptTexts[hi]||'(not generated)').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'",
+"          + '</div>';",
+"      }",
+"      hBody += '<p>'+(hasIcon ? 'The firm\\'s uploaded logo is attached, along with a Word copy of these prompts.' : 'This firm asked for an auto-generated initials icon rather than uploading a logo. A Word copy of these prompts is attached.')+'</p>'",
+"        + '<p>Also logged in the \"'+sanitizeSheetName_(firmName2)+'\" tab in your sheet: <a href=\"'+ss.getUrl()+'\">open sheet</a></p>'",
+"        + '</div>';",
+"",
+"      GmailApp.sendEmail(adminEmail2, subject, nBody, { attachments: attachments, htmlBody: hBody });",
+"    }catch(e){ /* non-fatal \u2014 the sheet record above already succeeded either way */ }",
+"",
+"    return out({success:true});",
+"  }",
+"",
+"  // Sent when a new enquiry is saved manually from the Dashboard/Enquiries",
+"  // (the \"+ New Enquiry\" modal) \u2014 same welcome template as the automatic",
+"  // inbox-detected path, sent as a fresh email since there's no thread to",
+"  // reply to. Also stamps that row's Mail Sent Date and Status.",
+"  if(data.action==='sendEnquiryWelcome'){",
+"    var email = String(data.email||'').trim();",
+"    if(email){",
+"      GmailApp.sendEmail(email, 'Thank you for your enquiry', autoReplyBody_(data.firmName), {htmlBody: autoReplyBodyHtml_(data.firmName)});",
+"    }",
+"    if(data.recordId){",
+"      var sh=ss.getSheetByName(ENQUIRIES_TAB);",
+"      if(sh && sh.getLastRow()>1){",
+"        var id=String(data.recordId).trim();",
+"        var n=sh.getLastRow();",
+"        var ids=sh.getRange(2,1,n-1,1).getValues();",
+"        for(var i=0;i<ids.length;i++){",
+"          if(String(ids[i][0]||'').trim()===id){",
+"            var r=i+2;",
+"            var curStatus = sh.getRange(r,6).getValue()||'Enquiry';",
+"            advanceStatusSafely(sh, r, 'Mail Sent', 11, curStatus);",
+"            logAutomationEvent(ss, id, data.firmName||'', 'Thank-you mail sent', 'Manual', '', '');",
+"            break;",
+"          }",
+"        }",
+"      }",
+"    }",
+"    return out({success:true});",
+"  }",
+"",
+"  if(data.action==='syncNow'){",
+"    return out(syncMailNow());",
+"  }",
+"",
+"  return out({error:'Unknown action: '+data.action});",
+"}",
+"",
+"// Shared helper: matches a prospect by email (primary) with an optional",
+"// firm-name fallback, advances their status forward-only, logs the event,",
+"// and creates a fresh record only if truly nothing matches \u2014 used by both",
+"// the direct form-submission path and the email-detected prompt path, so",
+"// there's exactly one matching/advancement rule rather than two drifting",
+"// implementations.",
+"function matchProspectAndAdvance_(ss, email, firmName, phone, newStatus, dateCol, eventLabel, source, gmailRef){",
+"  var sh=ss.getSheetByName(ENQUIRIES_TAB);",
+"  if(!sh){ sh=ss.insertSheet(ENQUIRIES_TAB); }",
+"  ensureEnquiriesHeader_(sh);",
+"",
+"  var rowNum = findProspectByEmail_(sh, email);",
+"  if(rowNum<0 && !email && firmName){",
+"    // Only reached when there's genuinely no email to match on at all.",
+"    rowNum = findProspectByFirmNameFallback_(sh, firmName);",
+"  }",
+"",
+"  if(rowNum>0){",
+"    var curStatus = sh.getRange(rowNum,6).getValue()||'Enquiry';",
+"    var changed = advanceStatusSafely(sh, rowNum, newStatus, dateCol, curStatus);",
+"    var recId = String(sh.getRange(rowNum,1).getValue());",
+"    logAutomationEvent(ss, recId, firmName||sh.getRange(rowNum,2).getValue(), eventLabel + (changed?'':' (status already at or beyond this stage)'), source, gmailRef, '');",
+"    return { matched:true, recordId: recId, rowNum: rowNum };",
+"  } else {",
+"    var id=nextId(sh,1,'E');",
+"    var today=todayStr_();",
+"    var row=[id, firmName||'(unmatched submission)', phone||'', email||'', today, newStatus, 'Auto-created: could not match to an existing enquiry - check manually', '', today, '', '', '', '', '', normalizeEmail(email)];",
+"    sh.appendRow(row);",
+"    var newRowNum = sh.getLastRow();",
+"    sh.getRange(newRowNum,1,1,row.length).setNumberFormat('@');",
+"    stampStageDateIfEmpty_(sh, newRowNum, dateCol, today);",
+"    logAutomationEvent(ss, id, firmName||'', eventLabel + ' (new record \u2014 no existing match found)', source, gmailRef, 'Check manually: auto-created without a matching prior enquiry');",
+"    return { matched:false, recordId: id, rowNum: newRowNum };",
+"  }",
+"}",
+"",
+"function sanitizeSheetName_(name){",
+"  var clean = String(name).replace(/[\\[\\]\\*\\/\\\\\\?:]/g,'').trim();",
+"  if(!clean) clean = 'Untitled Firm';",
+"  if(clean.length>90) clean = clean.substring(0,90);",
+"  return clean;",
+"}",
+"",
+"// Shared by both 'savePrompts' (you press Generate yourself) and",
+"// 'notifySubmission' (the client submits the public form) \u2014 one sheet tab",
+"// per firm either way, so it doesn't matter which path produced the prompts.",
+"function saveFirmPromptTexts_(ss, firmName, promptTexts){",
+"  var tabName = sanitizeSheetName_(firmName);",
+"  var sh = ss.getSheetByName(tabName);",
+"  if(!sh){ sh = ss.insertSheet(tabName); }",
+"  if(sh.getLastRow()===0){",
+"    var hdr=[['Firm Name','Prompt 1','Prompt 2','Prompt 3','Prompt 4','Prompt 5']];",
+"    var hr=sh.getRange(1,1,1,6); hr.setValues(hdr); hr.setFontWeight('bold').setBackground('#0A0E14').setFontColor('#F4B942');",
+"    sh.setFrozenRows(1);",
+"    try{ sh.setColumnWidth(1,180); for(var ci=2;ci<=6;ci++) sh.setColumnWidth(ci,420); }catch(e){}",
+"  }",
+"  var row = [firmName, promptTexts[0]||'', promptTexts[1]||'', promptTexts[2]||'', promptTexts[3]||'', promptTexts[4]||''];",
+"  sh.getRange(2,1,1,6).setValues([row]);",
+"  try{ sh.getRange(2,1,1,6).setWrap(true).setVerticalAlignment('top'); }catch(e){}",
+"  return tabName;",
+"}",
+"",
+"function getOrCreateFolder_(name){",
+"  var it = DriveApp.getFoldersByName(name);",
+"  if(it.hasNext()) return it.next();",
+"  return DriveApp.createFolder(name);",
+"}",
+"",
+"function getOrCreateNestedFolder_(parentName, childName){",
+"  var parent = getOrCreateFolder_(parentName);",
+"  var it = parent.getFoldersByName(childName);",
+"  if(it.hasNext()) return it.next();",
+"  return parent.createFolder(childName);",
+"}",
+"",
+"// Builds the 5 prompts into an actual Word file and returns it as a Blob \u2014",
+"// via a throwaway Google Doc, since Apps Script has no native .docx writer.",
+"function buildPromptsWordBlob_(firmName, promptTexts){",
+"  var docName = firmName+' - Setup Prompts.docx';",
+"  var stepTitles = ['Step 1 \u2014 Identity Replacement','Step 2 \u2014 Visual Identity','Step 3 \u2014 Feature Scope','Step 4 \u2014 Communications & Compliance','Step 5 \u2014 Technical & Handover'];",
+"  var tempDoc = DocumentApp.create('dp-temp-'+Utilities.getUuid());",
+"  var body = tempDoc.getBody();",
+"  body.clear();",
+"  body.appendParagraph(firmName).setHeading(DocumentApp.ParagraphHeading.TITLE);",
+"  body.appendParagraph('Deep Pocket CRM \u2014 Setup Prompts').setHeading(DocumentApp.ParagraphHeading.SUBTITLE);",
+"  for(var i=0;i<5;i++){",
+"    body.appendParagraph(stepTitles[i]).setHeading(DocumentApp.ParagraphHeading.HEADING2);",
+"    body.appendParagraph(promptTexts[i]||'(not generated)');",
+"    if(i<4) body.appendPageBreak();",
+"  }",
+"  tempDoc.saveAndClose();",
+"  var tempFile = DriveApp.getFileById(tempDoc.getId());",
+"  var wordBlob = tempFile.getAs(MimeType.MICROSOFT_WORD).setName(docName);",
+"  tempFile.setTrashed(true);",
+"  return wordBlob;",
+"}",
+"",
+"// One Drive folder per firm \u2014 the prompts as an actual Word file, and the",
+"// firm's uploaded logo if given. Re-running replaces both files in place.",
+"function saveClientDriveDeliverables_(firmName, promptTexts, iconBase64){",
+"  var folder = getOrCreateNestedFolder_('Deep Pocket CRM Clients', sanitizeSheetName_(firmName));",
+"",
+"  var docName = firmName+' - Setup Prompts.docx';",
+"  var existingDocs = folder.getFilesByName(docName);",
+"  while(existingDocs.hasNext()){ existingDocs.next().setTrashed(true); }",
+"",
+"  var wordBlob = buildPromptsWordBlob_(firmName, promptTexts);",
+"  var wordFile = folder.createFile(wordBlob);",
+"",
+"  var iconUrl = '';",
+"  if(iconBase64){",
+"    var iconName = 'icon-192.png';",
+"    var existingIcons = folder.getFilesByName(iconName);",
+"    while(existingIcons.hasNext()){ existingIcons.next().setTrashed(true); }",
+"    var iconBlob = Utilities.newBlob(Utilities.base64Decode(iconBase64), 'image/png', iconName);",
+"    var iconFile = folder.createFile(iconBlob);",
+"    try{ iconFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }catch(e){}",
+"    iconUrl = iconFile.getUrl();",
+"  }",
+"",
+"  return { folderUrl: folder.getUrl(), docUrl: wordFile.getUrl(), iconUrl: iconUrl };",
+"}",
+"",
+"function buildIntakeSummaryText_(s){",
+"  var p=s.products||{};",
+"  var prods=[];",
+"  if(p.mf) prods.push('Mutual Funds'); if(p.life) prods.push('Term Life Insurance'); if(p.health) prods.push('Health Insurance');",
+"  if(p.will) prods.push('WILL'); if(p.aif) prods.push('AIF'); if(p.pms) prods.push('PMS'); if(p.nps) prods.push('NPS');",
+"  if(p.other) prods.push(p.other);",
+"  return 'New CRM customization request\\n\\n'",
+"    + 'Firm: ' + (s.firmName||'') + ' (' + (s.entityType||'') + ')\\n'",
+"    + 'Owner: ' + (s.ownerName||'') + ', ' + (s.ownerTitle||'') + '\\n'",
+"    + 'Phone: ' + (s.phone||'') + '\\n'",
+"    + 'Email: ' + (s.email||'') + '\\n'",
+"    + 'Business model: ' + (s.modelType||'') + '\\n'",
+"    + 'Products requested: ' + (prods.join(', ')||'-') + '\\n';",
+"}",
+"",
+"function out(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }",
+"function testConnection(){ Logger.log('OK: '+SpreadsheetApp.openById(SHEET_ID).getName()); }",
+"",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"// SYNC STATUS \u2014 backs the Settings tab's \"Last Sync\" display and the",
+"// \"Run Sync Now\" button's result.",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"function getSyncStatus_(){",
+"  var props = PropertiesService.getScriptProperties();",
+"  return {",
+"    lastSyncTime: props.getProperty('DP_LAST_SYNC_TIME') || '',",
+"    lastSyncResult: props.getProperty('DP_LAST_SYNC_RESULT') || '',",
+"    triggerInstalled: ScriptApp.getProjectTriggers().some(function(t){ return t.getHandlerFunction()==='checkInbox'; })",
+"  };",
+"}",
+"function setSyncStatus_(resultText){",
+"  var props = PropertiesService.getScriptProperties();",
+"  props.setProperty('DP_LAST_SYNC_TIME', Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'));",
+"  props.setProperty('DP_LAST_SYNC_RESULT', resultText);",
+"}",
+"",
+"// Callable on demand from the admin console's \"Run Sync Now\" button, and",
+"// also what the 5-minute trigger calls internally \u2014 one code path either way.",
+"function syncMailNow(){",
+"  var lock = LockService.getScriptLock();",
+"  var gotLock = false;",
+"  try{ gotLock = lock.tryLock(10000); }catch(e){ gotLock = false; }",
+"  if(!gotLock){",
+"    return { success:false, message:'Another sync is already in progress \u2014 try again shortly.' };",
+"  }",
+"  try{",
+"    var result = processInbox_();",
+"    processSentMail_();",
+"    var summary = 'Processed '+result.processed+' message(s): '+result.enquiries+' enquiry, '+result.prompts+' prompt, '+result.ignored+' ignored, '+result.duplicates+' duplicate.';",
+"    setSyncStatus_(summary);",
+"    return { success:true, message: summary };",
+"  }catch(e){",
+"    setSyncStatus_('Error: '+e.message);",
+"    return { success:false, message: 'Sync error: '+e.message };",
+"  } finally {",
+"    try{ lock.releaseLock(); }catch(e){}",
+"  }",
+"}",
+"",
+"// checkInbox is what the time-driven trigger calls \u2014 thin wrapper so the",
+"// trigger's handler function name stays stable even though the real work",
+"// now lives in syncMailNow/processInbox_/processSentMail_.",
+"function checkInbox(){",
+"  syncMailNow();",
+"}",
+"",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"// INBOX PROCESSING",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"function processInbox_(){",
+"  var ss = SpreadsheetApp.openById(SHEET_ID);",
+"  var sh = ss.getSheetByName(ENQUIRIES_TAB) || ss.insertSheet(ENQUIRIES_TAB);",
+"  ensureEnquiriesHeader_(sh);",
+"",
+"  var counts = { processed:0, enquiries:0, prompts:0, ignored:0, duplicates:0 };",
+"",
+"  // \"Already processed\" is tracked by message ID, completely independent of",
+"  // Gmail's read/unread flag or thread labels \u2014 both of which you can",
+"  // change yourself just by using your own inbox normally. Search is",
+"  // time-bounded (not is:unread) so an email you've already read but not",
+"  // yet processed is still found.",
+"  var threads = GmailApp.search('in:inbox newer_than:3d', 0, 30);",
+"  var lblEnquiry = getLabel_('DP-Enquiry-Processed');",
+"  var lblPrompt = getLabel_('DP-Prompt-Processed');",
+"  var lblIgnored = getLabel_('DP-Ignored');",
+"  var lblDuplicate = getLabel_('DP-DuplicateEnquiry');",
+"  var processedIds = getProcessedIds_();",
+"",
+"  threads.forEach(function(thread){",
+"    var msgs = thread.getMessages();",
+"    msgs.forEach(function(msg){",
+"      var msgId = msg.getId();",
+"      if(processedIds.indexOf(msgId)>=0) return;",
+"",
+"      try{",
+"        var subject = msg.getSubject()||'';",
+"        var body = msg.getPlainBody()||'';",
+"        var senderEmail = extractEmail_(msg.getFrom());",
+"        var gmailRef = thread.getId()+'/'+msgId;",
+"",
+"        var alreadyKnown = findProspectByEmail_(sh, senderEmail) > 0;",
+"        var cls = isRelevantWorkflowMessage_(subject, body, senderEmail, alreadyKnown);",
+"",
+"        if(cls.type==='enquiry'){",
+"          if(alreadyKnown){",
+"            thread.addLabel(lblDuplicate);",
+"            counts.duplicates++;",
+"          } else {",
+"            var id=nextId(sh,1,'E');",
+"            var today=todayStr_();",
+"            // Row is created at \"Enquiry\" first \u2014 even if the mail send",
+"            // below fails, the prospect still exists and isn't lost.",
+"            // Status only advances to \"Mail Sent\" once the send actually",
+"            // succeeds (Section 8's explicit requirement), never before.",
+"            var row=[id, cls.firmName||'', cls.contactNo||'', senderEmail, today, 'Enquiry', subject, '', today, '', '', '', '', '', normalizeEmail(senderEmail)];",
+"            sh.appendRow(row);",
+"            var newRowNum = sh.getLastRow();",
+"            sh.getRange(newRowNum,1,1,row.length).setNumberFormat('@');",
+"            thread.addLabel(lblEnquiry);",
+"            try{",
+"              sendAutoReply_(msg, senderEmail, cls.firmName);",
+"              advanceStatusSafely(sh, newRowNum, 'Mail Sent', 11, 'Enquiry');",
+"              logAutomationEvent(ss, id, cls.firmName||'', 'Enquiry detected + thank-you mail sent', 'Automated', gmailRef, subject);",
+"            }catch(sendErr){",
+"              logAutomationEvent(ss, id, cls.firmName||'', 'Enquiry detected but thank-you mail FAILED: '+sendErr.message, 'Automated', gmailRef, subject);",
+"            }",
+"            counts.enquiries++;",
+"          }",
+"",
+"        } else if(cls.type==='prompt'){",
+"          var res = matchProspectAndAdvance_(ss, senderEmail, cls.firmName, '', 'Prompt Generated', 12, 'Prompt-related email detected', 'Automated', gmailRef);",
+"          try{",
+"            var note = '[Received via inbox email \u2014 not the 5 structured prompts, since those only exist once generated through the form. Raw email content below for reference.]\\n\\n' + body.slice(0,1800);",
+"            saveFirmPromptTexts_(ss, cls.firmName || 'Unknown Firm', [note,'','','','']);",
+"          }catch(e){}",
+"          thread.addLabel(lblPrompt);",
+"          counts.prompts++;",
+"",
+"        } else {",
+"          thread.addLabel(lblIgnored);",
+"          counts.ignored++;",
+"        }",
+"",
+"        msg.markRead();",
+"        markProcessed_(msgId);",
+"        counts.processed++;",
+"      }catch(err){",
+"        Logger.log('processInbox_: error on message: '+err.message);",
+"        // left unmarked \u2014 retried on the next pass",
+"      }",
+"    });",
+"  });",
+"",
+"  return counts;",
+"}",
+"",
+"// Classification \u2014 deterministic fast paths first (work even without",
+"// GEMINI_API_KEY or if the AI call ever fails), AI fallback otherwise.",
+"function isRelevantWorkflowMessage_(subject, body, senderEmail, alreadyKnown){",
+"  if(/\\b(prompt|generated prompt)\\b/i.test(subject) && alreadyKnown){",
+"    return { type:'prompt', firmName:'', intakeJson:null };",
+"  }",
+"  if(!alreadyKnown && (/\\bcrm\\b/i.test(subject) || /deep\\s*pocket/i.test(subject))){",
+"    // Covers \"CRM Enquiry\", \"CRM Software Enquiry\", \"Interested in CRM\",",
+"    // \"Deep Pocket CRM Enquiry\", \"Need a CRM for my business\", \"CRM Demo",
+"    // Request\", \"CRM Application Request\", \"CRM Pricing\", etc.",
+"    return { type:'enquiry', firmName:'', contactNo:'' };",
+"  }",
+"  return classifyEmail_(subject, body, senderEmail);",
+"}",
+"",
+"// Persistent record of message IDs this script has already acted on,",
+"// stored in Script Properties rather than relying on Gmail's read/unread",
+"// state or thread labels. Capped at the most recent 500 IDs.",
+"function getProcessedIds_(){",
+"  var raw = PropertiesService.getScriptProperties().getProperty('DP_PROCESSED_MSG_IDS');",
+"  if(!raw) return [];",
+"  try{ return JSON.parse(raw); }catch(e){ return []; }",
+"}",
+"function markProcessed_(msgId){",
+"  var ids = getProcessedIds_();",
+"  ids.push(msgId);",
+"  if(ids.length>500) ids = ids.slice(ids.length-500);",
+"  PropertiesService.getScriptProperties().setProperty('DP_PROCESSED_MSG_IDS', JSON.stringify(ids));",
+"}",
+"",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"// SENT-MAIL PROCESSING \u2014 File Generated detection",
+"// \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550",
+"function processSentMail_(){",
+"  var ss = SpreadsheetApp.openById(SHEET_ID);",
+"  var sh = ss.getSheetByName(ENQUIRIES_TAB) || ss.insertSheet(ENQUIRIES_TAB);",
+"  ensureEnquiriesHeader_(sh);",
+"",
+"  try{",
+"    var threads = GmailApp.search('in:sent subject:(File Generated) -label:DP-FileGenerated-Processed', 0, 20);",
+"    if(!threads.length) return;",
+"    var lblDone = getLabel_('DP-FileGenerated-Processed');",
+"",
+"    threads.forEach(function(thread){",
+"      try{",
+"        var msgs = thread.getMessages();",
+"        var sentMsg = null;",
+"        for(var i=msgs.length-1;i>=0;i--){",
+"          if(/file generated/i.test(msgs[i].getSubject()||'')){ sentMsg = msgs[i]; break; }",
+"        }",
+"        if(!sentMsg){ thread.addLabel(lblDone); return; }",
+"        var toEmail = extractEmail_(sentMsg.getTo());",
+"        var gmailRef = thread.getId()+'/'+sentMsg.getId();",
+"",
+"        matchProspectAndAdvance_(ss, toEmail, '', '', 'File Generated', 13, 'Customized files sent (detected from Sent folder)', 'Automated', gmailRef);",
+"        thread.addLabel(lblDone);",
+"      }catch(e){ Logger.log('processSentMail_: error on thread: '+e.message); }",
+"    });",
+"  }catch(e){ Logger.log('processSentMail_: search failed: '+e.message); }",
+"}",
+"",
+"function extractEmail_(from){",
+"  var m=String(from).match(/<(.+?)>/);",
+"  return m ? m[1].toLowerCase() : String(from).trim().toLowerCase();",
+"}",
+"function getLabel_(name){ return GmailApp.getUserLabelByName(name) || GmailApp.createLabel(name); }",
+"",
+"function extractIntakeMarker_(body){",
+"  var m = body.match(/DEEPPOCKET_INTAKE_JSON:\\s*(\\{[\\s\\S]*\\})\\s*$/);",
+"  if(!m) return null;",
+"  try{ return JSON.parse(m[1]); }catch(e){ return null; }",
+"}",
+"",
+"function classifyEmail_(subject, body, senderEmail){",
+"  var marker = extractIntakeMarker_(body);",
+"  if(marker){",
+"    return { type:'prompt', firmName: marker.firmName||'', contactNo: marker.phone||'', intakeJson: marker };",
+"  }",
+"",
+"  var apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');",
+"  if(!apiKey){",
+"    Logger.log('classifyEmail_: GEMINI_API_KEY is not set in Script Properties \u2014 skipping AI classification for subject \"'+subject+'\"');",
+"    return { type:'none' };",
+"  }",
+"",
+"  var sys = 'You triage inbound emails for a CRM-software sales inbox called Deep Pocket. Classify each email into exactly one type:\\n'",
+"    + '- \"enquiry\": a new prospective client asking about the CRM product - look for words/ideas like CRM, CRM software, customization, pricing, demo, interested, enquiry, etc.\\n'",
+"    + '- \"prompt\": a client\\'s customization/intake submission - usually contains structured firm details like firm name, business model, products, features, sent after they were given a customization link.\\n'",
+"    + '- \"none\": anything else (spam, unrelated, newsletters, personal mail).\\n\\n'",
+"    + 'Respond with ONLY a compact JSON object, no other text: {\"type\":\"enquiry|prompt|none\",\"firmName\":\"...\",\"contactNo\":\"...\"}\\n'",
+"    + 'Leave firmName/contactNo as empty strings if not present or not applicable.';",
+"  var userMsg = 'Subject: ' + subject + '\\nFrom: ' + senderEmail + '\\n\\nBody:\\n' + body.slice(0,4000);",
+"",
+"  var model = PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL') || 'gemini-3.5-flash-lite';",
+"  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey;",
+"  var payload = {",
+"    systemInstruction: { parts: [{ text: sys }] },",
+"    contents: [{ role:'user', parts: [{ text: userMsg }] }],",
+"    generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 300 }",
+"  };",
+"",
+"  try{",
+"    var res = UrlFetchApp.fetch(url, {",
+"      method:'post', contentType:'application/json',",
+"      payload: JSON.stringify(payload), muteHttpExceptions:true",
+"    });",
+"    if(res.getResponseCode()!==200){",
+"      Logger.log('classifyEmail_: Gemini returned HTTP '+res.getResponseCode()+' for subject \"'+subject+'\": '+res.getContentText().slice(0,500));",
+"      return { type:'none' };",
+"    }",
+"    var data = JSON.parse(res.getContentText());",
+"    var text = (data.candidates && data.candidates[0] && data.candidates[0].content",
+"      && data.candidates[0].content.parts && data.candidates[0].content.parts[0]",
+"      && data.candidates[0].content.parts[0].text) || '{}';",
+"    var clean = text.replace(/```json|```/g,'').trim();",
+"    return JSON.parse(clean);",
+"  }catch(e){",
+"    Logger.log('classifyEmail_: error classifying subject \"'+subject+'\": '+e.message);",
+"    return { type:'none' };",
+"  }",
+"}",
+"",
+"function autoReplyBody_(firmName){",
+"  var formUrl = PropertiesService.getScriptProperties().getProperty('CLIENT_FORM_URL') || 'https://dp-crm.github.io/app/deep-pocket-crm-form.html';",
+"  var name = (firmName||'').trim() || 'Sir/Madam';",
+"  return 'Dear '+name+',\\n\\n'",
+"    + 'Thank you so much for showing interest in our CRM web & mobile application service. We provide a complete customised CRM app for your business. Please help us to understand your business by filling the form. Form link is given below. We shall process your request immediately and deliver the required customised files to you.\\n\\n'",
+"    + formUrl + '\\n\\n'",
+"    + 'Regards,\\n'",
+"    + 'Team Deep Pocket Fintech Pvt. Ltd.';",
+"}",
+"",
+"function autoReplyBodyHtml_(firmName){",
+"  var formUrl = PropertiesService.getScriptProperties().getProperty('CLIENT_FORM_URL') || 'https://dp-crm.github.io/app/deep-pocket-crm-form.html';",
+"  var name = (firmName||'').trim() || 'Sir/Madam';",
+"  return '<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#222;max-width:480px;margin:0 auto\">'",
+"    + '<p style=\"margin:0 0 16px\">Dear '+name+',</p>'",
+"    + '<p style=\"margin:0 0 16px\">Thank you so much for showing interest in our CRM web &amp; mobile application service. We provide a complete customised CRM app for your business.</p>'",
+"    + '<p style=\"margin:0 0 24px\">Please help us understand your business by filling the form below. We shall process your request immediately and deliver the required customised files to you.</p>'",
+"    + '<p style=\"text-align:center;margin:0 0 24px\">'",
+"    +   '<a href=\"'+formUrl+'\" style=\"background:#F4B942;color:#0A0E14;padding:13px 30px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;display:inline-block\">Fill Customization Form</a>'",
+"    + '</p>'",
+"    + '<p style=\"font-size:11.5px;color:#777;margin:0 0 28px;word-break:break-all\">Or copy this link: <a href=\"'+formUrl+'\" style=\"color:#777\">'+formUrl+'</a></p>'",
+"    + '<p style=\"margin:0\">Regards,<br>Team Deep Pocket Fintech Pvt. Ltd.</p>'",
+"    + '</div>';",
+"}",
+"",
+"function sendAutoReply_(msg, senderEmail, firmName){",
+"  var body = autoReplyBody_(firmName);",
+"  var html = autoReplyBodyHtml_(firmName);",
+"  var subject = 'Thank you for your enquiry';",
+"  // GmailMessage.reply() does NOT support overriding the subject line \u2014 it",
+"  // always sends as \"Re: {original subject}\", so the exact requested",
+"  // subject can only be guaranteed by sending directly.",
+"  GmailApp.sendEmail(senderEmail, subject, body, {htmlBody: html});",
+"}",
+""
+].join('\n');
+
+function showCode(){ document.getElementById('code-pre').textContent = CODE_GS; document.getElementById('code-modal').classList.add('show'); }
+function copyCode(){ navigator.clipboard.writeText(CODE_GS).then(function(){ toast('📋 Code copied'); }); }
+function copySheetSetup(){
+  var notes = "DEEP POCKET ADMIN — SHEET & AUTOMATION SETUP\n\n"
+    + "1. Sign in as deeppocket1610@gmail.com.\n"
+    + "2. Create a new Google Sheet (any name, e.g. 'Deep Pocket Admin').\n"
+    + "3. Copy its ID from the URL (the long string between /d/ and /edit).\n"
+    + "4. Extensions -> Apps Script. Delete the placeholder code, paste in Code.gs (from this Settings page), replace SHEET_ID with the ID from step 3.\n"
+    + "5. Deploy -> New deployment -> Web app. Execute as: Me. Who has access: Anyone.\n"
+    + "6. Copy the /exec URL it gives you.\n"
+    + "7. Paste that URL into 'Apps Script Exec URL' at the top of this Settings page.\n"
+    + "8. Also paste it into the DEEPPOCKET_FEEDBACK_URL constant near the top of every crm.html you deploy to a client firm, so their Settings -> Send Feedback reaches this sheet.\n"
+    + "9. Also paste it into SCRIPT_URL near the top of deep-pocket-crm-form.html, then host that file wherever you host your other tools and note its public URL.\n"
+    + "10. Paste that same public URL into 'Client Form Link' further up this Settings page too — that's what the journey view's Share buttons use.\n"
+    + "11. In the Apps Script project, go to Project Settings -> Script Properties, and add: GEMINI_API_KEY (from aistudio.google.com), CLIENT_FORM_URL (the public URL from step 9), ADMIN_EMAIL (usually deeppocket1610@gmail.com).\n"
+    + "12. Back in the Apps Script editor, select 'setup' from the function dropdown and click Run once — this installs the 15-minute inbox-check trigger. Grant the Gmail/Sheets/Drive/Docs permissions it asks for (Drive + Docs are used to build the per-firm folder and the Word doc of prompts).\n\n"
+    + "Every prompt generation — yours or a client's — now creates a Drive folder 'Deep Pocket CRM Clients/{Firm Name}' containing the 5 prompts as an actual .docx Word file, plus the client's uploaded logo if they gave one. Re-generating for the same firm replaces those two files in place rather than piling up duplicates — it's a good place to drop in other customized output files for that client by hand too, since nothing else in that folder gets touched.\n\n"
+    + "Two tabs are created automatically on first write: ENQUIRIES (Intake JSON plus per-stage date columns: Mail Sent, Prompt Generated, File Generated, Deployment Done) and FEEDBACK — no manual sheet setup needed beyond the ID. Every prompt generation — whether you press Generate yourself, or a client submits deep-pocket-crm-form.html directly — creates (or updates) a tab named after the firm, with columns Firm Name, Prompt 1–5, and links back to that firm's enquiry so the journey stays accurate either way.\n\n"
+    + "How the automation behaves: every 5 minutes it scans unread inbox mail. A new sales enquiry gets logged + a professionally-formatted HTML auto-reply sent with the client form link. If a client submits deep-pocket-crm-form.html directly, it's saved immediately (no wait at all — the browser posts straight to Apps Script) and matched to the enquiry by firm name; a logo upload is stored in a 'Deep Pocket Client Icons' Drive folder. A client's form submission that instead arrives back as a plain email gets matched by sender email, or by AI-detected firm name if the email differs, and its raw content is filed into that firm's prompt tab too (though only a real form submission produces the actual 5 structured prompts). The inbox watcher also checks your Sent folder for anything you personally send with 'File Generated' in the subject, matching it to the recipient. Anything unrelated is labelled and left alone. Processed threads get a Gmail label (DP-Enquiry-Processed / DP-Prompt-Processed / DP-Ignored / DP-DuplicateEnquiry / DP-FileGenerated-Processed) so nothing is scanned twice.";
+  navigator.clipboard.writeText(notes).then(function(){ toast('📋 Setup notes copied'); });
+}
+
+// ═══════════════════════════════════════════════
+// INTAKE TAB — flat client-questionnaire form, single reusable draft
+// (autosaved to localStorage, not tied to any one enquiry). Same field
+// categories as the Customization blueprint, filled in by you — never
+// sent to the client.
+// ═══════════════════════════════════════════════
+var INTAKE_FEATURES = [
+  { key:'pipeline', label:'Lead-to-Client Pipeline', desc:'Status tracking, conversion, sequential Record IDs' },
+  { key:'family', label:'Family Relationship Tracking', desc:'Family-name linking across household members' },
+  { key:'documents', label:'Document Upload & Drive Folders', desc:'Per-client folder auto-creation, client-facing upload page' },
+  { key:'gatherinfo', label:'Gather Info Page', desc:'Client-facing insurance/product status form' },
+  { key:'findoc', label:'Fin Doc — Family Financial Organizer', desc:'12-section family financial inventory, generates a PDF to Drive' },
+  { key:'feedback', label:'Client Feedback + Referral Capture', desc:'Anonymous-capable feedback form; referrals auto-create leads' },
+  { key:'reviewreport', label:'AI Client Review Report', desc:'Warm client-facing portfolio letter, shared by link' },
+  { key:'casanalysis', label:'CAS Portfolio Analysis (AI)', desc:'ARN-aware portfolio summary from an uploaded CAS PDF' },
+  { key:'meetinginsights', label:'Meeting Insights (AI)', desc:'Pre-meeting AI briefing from client history' },
+  { key:'practicechat', label:'AI Practice Chat (Insights tab)', desc:"Ask-anything chatbot grounded in the firm's live CRM data" },
+  { key:'topinsights', label:'Top 10 Business Insights (AI)', desc:'Ranked daily opportunities — uses Gemini, separate API key' },
+  { key:'contemporary', label:'Market / RBI Insight (AI + web search)', desc:'Live Budget/RBI/GCC briefing via web search' },
+  { key:'whatsappdrafts', label:'AI WhatsApp Message Drafting', desc:'Human-toned drafts for leads and clients' },
+  { key:'sip', label:'SIP Reminders & Bounce Check', desc:'5/2-day reminders, 7-day debit verification, returned-SIP draft' },
+  { key:'tasks', label:'Tasks + Maker/Checker Review', desc:'Task workflow with Pending Review → approve / send back' },
+  { key:'multiuser', label:'Multi-User Roles & Data Isolation', desc:'Maker/Checker/Authorizer/Admin, Makers see only own records' },
+  { key:'applock', label:'App Lock (PIN / Biometric)', desc:'Device-level lock on reopen or resume' },
+  { key:'appinstalled', label:'Mobile App Install Tracking', desc:'"App Installed" field + install-link WhatsApp template' },
+  { key:'specialdays', label:'Special Days & Birthday Reminders', desc:'Built-in occasion list plus firm-specific custom dates' },
+  { key:'dpdp', label:'DPDP Consent & Privacy Policy', desc:'Consent logging, gated forms, statutory privacy notice' },
+];
+
+var DEFAULT_THEME = {
+  bg:'#0A1830', s1:'#0F2140', s2:'#132848', border:'#2E5C8A',
+  accent:'#FFFFFF', text:'#FFFFFF', t2:'#8FB4DC', t3:'#5D7A9E',
+  green:'#4C9A6A', orange:'#C08A3E', red:'#C1553D'
+};
+var THEME_LABELS = {
+  bg:'Main background (the darkest colour, behind everything)',
+  s1:'Cards and boxes (slightly lighter than the background)',
+  s2:'Alternating rows in lists',
+  border:'Thin dividing lines between items',
+  accent:'Main buttons and highlights',
+  text:'Main text colour',
+  t2:'Smaller supporting text',
+  t3:'Faint captions and hints',
+  green:'Success messages (e.g. "Saved")',
+  orange:'Warnings (e.g. "Due soon")',
+  red:'Errors and urgent items (e.g. "Overdue")'
+};
+var THEME_KEYS = ['bg','s1','s2','border','accent','text','t2','t3','green','orange','red'];
+
+// Reference values from the live Wealth Matrix codebase — the generated
+// prompts tell Claude to find these exact strings, so these must stay
+// accurate to whatever the current reference app actually contains.
+var REF = {
+  firmFull:'Wealth Matrix Finserv LLP', firmBare:'Wealth Matrix Finserv', firmShort:'Wealth Matrix',
+  productName:'Wealth Matrix CRM', ownerName:'Arjun K T M', ownerShort:'Arjun',
+  address:'8th Floor, Alappat Heritage, MG Road, Ernakulam', phone:'9745014475', email:'arjun.wealthmatrix@gmail.com',
+  logoInitials:'WM', iosTitle:'Wealth Matrix', sheetId:'1oPQMj6KB39M20RnEoix9PCvSA8RFhVhOV4BG2M4TXlQ',
+  backupFolder:'Wealth Matrix CRM Backups', docsFolder:'Wealth Matrix Client Documents',
+  stages:'KYC PENDING, DOCUMENT PENDING, PROFILE CREATION PENDING, MANDATE PENDING, INVESTMENT PENDING, GRATITUDE CALL PENDING',
+  playStoreUrl:'https://play.google.com/store/apps/details?id=com.wealthmetrics.app&pcampaignid=web_share',
+  appStoreUrl:'https://apps.apple.com/in/app/wealth-matrix/id6748309181',
+  playStoreId:'com.wealthmetrics.app'
+};
+
+function orv(v, fallback){ v=(v||'').trim(); return v ? v : fallback; }
+
+function renderThemeFields(theme){
+  var wrap=document.getElementById('in-theme');
+  wrap.innerHTML = THEME_KEYS.map(function(k){
+    var v=(theme[k]||DEFAULT_THEME[k]);
+    var unchanged = v===DEFAULT_THEME[k];
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">'
+      + '<input type="color" id="in-theme-'+k+'" value="'+v+'" onchange="inSave()" style="width:34px;height:34px;border-radius:8px;border:1px solid #2E5C8A;background:none;cursor:pointer;flex-shrink:0;padding:0">'
+      + '<div style="flex:1"><div style="font-size:12px;font-weight:700;color:var(--ink)">'+THEME_LABELS[k]+'</div><div class="mono" style="font-size:10px;color:var(--ink-faint)" id="in-theme-'+k+'-hex">'+v+(unchanged?' (unchanged)':'')+'</div></div>'
+      + '</div>';
+  }).join('');
+  THEME_KEYS.forEach(function(k){
+    var el=document.getElementById('in-theme-'+k);
+    el.addEventListener('input', function(){
+      var v=el.value.toUpperCase();
+      document.getElementById('in-theme-'+k+'-hex').textContent = v + (v===DEFAULT_THEME[k] ? ' (unchanged)' : '');
+    });
+  });
+}
+
+function renderIntakeFeatures(state){
+  var wrap=document.getElementById('in-features');
+  wrap.innerHTML = INTAKE_FEATURES.map(function(f){
+    var mode=(state.features&&state.features[f.key]&&state.features[f.key].mode)||'keep';
+    var notes=(state.features&&state.features[f.key]&&state.features[f.key].notes)||'';
+    return '<div class="featrow">'
+      + '<div class="featrow-label">'+f.label+'</div>'
+      + '<div class="featrow-controls">'
+      +   '<select id="in-feat-'+f.key+'" onchange="inSave()">'
+      +     ['keep','customize','remove'].map(function(m){return '<option value="'+m+'"'+(m===mode?' selected':'')+'>'+m+'</option>';}).join('')
+      +   '</select>'
+      +   '<input id="in-featnote-'+f.key+'" placeholder="notes / requested change" value="'+esc(notes)+'" oninput="inSave()">'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function inDefaultState(){
+  return {
+    identity:{ firmName:'', productName:'', ownerName:'', ownerTitle:'', address:'', phone:'', email:'', insightsEmail:'', welcomePhone:'' },
+    brand:{ theme:Object.assign({},DEFAULT_THEME), logoMode:'initials', logoInitials:'', logoUrl:'', typographyMode:'default', displayFont:'', bodyFont:'', iconMode:'auto', iconBase64:'', iconName:'' },
+    business:{ modelType:'MFD', sebiReg:'', arn:'', gstNumber:'', stages:'', products:'' },
+    features:{},
+    comms:{ tone:'warm', hasOwnApp:true, playStoreLink:'', appStoreLink:'', websiteLink:'', customWelcome:'' },
+    compliance:{ grievanceName:'', grievanceTitle:'', grievanceEmail:'', grievancePhone:'', extraDisclosures:'' },
+    technical:{ sheetId:'', calendarId:'', followUpDays:'', sipReminderDays:'', sipBounceDays:'', goalLeads:'', goalConversions:'' }
+  };
+}
+
+function inLoad(){
+  var state;
+  try{ state=JSON.parse(localStorage.getItem('dp_intake_v1')); }catch(e){ state=null; }
+  if(!state) state=inDefaultState();
+  var id=state.identity||{}, br=state.brand||{}, bz=state.business||{}, cm=state.comms||{}, cp=state.compliance||{}, tc=state.technical||{};
+
+  document.getElementById('in-firmName').value=id.firmName||'';
+  document.getElementById('in-productName').value=id.productName||'';
+  document.getElementById('in-ownerName').value=id.ownerName||'';
+  document.getElementById('in-ownerTitle').value=id.ownerTitle||'';
+  document.getElementById('in-address').value=id.address||'';
+  document.getElementById('in-phone').value=id.phone||'';
+  document.getElementById('in-email').value=id.email||'';
+  document.getElementById('in-insightsEmail').value=id.insightsEmail||'';
+  document.getElementById('in-welcomePhone').value=id.welcomePhone||'';
+
+  renderThemeFields(br.theme||DEFAULT_THEME);
+
+  document.getElementById('in-logoMode').value=br.logoMode||'initials';
+  document.getElementById('in-logoInitials').value=br.logoInitials||'';
+  document.getElementById('in-logoUrl').value=br.logoUrl||'';
+  document.getElementById('in-iconMode').value=br.iconMode||'auto';
+  _inIcon.base64 = br.iconBase64||'';
+  _inIcon.name = br.iconName||'';
+  inRenderIcon();
+  document.getElementById('in-typographyMode').value=br.typographyMode||'default';
+  document.getElementById('in-displayFont').value=br.displayFont||'';
+  document.getElementById('in-bodyFont').value=br.bodyFont||'';
+
+  renderIntakeFeatures(state);
+
+  document.getElementById('in-modelType').value=bz.modelType||'MFD';
+  document.getElementById('in-sebiReg').value=bz.sebiReg||'';
+  document.getElementById('in-arn').value=bz.arn||'';
+  document.getElementById('in-gstNumber').value=bz.gstNumber||'';
+  document.getElementById('in-stages').value=bz.stages||'';
+  document.getElementById('in-products').value=bz.products||'';
+
+  document.getElementById('in-tone').value=cm.tone||'warm';
+  document.getElementById('in-hasOwnApp').value=(cm.hasOwnApp===false)?'no':'yes';
+  document.getElementById('in-playStoreLink').value=cm.playStoreLink||'';
+  document.getElementById('in-appStoreLink').value=cm.appStoreLink||'';
+  document.getElementById('in-websiteLink').value=cm.websiteLink||'';
+  document.getElementById('in-customWelcome').value=cm.customWelcome||'';
+
+  document.getElementById('in-grievanceName').value=cp.grievanceName||'';
+  document.getElementById('in-grievanceTitle').value=cp.grievanceTitle||'';
+  document.getElementById('in-grievanceEmail').value=cp.grievanceEmail||'';
+  document.getElementById('in-grievancePhone').value=cp.grievancePhone||'';
+  document.getElementById('in-extraDisclosures').value=cp.extraDisclosures||'';
+
+  document.getElementById('in-sheetId').value=tc.sheetId||'';
+  document.getElementById('in-calendarId').value=tc.calendarId||'';
+  document.getElementById('in-followUpDays').value=tc.followUpDays||'';
+  document.getElementById('in-sipReminderDays').value=tc.sipReminderDays||'';
+  document.getElementById('in-sipBounceDays').value=tc.sipBounceDays||'';
+  document.getElementById('in-goalLeads').value=tc.goalLeads||'';
+  document.getElementById('in-goalConversions').value=tc.goalConversions||'';
+
+  try{
+    var savedPrompts=JSON.parse(localStorage.getItem('dp_intake_prompts_v1'));
+    if(savedPrompts && savedPrompts.length) renderGeneratedPrompts(savedPrompts, id.firmName);
+  }catch(e){}
+}
+
+// Holds the uploaded app icon between renders. Kept outside the DOM because
+// base64 image data has no sensible home in a form input.
+var _inIcon = { base64:'', name:'' };
+
+function inGetState(){
+  var theme={};
+  THEME_KEYS.forEach(function(k){ var el=document.getElementById('in-theme-'+k); theme[k]=el?el.value.toUpperCase():DEFAULT_THEME[k]; });
+  var features={};
+  INTAKE_FEATURES.forEach(function(f){
+    var modeEl=document.getElementById('in-feat-'+f.key);
+    var noteEl=document.getElementById('in-featnote-'+f.key);
+    features[f.key]={ mode: modeEl?modeEl.value:'keep', notes: noteEl?noteEl.value:'' };
+  });
+  return {
+    identity:{
+      firmName:val('in-firmName'), productName:val('in-productName'), ownerName:val('in-ownerName'), ownerTitle:val('in-ownerTitle'),
+      address:val('in-address'), phone:val('in-phone'), email:val('in-email'), insightsEmail:val('in-insightsEmail'), welcomePhone:val('in-welcomePhone')
+    },
+    brand:{
+      theme:theme, logoMode:val('in-logoMode')||'initials', logoInitials:val('in-logoInitials'), logoUrl:val('in-logoUrl'),
+      typographyMode:val('in-typographyMode')||'default', displayFont:val('in-displayFont'), bodyFont:val('in-bodyFont'),
+      // Icon data lives in _inIcon rather than a form input — base64 image
+      // data can't sit in a text field, and it must survive re-renders.
+      iconMode: val('in-iconMode')||'auto', iconBase64: _inIcon.base64, iconName: _inIcon.name
+    },
+    business:{ modelType:val('in-modelType')||'MFD', sebiReg:val('in-sebiReg'), arn:val('in-arn'), gstNumber:val('in-gstNumber'), stages:val('in-stages'), products:val('in-products') },
+    features:features,
+    comms:{ tone:val('in-tone')||'warm', hasOwnApp: val('in-hasOwnApp')!=='no', playStoreLink:val('in-playStoreLink'), appStoreLink:val('in-appStoreLink'), websiteLink:val('in-websiteLink'), customWelcome:val('in-customWelcome') },
+    compliance:{ grievanceName:val('in-grievanceName'), grievanceTitle:val('in-grievanceTitle'), grievanceEmail:val('in-grievanceEmail'), grievancePhone:val('in-grievancePhone'), extraDisclosures:val('in-extraDisclosures') },
+    technical:{ sheetId:val('in-sheetId'), calendarId:val('in-calendarId'), followUpDays:val('in-followUpDays'), sipReminderDays:val('in-sipReminderDays'), sipBounceDays:val('in-sipBounceDays'), goalLeads:val('in-goalLeads'), goalConversions:val('in-goalConversions') }
+  };
+}
+function val(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
+
+var _inSaveTimer=null;
+// ── App icon (admin side) — mirrors the client intake form exactly, so a
+// firm filled in here produces the same result as one that self-submitted. ──
+function inRenderIcon(){
+  var area = document.getElementById('in-icon-area');
+  if(!area) return;
+  var mode = val('in-iconMode') || 'auto';
+  if(mode === 'auto'){
+    area.innerHTML = '<div class="hint" style="margin:0">We\'ll design a simple icon from their initials and chosen colours. They can send a logo later to replace it.</div>';
+    return;
+  }
+  area.innerHTML = _inIcon.base64
+    ? '<div style="display:flex;align-items:center;gap:12px;background:var(--panel-2,rgba(255,255,255,.04));border:1px solid var(--line,#2E5C8A);border-radius:10px;padding:12px">'
+      + '<img src="data:image/png;base64,' + _inIcon.base64 + '" style="width:48px;height:48px;border-radius:10px;flex-shrink:0" alt="icon">'
+      + '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(_inIcon.name || 'Uploaded image') + '</div>'
+      + '<div style="font-size:10.5px;color:#4C9A6A;margin-top:2px">Ready — resized to 192×192</div></div>'
+      + '<div onclick="inClearIcon()" style="cursor:pointer;color:#C1553D;font-weight:700;font-size:15px;padding:2px 6px">✕</div></div>'
+    : '<div onclick="document.getElementById(\'in-iconInput\').click()" style="border:2px dashed var(--line,#2E5C8A);border-radius:10px;padding:18px;text-align:center;cursor:pointer">'
+      + '<div style="font-size:20px;margin-bottom:5px">📱</div>'
+      + '<div style="font-size:12px;font-weight:700">Click to upload their logo</div>'
+      + '<div style="font-size:10.5px;opacity:.6;margin-top:3px">PNG or JPG — any size, resized automatically</div></div>';
+}
+
+function inIconModeChanged(){
+  // Switching to auto discards any upload, so a half-finished one can't be
+  // sent when "create one for them" was the final choice.
+  if((val('in-iconMode')||'auto') === 'auto'){ _inIcon.base64=''; _inIcon.name=''; }
+  inRenderIcon();
+  inSave();
+}
+
+function inHandleIconUpload(input){
+  var file = input.files && input.files[0];
+  if(!file) return;
+  if(file.type.indexOf('image/') !== 0){ toast('⚠️ Please choose an image file'); return; }
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var canvas = document.createElement('canvas');
+      canvas.width = 192; canvas.height = 192;
+      var ctx = canvas.getContext('2d');
+      // Letterbox rather than stretch — a non-square logo keeps its
+      // proportions instead of being distorted.
+      var scale = Math.min(192/img.width, 192/img.height);
+      var w = img.width*scale, h = img.height*scale;
+      ctx.drawImage(img, (192-w)/2, (192-h)/2, w, h);
+      _inIcon.base64 = canvas.toDataURL('image/png').split(',')[1];
+      _inIcon.name = file.name;
+      inRenderIcon();
+      inSave();
+      toast('✅ Icon ready');
+    };
+    img.onerror = function(){ toast('⚠️ That image could not be read'); };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function inClearIcon(){
+  _inIcon.base64=''; _inIcon.name='';
+  var inp = document.getElementById('in-iconInput'); if(inp) inp.value='';
+  inRenderIcon();
+  inSave();
+}
+
+function escHtml(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+function inSave(){
+  clearTimeout(_inSaveTimer);
+  _inSaveTimer=setTimeout(function(){
+    localStorage.setItem('dp_intake_v1', JSON.stringify(inGetState()));
+  }, 300);
+}
+
+function copyIntakeSummary(){
+  var s=inGetState();
+  var id=s.identity, bz=s.business, cm=s.comms, cp=s.compliance, tc=s.technical;
+  var featLines = INTAKE_FEATURES.map(function(f){
+    var fs=s.features[f.key]||{mode:'keep',notes:''};
+    return '- '+f.label+': '+fs.mode+(fs.notes?' — '+fs.notes:'');
+  }).join('\n');
+  var text = 'DEEP POCKET — CLIENT INTAKE\n\n'
+    + '01 ABOUT THE FIRM\n'
+    + 'Firm: '+id.firmName+'\nApp name: '+(id.productName||'(auto)')+'\nAdvisor: '+id.ownerName+', '+id.ownerTitle+'\nAddress: '+id.address+'\nPhone: '+id.phone+'\nEmail: '+id.email+'\nWeekly summary to: '+(id.insightsEmail||id.email)+'\nWelcome-msg phone: '+(id.welcomePhone||id.phone)+'\n\n'
+    + '05 BUSINESS DETAILS\n'
+    + 'Model: '+bz.modelType+(bz.sebiReg?'  SEBI: '+bz.sebiReg:'')+(bz.arn?'  ARN: '+bz.arn:'')+(bz.gstNumber?'  GST: '+bz.gstNumber:'')+'\nStages: '+(bz.stages||'(unchanged)')+'\nProducts: '+(bz.products||'(unchanged)')+'\n\n'
+    + '04 FEATURE SCOPE\n'+featLines+'\n\n'
+    + '06 MESSAGES\n'
+    + 'Tone: '+cm.tone+'\nHas own app: '+(cm.hasOwnApp?'Yes':'No')+(cm.hasOwnApp?'\nPlay Store: '+cm.playStoreLink+'\nApp Store: '+cm.appStoreLink:'')+'\nWebsite: '+cm.websiteLink+'\nCustom welcome: '+(cm.customWelcome||'(none — adapt reference)')+'\n\n'
+    + '07 PRIVACY CONTACT\n'
+    + 'Officer: '+(cp.grievanceName||id.ownerName)+', '+(cp.grievanceTitle||id.ownerTitle)+'\nEmail: '+(cp.grievanceEmail||id.email)+'\nPhone: '+(cp.grievancePhone||id.phone)+'\nExtra disclosures: '+cp.extraDisclosures+'\n\n'
+    + '08 TECHNICAL\n'
+    + 'Sheet ID: '+(tc.sheetId||'(not yet created)')+'\nCalendar ID: '+(tc.calendarId||'(not provided)')+'\nFollow-up days: '+(tc.followUpDays||'14')+'\nSIP reminder days: '+(tc.sipReminderDays||'5, 2')+'\nSIP bounce days: '+(tc.sipBounceDays||'7')+'\nGoals: '+(tc.goalLeads||'30')+' leads / '+(tc.goalConversions||'5')+' conversions';
+  navigator.clipboard.writeText(text).then(function(){ toast('📋 Summary copied'); });
+}
+
+function clearIntake(){
+  if(!confirm('Clear the intake form? This cannot be undone.')) return;
+  localStorage.removeItem('dp_intake_v1');
+  _inIcon.base64=''; _inIcon.name='';
+  document.getElementById('in-prompts-wrap').style.display='none';
+  localStorage.removeItem('dp_intake_prompts_v1');
+  inLoad();
+  toast('🗑️ Intake cleared');
+}
+
+// ═══════════════════════════════════════════════
+// PROMPT GENERATION — same 5-step logic as deep-pocket-crm-form.html
+// wizard (CrmCustomizationV2), just driven off the flat-ish Intake state.
+// Keeping these in sync means either tab produces identical prompts.
+// ═══════════════════════════════════════════════
+function inPrompt1(s){
+  var id=s.identity, cm=s.comms, tc=s.technical;
+  var firm=orv(id.firmName,'[FIRM NAME NOT PROVIDED]');
+  var prod=orv(id.productName, firm+' CRM');
+  var owner=orv(id.ownerName,'[OWNER NAME NOT PROVIDED]');
+  var appLinksNote = !cm.hasOwnApp
+    ? '  NOTE: this firm has NO investment app of their own. Do not substitute anything — instead remove that entire WhatsApp template, and flag to me that the related "App Installed" field and status badge should also be removed in Step 3.'
+    : ((!cm.playStoreLink.trim() || !cm.appStoreLink.trim())
+        ? "  NOTE: this firm HAS an app but one or both links were not provided. Do NOT leave the original firm's links in place. Replace any missing one with the placeholder text FIRM_APP_LINK_NEEDED and tell me plainly in your reply which one is missing, so it can be supplied before this goes live."
+        : '');
+  return "STEP 1 of 5 — IDENTITY REPLACEMENT\n\n"
+  + "I have an existing, working CRM platform (Deep Pocket CRM, built by Deep Pocket Fintech Pvt Ltd.). The reference files I'm providing are its first real-world deployment, currently white-labeled for \"Wealth Matrix Finserv LLP\" — that name, its logo, and its colours are simply the first client's own branding, not the underlying product identity. This is a rebranding pass to white-label the same platform for a NEW firm — NOT a rebuild. Apply only the literal replacements below to the files I provide (crm.html, Code.gs, upload.html, gatherinfo.html, review.html, findoc.html, feedback.html, privacy-policy.html, manifest.json). Every feature, function and fix must remain exactly as it is.\n\n"
+  + "Do not assume each string appears only once — most appear many times across multiple files, including inside WhatsApp message templates, email bodies, page titles and AI system prompts.\n\n"
+  + "FIND → REPLACE\n"
+  + '"'+REF.firmFull+'" → "'+firm+'"\n'
+  + '"'+REF.firmBare+'" (the bare form, without "LLP" — appears independently ~20 times, including inside the AI chatbot\'s own system prompt, where a miss means the AI keeps naming the wrong firm) → "'+firm+'"\n'
+  + '"'+REF.productName+'" (the PRODUCT name, deliberately separate from the firm name) → "'+prod+'"\n'
+  + '"'+REF.ownerName+'" → "'+owner+'"\n'
+  + '"'+REF.ownerShort+'" (bare first name, used in some message signatures) → "'+owner+'"\n'
+  + '"'+REF.address+'" → "'+orv(id.address,'[OFFICE ADDRESS NOT PROVIDED]')+'"\n'
+  + '"'+REF.phone+'" → "'+orv(id.phone,'[PHONE NOT PROVIDED]')+'"\n'
+  + '"'+REF.email+'" → "'+orv(id.email,'[EMAIL NOT PROVIDED]')+'"\n'
+  + (id.ownerTitle.trim() ? 'Signature/title lines referring to the owner\'s role → "'+id.ownerTitle.trim()+', '+firm+'"\n' : '')
+  + "\nTECHNICAL IDENTITY (not cosmetic — these have real consequences)\n"
+  + "- Code.gs: MailApp.sendEmail('"+REF.email+"', ...) is the WEEKLY AI INSIGHTS recipient. Replace with \""+orv(id.insightsEmail, id.email||'[NOT PROVIDED]')+"\". If this is missed, the new firm's weekly business insights — client names, AUM, pipeline — get emailed to the ORIGINAL firm's owner. Treat this as the highest-priority replacement in this whole step.\n"
+  + "- crm.html: the new-client welcome WhatsApp template contains \"Ph: "+REF.phone+"\" → \""+orv(id.welcomePhone, id.phone||'[NOT PROVIDED]')+"\"\n"
+  + "- Code.gs: BACKUP_FOLDER_NAME='"+REF.backupFolder+"' → '"+firm+" Backups'\n"
+  + "- Code.gs: parent Drive folder '"+REF.docsFolder+"' → '"+firm+" Client Documents'\n"
+  + "- crm.html: the \"Send App Install Link\" WhatsApp template contains the ORIGINAL firm's own investment-app store links. These are NOT this CRM — they are the app the original firm's clients download to view their portfolio. If left unchanged, the new firm would be sending their own clients a link to a competitor's product. Replace both:\n"
+  + '  "'+REF.playStoreUrl+'" → '+(cm.hasOwnApp && cm.playStoreLink.trim() ? '"'+cm.playStoreLink.trim()+'"' : '[SEE NOTE BELOW]')+'\n'
+  + '  "'+REF.appStoreUrl+'" → '+(cm.hasOwnApp && cm.appStoreLink.trim() ? '"'+cm.appStoreLink.trim()+'"' : '[SEE NOTE BELOW]')+'\n'
+  + (appLinksNote ? appLinksNote+'\n' : '')
+  + '- crm.html: <meta name="apple-mobile-web-app-title" content="'+REF.iosTitle+'"> → a SHORT form of "'+prod+'" (iOS truncates past ~12 characters)\n'
+  + '- manifest.json: "name" → "'+prod+'", "short_name" → the same short form as above\n'
+  + "- Code.gs: const SHEET_ID='"+REF.sheetId+"' → "+(tc.sheetId.trim() ? "'"+tc.sheetId.trim()+"'" : 'leave as a clearly-marked placeholder and tell me plainly it must be set before the app will work')+'\n'
+  + "\nVERIFICATION — do this before reporting back, and treat it as part of the task\n"
+  + 'Search every file again for each of these: "Wealth Matrix", "Arjun", "'+REF.phone+'", "arjun.wealthmatrix", "Alappat Heritage", "'+REF.sheetId+'", "'+REF.playStoreId+'", "apps.apple.com/in/app/wealth-matrix".\n'
+  + "Report the exact count of remaining matches for each. The expected result is zero for all of them. If any remain, they were missed — fix them and re-run the search before replying.\n\n"
+  + "Separately, confirm the PRODUCT_FEEDBACK_URL constant in crm.html is still present and unchanged — this one should NOT be zero or replaced; it's meant to survive rebranding untouched.\n\n"
+  + "Then confirm back: every file you changed, and what was replaced in each.\n\n"
+  + "DO NOT proceed to any other changes yet. Wait for my next prompt.";
+}
+
+function inPrompt2(s){
+  var br=s.brand;
+  var changed = THEME_KEYS.filter(function(k){ return br.theme[k]!==DEFAULT_THEME[k]; });
+  var out = "STEP 2 of 5 — VISUAL IDENTITY\n\nApply only what is listed here. Do not change layout, spacing or component structure.\n\nCOLOURS";
+  if(!changed.length){
+    out += "\n(No colour changes requested — leave the existing theme exactly as is.)";
+  } else {
+    out += "\nIn the :root{} block of EVERY file (crm.html and all 5 client-facing pages — the same variables appear in each), replace:";
+    changed.forEach(function(k){ out += "\n  --"+k+": "+DEFAULT_THEME[k]+"  →  --"+k+": "+br.theme[k]+"   ("+THEME_LABELS[k]+")"; });
+    out += "\n(Leave every other colour variable untouched.)";
+    if(br.theme.bg !== DEFAULT_THEME.bg){
+      out += "\n\nTwo places hold the background colour OUTSIDE the CSS variable system and will be silently missed by a :root find-replace — change both explicitly:\n"
+        + '- crm.html: <meta name="theme-color" content="'+DEFAULT_THEME.bg+'"> → content="'+br.theme.bg+'"\n'
+        + '- manifest.json: "theme_color" and "background_color" → "'+br.theme.bg+'"';
+    }
+  }
+  out += "\n\nLOGO\n";
+  if(br.logoMode==='image' && br.logoUrl.trim()){
+    out += 'Replace the "'+REF.logoInitials+'" text-initials logo (a small square/circle showing those letters, in crm.html\'s top bar, desktop sidebar, login screen and lock screen) with a real image:\n'
+      + '<img src="'+br.logoUrl.trim()+'" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" alt="logo">\n'
+      + "Keep each container's existing size and shape — change only what is inside it.";
+  } else if(br.logoMode==='initials' && br.logoInitials.trim()){
+    out += 'Replace the logo initials "'+REF.logoInitials+'" with "'+br.logoInitials.trim().toUpperCase()+'" — keep it as text with identical styling.';
+  } else {
+    out += '(No logo change requested — leave "'+REF.logoInitials+'" as is.)';
+  }
+  out += "\n\nTYPOGRAPHY\n";
+  if(br.typographyMode==='custom' && (br.displayFont.trim() || br.bodyFont.trim())){
+    out += "Replace the Google Fonts <link> in crm.html's <head> (currently importing Fraunces + Inter) and update --font-display / --font-body to match:\n"
+      + (br.displayFont.trim() ? "- Display font (page titles ONLY): "+br.displayFont.trim()+"\n" : "")
+      + (br.bodyFont.trim() ? "- Body font (all data, labels, buttons): "+br.bodyFont.trim()+"\n" : "")
+      + "Keep the existing usage pattern — the display font is used only for page headings, never for dense data.";
+  } else {
+    out += "(No typography change — keep the existing Fraunces + Inter pairing.)";
+  }
+  out += "\n\nAlso note: crm.html and manifest.json reference icon-192.png, a real image file that cannot be generated from a text prompt. Tell me explicitly that this firm must supply their own 192×192 PNG logo at that path.\n\nConfirm what you changed, then STOP. Wait for my next prompt.";
+  return out;
+}
+
+function inPrompt3(s){
+  var bz=s.business;
+  var list = INTAKE_FEATURES.map(function(f){
+    var fs=s.features[f.key]||{mode:'keep',notes:''};
+    return {label:f.label, desc:f.desc, mode:fs.mode, notes:fs.notes};
+  });
+  var keep=list.filter(function(f){return f.mode==='keep';});
+  var custom=list.filter(function(f){return f.mode==='customize';});
+  var remove=list.filter(function(f){return f.mode==='remove';});
+  var out = "STEP 3 of 5 — FEATURE SCOPE\n\nOnly now, after identity and branding are done and verified, adjust which features this firm actually gets.\n\n"
+  + "KEEP AS-IS ("+keep.length+"):\n" + (keep.length? keep.map(function(f){return '- '+f.label;}).join('\n') : '(none)') + "\n\n"
+  + "CUSTOMIZE ("+custom.length+"):\n" + (custom.length? custom.map(function(f){return '- '+f.label+' — '+f.desc+'\n  Requested change: '+(f.notes.trim()||'[NO NOTE GIVEN — ask me before changing anything here]');}).join('\n') : '(none)') + "\n\n"
+  + "REMOVE ENTIRELY ("+remove.length+"):\n" + (remove.length? remove.map(function(f){return '- '+f.label+' — '+f.desc;}).join('\n') : '(none)') + "\n\n"
+  + "When removing a feature, remove it cleanly and completely: the UI entry point, the backend action(s) in Code.gs, any client-facing page it owns, and any sheet columns only it used. Do not leave dead buttons, orphaned menu items, or links pointing at removed functionality. If removing something would break another feature that depends on it, STOP and tell me rather than guessing.\n";
+  if(bz.stages.trim()){
+    out += "\nPIPELINE STAGES — replace the current stages ("+REF.stages+") with exactly:\n"+bz.stages.trim()+"\nUpdate all three places these appear: the Stage dropdown options in crm.html, the stage-colour group mapping on client list capsules, and the Google Sheet's Stage column data validation.";
+  }
+  if(bz.products.trim()){
+    out += "\n\nPRODUCTS — set the product toggle options on BOTH the Lead form and the Client form to exactly:\n"+bz.products.trim()+"\nRemove any toggle not on this list; add any that is missing.";
+  }
+  out += "\n\nBUSINESS MODEL — this firm operates as "+(bz.modelType==='RIA'?'a SEBI-Registered Investment Adviser (fee-only, no commission)':bz.modelType==='MFD'?'a Mutual Fund Distributor (commission-based)':'both an RIA and an MFD')+"."+(bz.sebiReg.trim()?' SEBI Registration: '+bz.sebiReg.trim()+'.':'')+(bz.arn.trim()?' AMFI ARN: '+bz.arn.trim()+'.':'')+(bz.gstNumber.trim()?' GST: '+bz.gstNumber.trim()+'.':'')+"\n"
+  + "If any part of the app assumes the other model — commission language for a fee-only RIA, or fee-invoicing language for an MFD — flag it to me rather than resolving it yourself.\n"
+  + (bz.arn.trim() ? "\nNote: the CAS analysis feature attributes portfolio growth only to funds under the firm's own ARN. Set OUR_ARN_CODE in Apps Script Script Properties to "+bz.arn.trim()+" — mention this in your reply as a manual step." : "")
+  + "\n\nConfirm what was removed, what was customized, and anything you need clarified. Then STOP and wait for my next prompt.";
+  return out;
+}
+
+function inPrompt4(s){
+  var id=s.identity, cm=s.comms, cp=s.compliance;
+  var firm=orv(id.firmName,'[FIRM NAME]');
+  var appRemoved = (s.features['appinstalled']&&s.features['appinstalled'].mode)==='remove';
+  var casKept = !((s.features['casanalysis']&&s.features['casanalysis'].mode)==='remove');
+  var dpdpKept = !((s.features['dpdp']&&s.features['dpdp'].mode)==='remove');
+  var out = "STEP 4 of 5 — COMMUNICATION TEMPLATES & COMPLIANCE\n\nCOMMUNICATION TONE\n"
+  + (cm.tone==='warm' ? 'Keep the existing warm, personal register — messages should read as if quickly typed by the advisor, never corporate. The AI drafting prompts are deliberately tuned for this (contractions, no em-dashes, no AI-opener clichés); preserve that tuning.' : cm.tone==='formal' ? 'This firm wants a more formal, professional register than the reference. Adjust the fixed WhatsApp/email templates AND the AI drafting instructions in Code.gs accordingly — but keep the "must not read as AI-generated" guidance intact.' : 'Keep the reference tone as-is except where I give exact wording below.') + "\n";
+  if(cm.hasOwnApp && (cm.playStoreLink.trim() || cm.appStoreLink.trim())){
+    out += "\nThis firm HAS its own mobile app. Update the app-install WhatsApp template links:\n"
+      + (cm.playStoreLink.trim() ? "- Play Store: "+cm.playStoreLink.trim()+"\n" : "")
+      + (cm.appStoreLink.trim() ? "- App Store: "+cm.appStoreLink.trim()+"\n" : "");
+  } else if(!cm.hasOwnApp || appRemoved){
+    out += '\nThis firm has NO mobile app of its own. Remove the "App Installed" tracking field, the app-install WhatsApp template, and any status badge criteria that depend on it — do not leave a feature pointing at an app that doesn\'t exist.';
+  }
+  if(cm.websiteLink.trim()) out += "\n\nFirm website (use wherever the reference copy references a site): "+cm.websiteLink.trim();
+  if(cm.customWelcome.trim()) out += "\n\nUse this EXACT wording for the new-client welcome message instead of adapting the reference one:\n\n"+cm.customWelcome.trim();
+
+  if(dpdpKept){
+    out += "\n\n─────────\nPRIVACY POLICY (privacy-policy.html)\n\nRewrite it for this firm, keeping the same DPDP Act 2023 structure and rigour as the reference (itemised Section 5 notice, consent standards, AI-tools disclosure, retention, security, Data Principal rights, grievance redressal, Data Protection Board complaint right).\n\n"
+    + "Firm: "+firm+"\n"
+    + "Grievance Officer: "+orv(cp.grievanceName, id.ownerName||'[NAME]')+"\n"
+    + "Title: "+orv(cp.grievanceTitle, id.ownerTitle||'[TITLE]')+"\n"
+    + "Email: "+orv(cp.grievanceEmail, id.email||'[EMAIL]')+"\n"
+    + "Phone: "+orv(cp.grievancePhone, id.phone||'[PHONE]')+"\n"
+    + "Address: "+orv(id.address,'[ADDRESS]')+"\n"
+    + (cp.extraDisclosures.trim() ? "Additional firm-specific disclosures: "+cp.extraDisclosures.trim()+"\n" : "")
+    + "\n"
+    + (casKept
+      ? "This firm KEEPS the CAS AI-analysis feature, so the policy must retain the specific PAN/CAS disclosure: PAN is used only to isolate this investor's holdings within a shared CAS document, is never reproduced in AI output, and this processing involves a third-party AI service outside India."
+      : "This firm has REMOVED the CAS AI-analysis feature — drop the PAN-specific disclosure, but still disclose whichever AI-assisted processing remains.")
+    + "\n\nAlso list, accurately and specifically, every client-facing page that collects personal data in THIS build — that set depends on what was removed in Step 3, so check rather than copying the reference list.\n\n"
+    + "Update the consent checkbox wording on upload.html and gatherinfo.html to match. Set \"Last updated\" and \"Effective from\" to today's date.\n\n"
+    + "Flag clearly in your reply that this must be reviewed by a qualified legal/compliance professional before publishing, given DPDP penalty exposure.";
+  } else {
+    out += "\n\nThis firm has removed the DPDP consent feature. Confirm whether privacy-policy.html should be removed entirely or kept as a simplified notice — ask me rather than deciding.";
+  }
+  out += "\n\nConfirm the final wording of each updated template and the policy. Then STOP and wait for my last prompt.";
+  return out;
+}
+
+function inPrompt5(s){
+  var bz=s.business, tc=s.technical;
+  var out = "STEP 5 of 5 — TECHNICAL SETTINGS & HANDOVER\n\nOPERATIONAL DEFAULTS";
+  var ops=[];
+  if(tc.calendarId.trim()) ops.push('- Google Calendar / Meet sync: this app syncs appointments to Google Calendar and auto-generates a Google Meet link for client meetings. Locate wherever the calendar ID is configured (likely a CALENDAR_ID constant in Code.gs, or a Script Property of the same name) and set it to → '+tc.calendarId.trim()+'. Confirm the Calendar service/scope is enabled for this to work, and flag it to me if you can\'t find where this is wired up rather than guessing.');
+  else ops.push('- Google Calendar / Meet sync: no Calendar ID was provided. Leave the CALENDAR_ID placeholder as-is (or default to the deploying account\'s own calendar), and tell me plainly this must be set before Calendar/Meet sync will work for this firm.');
+  if(tc.followUpDays.trim()) ops.push('- Lead follow-up window: find "cfg_.followUpDays=14" in crm.html → '+tc.followUpDays.trim()+'. Also check Code.gs for the matching "daysSince>=14" threshold in the weekly insights summary and keep the two consistent.');
+  if(tc.sipReminderDays.trim()) ops.push('- SIP due reminders: in crm.html find "d1days===5||d1days===2" (appears twice) → use '+tc.sipReminderDays.trim()+'.');
+  if(tc.sipBounceDays.trim()) ops.push('- SIP bounce/verification check: in crm.html find "daysSince!==7" → '+tc.sipBounceDays.trim()+'.');
+  if(tc.goalLeads.trim()) ops.push('- Default monthly leads goal in Settings: value="30" → "'+tc.goalLeads.trim()+'".');
+  if(tc.goalConversions.trim()) ops.push('- Default monthly conversions goal in Settings: value="5" → "'+tc.goalConversions.trim()+'".');
+  out += ops.length ? "\n"+ops.join('\n') : "\n(No operational changes — keep all current defaults.)";
+
+  out += "\n\nDO NOT TOUCH\n"
+  + "- The SCRIPT_URL constant hardcoded in each of the 5 client-facing pages. Its correct value cannot be known until the new Code.gs is deployed. Leave each as: var SCRIPT_URL = 'PASTE_YOUR_DEPLOYED_APPS_SCRIPT_URL_HERE';\n"
+  + "- The PRODUCT_FEEDBACK_URL constant in crm.html (in Settings > Feedback to Deep Pocket). This is the SAME URL across every deployment of this platform — it points to Deep Pocket's own feedback collection sheet, not this firm's data. Never replace it, and never treat it as something this firm configures — it's fixed infrastructure, not a per-firm setting.\n"
+  + "- Anything not explicitly named across these five prompts.\n\n"
+  + "FINAL HANDOVER — end your reply with a checklist of everything that must still be done by hand, and be specific rather than generic. It should cover at minimum:\n"
+  + "1. Create the new Google Sheet; add the Admin tab (Name, Username, User Type, User ID, Password, Timestamp) and seed one Admin row.\n"
+  + "2. Apps Script Script Properties: GEMINI_API_KEY"+(bz.arn.trim()?', OUR_ARN_CODE':'')+(tc.calendarId.trim()?', CALENDAR_ID':'')+".\n"
+  + "3. Deploy Code.gs as a Web App (Execute as: Me, Access: Anyone) and copy the URL.\n"
+  + "4. Paste that URL into the SCRIPT_URL placeholder in all 5 client-facing pages, then re-upload them.\n"
+  + "5. Supply a 192×192 PNG logo as icon-192.png.\n"
+  + "6. Run Settings → System Checking → Full Health Check and confirm every check passes.\n\n"
+  + "Also state plainly: which self-healing sheet tabs/columns will be created automatically on first use, and which (if any) genuinely need manual setup.";
+  return out;
+}
+
+function inGeneratePrompts(){
+  var s=inGetState();
+  var prompts=[
+    { title:'Step 1 — Identity Replacement', critical:true, text:inPrompt1(s) },
+    { title:'Step 2 — Visual Identity', text:inPrompt2(s) },
+    { title:'Step 3 — Feature Scope', text:inPrompt3(s) },
+    { title:'Step 4 — Communications & Compliance', text:inPrompt4(s) },
+    { title:'Step 5 — Technical & Handover', text:inPrompt5(s) },
+  ];
+  localStorage.setItem('dp_intake_prompts_v1', JSON.stringify(prompts));
+  renderGeneratedPrompts(prompts, s.identity.firmName);
+  savePromptsToSheet(s.identity.firmName, prompts.map(function(p){return p.text;}), s.brand.iconBase64);
+  stampEnquiryPromptSubmitted(s.identity.firmName);
+  document.getElementById('in-prompts-wrap').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// Saves the 5 generated prompts into their own sheet tab named after the
+// firm — fire-and-forget, same pattern used elsewhere for writes.
+function savePromptsToSheet(firmName, promptTexts, iconBase64){
+  if(!hasScript()) return;
+  try{
+    var payload = { action:'savePrompts', firmName: (firmName||'').trim()||'Untitled Firm', prompts: promptTexts, iconBase64: iconBase64||'' };
+    // POST (not the usual GET+payload pattern) since an icon can push this
+    // past a safe URL length — fire-and-forget either way, same as elsewhere.
+    fetch(cfg.scriptUrl, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(payload), mode:'no-cors' });
+    toast('📄 Saved to "'+((firmName||'').trim()||'Untitled Firm')+'" tab in your sheet');
+  }catch(e){ /* fire-and-forget */ }
+}
+
+// Covers the second way a "customization prompt" gets submitted: instead of
+// the client filling the public form (which lands via checkInbox + AI
+// matching), YOU collect their answers yourself and press Generate on their
+// behalf. Either path should count as the prompt being submitted, so this
+// finds the matching enquiry by firm name and stamps the same
+// promptGeneratedDate field the automated path uses — keeping one source of
+// truth for that milestone regardless of which route it came through.
+function stampEnquiryPromptSubmitted(firmName){
+  var fn=(firmName||'').trim().toLowerCase();
+  if(!fn) return;
+  var e=enquiries.find(function(x){ return (x.firmName||'').trim().toLowerCase()===fn; });
+  if(!e) return;
+  var changed=false;
+  if(!e.promptGeneratedDate){ e.promptGeneratedDate=todayStr(); changed=true; }
+  if(STATUSES.indexOf(e.status) < STATUSES.indexOf('Prompt Generated')){ e.status='Prompt Generated'; changed=true; }
+  if(!changed) return;
+  e.modifiedDate=todayStr();
+  saveLocal(); renderPipeline(); renderEnquiries(); renderDashboardCards();
+  pushEnquiry('updateEnquiry', e);
+}
+
+function renderGeneratedPrompts(prompts, firmName){
+  var wrap=document.getElementById('in-prompts-wrap');
+  var warn = firmName ? '' : '<div class="hint" style="color:var(--danger);margin-bottom:12px">⚠️ Firm name isn\'t filled in yet (Section 01) — these prompts will contain placeholder brackets until you go back and fill it in.</div>';
+  wrap.innerHTML = '<div class="sec-title" style="margin-top:22px"><span class="secnum">▶</span>Setup Instructions'+(firmName?' — '+esc(firmName):'')+'</div>'
+    + warn
+    + '<div class="hint" style="margin-bottom:12px">Open a brand-new Claude chat, attach all nine app files, then paste these in order — read each reply before sending the next.</div>'
+    + prompts.map(function(p,i){
+        return '<div class="panel" style="margin-bottom:10px'+(p.critical?';border-color:rgba(244,185,66,.4)':'')+'">'
+          + '<div class="row" style="justify-content:space-between;margin-bottom:8px">'
+          +   '<div style="font-size:13px;font-weight:600">'+p.title+(p.critical?' <span class="badge" style="color:var(--amber);border-color:rgba(244,185,66,.4);background:var(--amber-dim);margin-left:6px">run first</span>':'')+'</div>'
+          +   '<button class="btn btn-sm btn-cyan" onclick="copyGeneratedPrompt('+i+')">📋 Copy</button>'
+          + '</div>'
+          + '<pre class="mono" style="font-size:11px;line-height:1.6;white-space:pre-wrap;max-height:160px;overflow-y:auto;color:var(--ink-dim);margin:0">'+esc(p.text)+'</pre>'
+          + '</div>';
+      }).join('')
+    + '<button class="btn btn-amber btn-full" onclick="copyAllGeneratedPrompts()">📋 Copy All Prompts (in sequence)</button>';
+  wrap.style.display='block';
+}
+
+function copyGeneratedPrompt(i){
+  var prompts=JSON.parse(localStorage.getItem('dp_intake_prompts_v1')||'[]');
+  if(!prompts[i]) return;
+  navigator.clipboard.writeText(prompts[i].text).then(function(){ toast('📋 '+prompts[i].title+' copied'); });
+}
+function copyAllGeneratedPrompts(){
+  var prompts=JSON.parse(localStorage.getItem('dp_intake_prompts_v1')||'[]');
+  if(!prompts.length) return;
+  var all=prompts.map(function(p){ return '─── '+p.title+' ───\n\n'+p.text; }).join('\n\n\n');
+  navigator.clipboard.writeText(all).then(function(){ toast('📋 All prompts copied'); });
+}
+
+// ═══════════════════════════════════════════════
+// BRIDGE — loading a client's submitted intake JSON (stored against an
+// enquiry row) into the Intake tab. Intake's own saved state is already
+// this same nested shape (identity/brand/business/features/comms/
+// compliance/technical), so this just normalizes older/legacy shapes onto
+// it and writes straight into localStorage before re-rendering the form.
+// ═══════════════════════════════════════════════
+function normalizeIntakeState(s){
+  if(s.identity){
+    // Already the current nested shape — just fill in any fields that
+    // predate a later addition (e.g. calendarId) so nothing's undefined.
+    var features={};
+    INTAKE_FEATURES.forEach(function(f){
+      features[f.key] = (s.features && s.features[f.key]) || {mode:'keep',notes:''};
+    });
+    return {
+      identity: Object.assign({firmName:'',productName:'',ownerName:'',ownerTitle:'',address:'',phone:'',email:'',insightsEmail:'',welcomePhone:''}, s.identity),
+      brand: Object.assign({theme:Object.assign({},DEFAULT_THEME),logoMode:'initials',logoInitials:'',logoUrl:'',iconBase64:'',typographyMode:'default',displayFont:'',bodyFont:''}, s.brand, {theme:Object.assign({},DEFAULT_THEME,(s.brand&&s.brand.theme)||{})}),
+      business: Object.assign({modelType:'MFD',sebiReg:'',arn:'',gstNumber:'',stages:'',products:''}, s.business),
+      features: features,
+      comms: Object.assign({tone:'warm',hasOwnApp:true,playStoreLink:'',appStoreLink:'',websiteLink:'',customWelcome:''}, s.comms),
+      compliance: Object.assign({grievanceName:'',grievanceTitle:'',grievanceEmail:'',grievancePhone:'',extraDisclosures:''}, s.compliance),
+      technical: Object.assign({sheetId:'',calendarId:'',followUpDays:'',sipReminderDays:'',sipBounceDays:'',goalLeads:'',goalConversions:''}, s.technical)
+    };
+  }
+  // Legacy flat shape (from before the CrmCustomizationV2 field set) —
+  // best-effort mapping so nothing old becomes unreadable.
+  var flat=s, features2={};
+  INTAKE_FEATURES.forEach(function(f){
+    features2[f.key] = (flat.features && flat.features[f.key]) || {mode:'keep',notes:''};
+  });
+  return {
+    identity: { firmName: flat.firmName||'', productName:'', ownerName: flat.ownerName||'', ownerTitle: flat.ownerTitle||'', address: flat.address||'', phone: flat.phone||'', email: flat.email||'', insightsEmail:'', welcomePhone:'' },
+    brand: { theme:Object.assign({},DEFAULT_THEME), logoMode:'initials', logoInitials:'', logoUrl:'', iconBase64:'', typographyMode:'default', displayFont:'', bodyFont:'' },
+    business: { modelType: flat.modelType||'MFD', sebiReg: flat.sebiReg||'', arn: flat.arn||'', gstNumber: flat.gstNumber||'', stages: flat.stages||'', products: typeof flat.products==='string' ? flat.products : '' },
+    features: features2,
+    comms: { tone: flat.tone||'warm', hasOwnApp: !!flat.hasOwnApp, playStoreLink: flat.playStoreLink||'', appStoreLink: flat.appStoreLink||'', websiteLink: flat.websiteLink||'', customWelcome: flat.customWelcome||'' },
+    compliance: { grievanceName: flat.grievanceName||'', grievanceTitle: flat.grievanceTitle||'', grievanceEmail: flat.grievanceEmailC||flat.grievanceEmail||'', grievancePhone: flat.grievancePhone||'', extraDisclosures: flat.extraDisclosures||'' },
+    technical: { sheetId:'', calendarId:'', followUpDays:'', sipReminderDays:'', sipBounceDays:'', goalLeads:'', goalConversions:'' }
+  };
+}
+
+function loadEnquiryIntoIntake(recordId){
+  var e = enquiries.find(function(x){return x.recordId===recordId;});
+  if(!e || !e.intakeJson){ toast('No submitted details for this enquiry yet'); return; }
+  var parsed;
+  try{ parsed=JSON.parse(e.intakeJson); }catch(err){ toast('⚠️ Could not read this enquiry\'s submission'); return; }
+  var normalized = normalizeIntakeState(parsed);
+  localStorage.setItem('dp_intake_v1', JSON.stringify(normalized));
+  inLoad();
+  activateView('intake');
+  toast('📝 Loaded '+(normalized.identity.firmName||'submission')+' into Intake');
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+loadCfg();
+loadLocal();
+document.getElementById('s-script-url').value = cfg.scriptUrl||'';
+if(!cfg.clientFormUrl){ cfg.clientFormUrl = 'https://dp-crm.github.io/app/deep-pocket-crm-form.html'; saveCfg(); }
+document.getElementById('s-client-form-url').value = cfg.clientFormUrl;
+if(!cfg.migrationToolUrl){ cfg.migrationToolUrl = DEFAULT_MIGRATION_URL; saveCfg(); }
+document.getElementById('s-migration-url').value = cfg.migrationToolUrl;
+document.getElementById('s-migration-url-inline').value = cfg.migrationToolUrl;
+updateConnStatus();
+renderPipeline();
+renderEnquiries();
+renderDashboardCards();
+inLoad();
+
+// Register the offline shell service worker — non-fatal if it fails (e.g.
+// served over plain http instead of https, where service workers can't
+// register at all).
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./client-form-sw.js').catch(function(){ /* non-fatal */ });
+  });
+}
+</script>
+
+
+</body>
+</html>
