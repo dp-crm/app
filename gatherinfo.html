@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Update Your Details — Wealth Matrix Finserv</title>
+<title>Update Your Details — Deep Pocket Fintech</title>
 <style>
 :root{
   --bg:#1B1512; --s1:#2A211D; --s2:#332924; --border:#3A2F2A;
@@ -80,7 +80,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 <div class="wrap">
   <div class="hdr">
     <div class="logo" id="hdr-logo">🔒</div>
-    <h1 id="hdr-firmname">Wealth Matrix Finserv</h1>
+    <h1 id="hdr-firmname">Deep Pocket Fintech</h1>
     <p>Keep your details up to date</p>
   </div>
   <div id="app">
@@ -88,9 +88,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   </div>
 </div>
 
+<script src="./config.js"></script>
 <script>
 // ── CONFIGURATION ── update this if you ever redeploy Apps Script with a new URL
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxi1b4DHWFsXuOCO5XTpsCPmhEawBDpC66eVZW7K1Z6aZ7zwLZ7HYhNd--saAv6CdG5/exec';
 
 var PRODUCTS = ['Mutual Funds','Health Insurance','Term Life Insurance','WILL','AIF','PMS'];
 
@@ -170,7 +170,7 @@ function renderForm(){
 
     + '<div class="consent-box" id="consentBox">'
     +   '<div class="t">Before we begin, please confirm below.</div>'
-    +   '<p>I agree to share my insurance status, coverage details, and product preferences with Wealth Matrix Finserv LLP, so they can better understand my protection needs and reach out with relevant guidance. My information will be handled as described in the <a href="privacy-policy.html" target="_blank">Privacy Policy</a>, kept secure, and never sold. I can withdraw this consent anytime by contacting my advisor.</p>'
+    +   '<p>I agree to share my insurance status, coverage details, and product preferences with Deep Pocket Fintech Pvt. Ltd., so they can better understand my protection needs and reach out with relevant guidance. My information will be handled as described in the <a href="privacy-policy.html" target="_blank">Privacy Policy</a>, kept secure, and never sold. I can withdraw this consent anytime by contacting my advisor.</p>'
     +   '<label class="consent-check" id="consentCheckLabel">'
     +     '<input type="checkbox" id="consentCheckbox" onchange="handleConsentChange(this)">'
     +     '<span>I have read and agree to the above</span>'
@@ -187,7 +187,7 @@ function renderForm(){
 
     + '<div class="form-block">'
     +   '<div class="fg" style="margin-bottom:0">'
-    +     '<label class="fl">Have you installed the Wealth Matrix mobile app?</label>'
+    +     '<label class="fl">Have you installed the Deep Pocket mobile app?</label>'
     +     '<div class="yn2">'
     +       '<div class="yn-opt" data-yn2="appInstalled" data-val="YES" onclick="setYN2(this)">Yes</div>'
     +       '<div class="yn-opt" data-yn2="appInstalled" data-val="NO" onclick="setYN2(this)">No</div>'
@@ -222,7 +222,7 @@ function renderForm(){
 }
 
 // Exact wording shown above — logged as-is to the DPDP Consents sheet.
-var CONSENT_TEXT = 'I agree to share my insurance status, coverage details, and product preferences with Wealth Matrix Finserv LLP, so they can better understand my protection needs and reach out with relevant guidance. My information will be handled as described in the Privacy Policy, kept secure, and never sold. I can withdraw this consent anytime by contacting my advisor.';
+var CONSENT_TEXT = 'I agree to share my insurance status, coverage details, and product preferences with Deep Pocket Fintech Pvt. Ltd., so they can better understand my protection needs and reach out with relevant guidance. My information will be handled as described in the Privacy Policy, kept secure, and never sold. I can withdraw this consent anytime by contacting my advisor.';
 
 async function handleConsentChange(checkboxEl){
   var msgEl = document.getElementById('consentMsg');
@@ -341,9 +341,14 @@ function applyFirmBranding(name, logoDataUrl){
     var nameEl=document.getElementById('hdr-firmname');
     if(nameEl) nameEl.textContent=name;
   }
-  if(logoDataUrl){
-    var logoEl=document.getElementById('hdr-logo');
-    if(logoEl) logoEl.innerHTML='<img src="'+logoDataUrl+'" alt="">';
+  // Always explicitly set the logo slot, both ways — a generic uploaded
+  // logo shows when present, but if the firm never uploaded one (or
+  // removed one they'd previously set), this actively falls back to a
+  // real generic placeholder instead of silently leaving whatever was
+  // last cached in the browser.
+  var logoEl=document.getElementById('hdr-logo');
+  if(logoEl){
+    logoEl.innerHTML = logoDataUrl ? '<img src="'+logoDataUrl+'" alt="">' : '🔒';
   }
 }
 async function loadFirmBranding(){

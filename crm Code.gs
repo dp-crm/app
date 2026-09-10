@@ -11,7 +11,7 @@ const SHEET_ID='1SxawbtS7s5EiDqGdDlOT5JqJPsuFVzUwX3Bp1qLvdI4';
 // see submitFeedback for why, and what has to be true for this to work.
 const CENTRAL_FEEDBACK_SHEET_ID='1fPv8EJJTAkjl82eMcnyV34aLQJZ_BzAiXMRYL9ydwTc';
 const LEADS_TAB='LEADS',CLIENTS_TAB='CLIENTS',LOG_TAB='ACTIVITY_LOG',SPECIAL_TAB='Special Days',REMINDERS_TAB='REMINDERS',TASKS_TAB='TASKS',INSIGHTS_TAB='Insights',ADMIN_TAB='Admin',SETTINGS_TAB='Settings';
-const VERSION='2.30.0';
+const VERSION='2.32.0';
 
 // ── Generate the next sequential human-readable ID (L1, L2... or C1, C2...).
 // Scans the whole ID column, finds the highest existing number for this prefix,
@@ -28,18 +28,54 @@ function sha256Hex(text){
   }).join('');
 }
 
+// Previously did a full-column scan on EVERY single new Lead/Client/Task
+// creation — cost grows with total records ever created, which is exactly
+// why saves have felt progressively slower as these sheets accumulated
+// months of real use. Now caches the last-assigned number per (sheet,
+// prefix) in Script Properties, so every call after the first is O(1) —
+// no sheet read at all. Deliberately NOT applying this same caching
+// approach to record LOOKUPS elsewhere (appendLead's duplicate check,
+// updateLead's record-ID match) — ID generation is safe to cache because
+// it's write-only and strictly monotonic (this function is the only thing
+// that ever increments it), but a lookup cache would need to stay in sync
+// with rows added/edited/deleted through other paths, and getting that
+// subtly wrong risks matching the WRONG record on an update — a
+// correctness bug, not just a slow one. That's judged not worth the risk
+// here. LockService ensures two near-simultaneous saves can never be
+// handed the same number.
 function nextSequentialId(sheet, colIndex, prefix){
-  var lr=sheet.getLastRow();
-  if(lr<2) return prefix+'1';
-  var vals=sheet.getRange(2,colIndex,lr-1,1).getValues();
-  var maxNum=0;
-  var re=new RegExp('^'+prefix+'(\\d+)$','i');
-  for(var i=0;i<vals.length;i++){
-    var v=String(vals[i][0]||'').trim();
-    var m=v.match(re);
-    if(m){ var n=parseInt(m[1],10); if(n>maxNum) maxNum=n; }
+  var cacheKey='seqId_'+sheet.getName()+'_'+prefix;
+  var props=PropertiesService.getScriptProperties();
+  var lock=LockService.getScriptLock();
+  lock.waitLock(10000);
+  try{
+    var cached=props.getProperty(cacheKey);
+    var nextNum;
+    if(cached){
+      nextNum=parseInt(cached,10)+1;
+    } else {
+      // First use ever, or the cache was cleared — fall back to the
+      // original full scan exactly once, to correctly seed the cache from
+      // whatever already exists in the sheet. Every call after this one
+      // is O(1).
+      var lr=sheet.getLastRow();
+      var maxNum=0;
+      if(lr>=2){
+        var vals=sheet.getRange(2,colIndex,lr-1,1).getValues();
+        var re=new RegExp('^'+prefix+'(\\d+)$','i');
+        for(var i=0;i<vals.length;i++){
+          var v=String(vals[i][0]||'').trim();
+          var m=v.match(re);
+          if(m){ var n=parseInt(m[1],10); if(n>maxNum) maxNum=n; }
+        }
+      }
+      nextNum=maxNum+1;
+    }
+    props.setProperty(cacheKey, String(nextNum));
+    return prefix+nextNum;
+  } finally {
+    lock.releaseLock();
   }
-  return prefix+(maxNum+1);
 }
 
 // ── Ensure the header label exists for a given column, without disturbing
@@ -1269,37 +1305,75 @@ function gatherPracticeContext(){
   var ss=SpreadsheetApp.openById(SHEET_ID);
   var parts=[];
 
-  // Leads — compact one-line-per-lead summary
+  // Pipeline trend data — reuses the exact same computation the existing
+  // "Productivity" insight already relies on (buildProductivityData),
+  // rather than re-deriving trend logic a second way. Previously the AI
+  // only ever saw a snapshot of CURRENT records — it had to infer whether
+  // the pipeline was improving or declining from scratch each time, which
+  // it can't really do reliably from a snapshot alone. This gives it real,
+  // precomputed movement data (today/7-day/30-day new entries into each
+  // stage) up front, the same trend signal a human would actually look at.
+  try{
+    parts.push(buildProductivityData());
+  }catch(trendErr){ /* non-fatal — the rest of the context is still useful without it */ }
+
+  // Leads — every genuinely useful business field, not the previous
+  // curated subset of 7. Two things deliberately still excluded even now:
+  // Record ID and Folder ID (internal linking identifiers with no
+  // analytical value — pure noise to an LLM), and Upload Token (a secret
+  // used for unauthenticated link-based access — this must never be sent
+  // to an external AI API, the same way a password wouldn't be). Also
+  // fixes a real bug: the range below was previously 21 columns wide when
+  // LEADS actually has 22 — User ID (the owning staff member) was never
+  // even being READ, let alone included.
   var lSh=ss.getSheetByName(LEADS_TAB);
   if(lSh && lSh.getLastRow()>=2){
-    var lVals=lSh.getRange(2,1,lSh.getLastRow()-1,21).getValues();
+    var lVals=lSh.getRange(2,1,lSh.getLastRow()-1,22).getValues();
     var leadLines=lVals.filter(function(r){return r[0];}).map(function(r){
-      return '- '+r[0]+' | status:'+r[5]+' | source:'+r[6]+' | potentialAUM:'+(r[16]||'-')+' | potentialSIP:'+(r[8]||'-')
-        +' | createdDate:'+fmtCell(r[14])+' | modifiedDate:'+fmtCell(r[13])+' | family:'+(r[18]||'-');
+      return '- '+r[0]+' | mobile:'+(r[1]||'-')+' | email:'+(r[2]||'-')+' | age:'+(r[3]||'-')+' | country:'+(r[4]||'-')
+        +' | status:'+r[5]+' | source:'+(r[6]||'-')+' | referredBy:'+(r[7]||'-')+' | potentialSIP:'+(r[8]||'-')
+        +' | nextFollowUp:'+fmtCell(r[9])+' | products:'+(r[10]||'-')+' | modeOfContact:'+(r[11]||'-')+' | remarks:'+(r[12]||'-')
+        +' | modifiedDate:'+fmtCell(r[13])+' | createdDate:'+fmtCell(r[14])+' | geoTag:'+(r[15]||'-')+' | potentialAUM:'+(r[16]||'-')
+        +' | family:'+(r[18]||'-')+' | ownerUserId:'+(r[21]||'-');
     });
     parts.push('LEADS ('+leadLines.length+' total):\n'+leadLines.join('\n'));
   }
 
-  // Clients — compact one-line-per-client summary
+  // Clients — same principle: every business field, PAN specifically
+  // excluded as sensitive government-ID PII with no analytical value for
+  // practice-management questions, Record ID/Folder ID/Upload Token
+  // excluded for the same internal/secret reasons as Leads above. Also
+  // fixes the same off-by-one: CLIENTS actually has 42 columns, not the
+  // 41 previously read — User ID was never reaching this function either.
   var cSh=ss.getSheetByName(CLIENTS_TAB);
   if(cSh && cSh.getLastRow()>=2){
-    var cVals=cSh.getRange(2,1,cSh.getLastRow()-1,41).getValues();
+    var cVals=cSh.getRange(2,1,cSh.getLastRow()-1,42).getValues();
     var clientLines=cVals.filter(function(r){return r[0];}).map(function(r){
-      return '- '+r[0]+' | stage:'+(r[31]||'-')+' | AUM:'+(r[26]||'-')+'L | potentialAUM:'+(r[27]||'-')+'L | products:'+(r[29]||'-')
-        +' | health:'+(r[21]||'-')+' | life:'+(r[22]||'-')+' | WILL:'+(r[23]||'-')+' | DOB:'+fmtCell(r[12])
-        +' | SIPdate:'+(r[20]||'-')+' | reviewDate:'+fmtCell(r[16])+' | family:'+(r[35]||'-')+' | createdDate:'+fmtCell(r[10]);
+      return '- '+r[0]+' | mobile:'+(r[1]||'-')+' | email:'+(r[2]||'-')+' | country:'+(r[3]||'-')+' | source:'+(r[4]||'-')
+        +' | referredBy:'+(r[5]||'-')+' | nextFollowUp:'+fmtCell(r[6])+' | age:'+(r[7]||'-')+' | gender:'+(r[8]||'-')
+        +' | remarks:'+(r[9]||'-')+' | createdDate:'+fmtCell(r[10])+' | DOB:'+fmtCell(r[12])+' | spouseDOB:'+fmtCell(r[13])
+        +' | anniversary:'+fmtCell(r[14])+' | convertedDate:'+fmtCell(r[15])+' | reviewDate:'+fmtCell(r[16])+' | firstAnniversary:'+fmtCell(r[17])
+        +' | appInstalled:'+(r[18]||'-')+' | broadcastAdded:'+(r[19]||'-')+' | SIPdate:'+(r[20]||'-')+' | health:'+(r[21]||'-')
+        +' | life:'+(r[22]||'-')+' | WILL:'+(r[23]||'-')+' | healthDueDate:'+fmtCell(r[24])+' | lifeDueDate:'+fmtCell(r[25])
+        +' | AUM:'+(r[26]||'-')+'L | potentialAUM:'+(r[27]||'-')+'L | welcomeMsgSent:'+(r[28]||'-')+' | products:'+(r[29]||'-')
+        +' | lastContacted:'+fmtCell(r[30])+' | stage:'+(r[31]||'-')+' | potentialSIP:'+(r[33]||'-')+' | family:'+(r[35]||'-')
+        +' | clientId:'+(r[36]||'-')+' | SIPdate2:'+(r[37]||'-')+' | modifiedDate:'+fmtCell(r[38])+' | healthCoverage:'+(r[39]||'-')+' | lifeCoverage:'+(r[40]||'-')
+        +' | ownerUserId:'+(r[41]||'-');
     });
     parts.push('CLIENTS ('+clientLines.length+' total):\n'+clientLines.join('\n'));
   }
 
-  // Tasks — compact one-line-per-task summary. getTasksSheet() is nested
-  // inside _writeDataInner and not reachable from here, so the same
-  // TASKS/REMINDERS fallback lookup is inlined directly.
+  // Tasks — every field, not just the previous 5 of 13. taskId/linkedRecordId
+  // are included since "which task is this" and "which client/lead does it
+  // link to" are both genuinely useful for cross-referencing against the
+  // Leads/Clients sections above.
   var tSh=ss.getSheetByName(TASKS_TAB)||ss.getSheetByName(REMINDERS_TAB);
   if(tSh && tSh.getLastRow()>=2){
-    var tVals=tSh.getRange(2,1,tSh.getLastRow()-1,6).getValues();
+    var tVals=tSh.getRange(2,1,tSh.getLastRow()-1,13).getValues();
     var taskLines=tVals.filter(function(r){return r[1];}).map(function(r){
-      return '- '+r[1]+' | details:'+r[2]+' | due:'+fmtCell(r[3])+' | status:'+r[4]+' | for:'+r[5];
+      return '- '+r[1]+' | details:'+r[2]+' | due:'+fmtCell(r[3])+' | status:'+r[4]+' | for:'+r[5]
+        +' | taskId:'+(r[6]||'-')+' | linkedRecordId:'+(r[7]||'-')+' | createdBy:'+(r[8]||'-')+' | createdByRole:'+(r[9]||'-')
+        +' | reviewedBy:'+(r[10]||'-')+' | reviewComment:'+(r[12]||'-');
     });
     parts.push('TASKS ('+taskLines.length+' total):\n'+taskLines.join('\n'));
   }
@@ -1394,6 +1468,29 @@ function getCRMDataForAnalysis(){
 
 // One shared system framing + JSON schema for every one of the 14
 // questions — only the specific instruction text changes per question.
+// Produces a comprehensive, well-organized TEXT answer — not JSON, not a
+// rigid card layout. The structured findings/priority/pattern format
+// (see generateDailyFirmInsights below) already exists for the daily
+// email; forcing the SAME rigid structure onto an interactive question in
+// chat made every answer feel long and templated for no real benefit,
+// duplicating something the advisor already gets once a day. This reads
+// like an actual analysis instead.
+function callGeminiForInsightText(instructionText, crmDataText){
+  var systemPrompt='You are an AI Practice Intelligence analyst for a BFSI wealth-management/insurance advisory firm using '
+    +'this CRM. You are given the firm\'s actual, real CRM data below — leads, clients, tasks, and activity log. Analyse it '
+    +'carefully and answer the specific question asked, in clear, well-organized prose. Be rigorous and evidence-based: '
+    +'every claim must be traceable to something actually present in the data below. NEVER invent a name, number, date, or '
+    +'interaction that is not in the data. If the data is insufficient to answer confidently, say so plainly rather than '
+    +'guessing.\n\n'
+    +'TASK: '+instructionText+'\n\n'
+    +'Write a comprehensive, genuinely useful answer — a few well-organized paragraphs, citing specific names and figures '
+    +'straight from the data, not vague generalities. Short lists are fine where they genuinely help readability, but '
+    +'don\'t force a rigid template onto every answer. Close with concrete, specific next steps. Plain text only — no '
+    +'markdown headers, no JSON, no code fences.\n\nPRACTICE DATA:\n'+crmDataText;
+
+  return callGemini({prompt:systemPrompt, maxOutputTokens:2000}); // no jsonMode — this should read like real analysis, not fill out a form
+}
+
 function callGeminiForInsights(instructionText, crmDataText){
   var schema='{"headline":"","summary":"","priority":"HIGH|MEDIUM|LOW","findings":[{"entityType":"lead|client|task|general","entityName":"","priority":"HIGH|MEDIUM|LOW","observation":"","evidence":"","recommendedAction":""}],"pattern":"","recommendedActions":[""]}';
   var systemPrompt='You are an AI Practice Intelligence analyst for a BFSI wealth-management/insurance advisory firm using '
@@ -2253,22 +2350,54 @@ function resolveUploadToken(token){
 // Record ID alone (exact — correctly separates two leads sharing a mobile);
 // fall back to mobile only for legacy rows that have no Record ID stored.
 // A row that HAS a Record ID never matches a different target by mobile.
+// Previously read every column of every row in the WHOLE activity log —
+// on every single lead/client detail view, regardless of how much or how
+// little activity that one person actually has. That cost grows with the
+// log's total size across the whole practice, not with any individual
+// person's own history, which is what made this the single
+// highest-frequency source of "loading activity log takes longer than it
+// used to." Now does a narrow first pass (2 columns: Mobile + Record ID)
+// to find which specific rows match, then reads full row data only for
+// those — a client with 20 logged interactions no longer pays the cost
+// of the other several thousand rows belonging to everyone else.
 function pullLog(mobile, recordId){
   var ss=SpreadsheetApp.openById(SHEET_ID);
   var sh=ss.getSheetByName(LOG_TAB);
   if(!sh||sh.getLastRow()<=1) return out({rows:[]});
   var lr=sh.getLastRow(), lc=sh.getLastColumn();
-  var raw=sh.getRange(2,1,lr-1,lc).getValues();
   var targetMobile=String(mobile||'').trim();
   var targetRecordId=String(recordId||'').trim();
-  var filtered=raw.filter(function(r){
-    var rowRecordId=String(r[7]||'').trim(); // column H = Record ID
-    var rowMobile=String(r[2]||'').trim();   // column C = Mobile
-    if(rowRecordId && targetRecordId) return rowRecordId===targetRecordId;
-    if(!rowRecordId) return rowMobile===targetMobile;
-    return false;
-  });
-  return out({rows:filtered});
+
+  // Columns C (Mobile) through H (Record ID) in one bulk read — still one
+  // API call, just far fewer columns than the full row width.
+  var idAndMobile=sh.getRange(2,3,lr-1,6).getValues();
+  var matchingOffsets=[];
+  for(var i=0;i<idAndMobile.length;i++){
+    var rowRecordId=String(idAndMobile[i][5]||'').trim(); // H, offset 5 within C..H
+    var rowMobile=String(idAndMobile[i][0]||'').trim();   // C, offset 0
+    var isMatch = (rowRecordId && targetRecordId) ? (rowRecordId===targetRecordId) : (!rowRecordId && rowMobile===targetMobile);
+    if(isMatch) matchingOffsets.push(i);
+  }
+  if(!matchingOffsets.length) return out({rows:[]});
+
+  // Full-width read, but only for the rows that actually matched — grouped
+  // into contiguous runs so a client whose activity is clustered together
+  // (the common case, since logging tends to happen in bursts) costs only
+  // one or two more API calls, not one per matching row.
+  var rows=[];
+  var runStart=matchingOffsets[0], runEnd=matchingOffsets[0];
+  function flushRun(){
+    var block=sh.getRange(2+runStart,1,runEnd-runStart+1,lc).getValues();
+    for(var j=0;j<block.length;j++) rows.push(block[j]);
+  }
+  for(var k=1;k<matchingOffsets.length;k++){
+    var off=matchingOffsets[k];
+    if(off===runEnd+1){ runEnd=off; }
+    else { flushRun(); runStart=off; runEnd=off; }
+  }
+  flushRun();
+
+  return out({rows:rows});
 }
 // Actions that only READ the sheet and call an AI API — they never modify
 // anything, so they must NOT sit behind the global write lock. Previously
@@ -2320,7 +2449,25 @@ if(data.action==='generateContemporaryInsight'){
   catch(e){ return out({success:false, error:e.message}); }
 }
 if(data.action==='appendLog'){var logSh=ss.getSheetByName(LOG_TAB)||ss.insertSheet(LOG_TAB);if(logSh.getLastRow()===0){var hdr=[['Timestamp','Name','Mobile','Type','Activity','Notes','Raw ID','Record ID','Logged By']];var hr=logSh.getRange(1,1,1,9);hr.setValues(hdr);hr.setFontWeight('bold').setBackground('#C0392B').setFontColor('#FFFFFF');logSh.setFrozenRows(1);}else{ensureColumnHeader(logSh,8,'Record ID');ensureColumnHeader(logSh,9,'Logged By');}var logRow=data.row||[];var newRid=String(logRow[6]||'').trim();var logDup=false;if(newRid&&logSh.getLastRow()>1){var ridVals=logSh.getRange(2,7,logSh.getLastRow()-1,1).getValues();for(var _ri=0;_ri<ridVals.length;_ri++){if(String(ridVals[_ri][0]||'').trim()===newRid){logDup=true;break;}}}if(!logDup){logSh.appendRow(logRow);var lr3=logSh.getLastRow();logSh.getRange(lr3,1).setNumberFormat('@');logSh.getRange(lr3,7).setNumberFormat('@');logSh.getRange(lr3,8).setNumberFormat('@');logSh.getRange(lr3,9).setNumberFormat('@');}return out({success:true,skipped:logDup});}
-if(data.action==='deleteLogById'){var lsh=ss.getSheetByName(LOG_TAB);if(lsh&&lsh.getLastRow()>1){var rid=String(data.rowId||'').trim();var dmob=String(data.mobile||'').trim();var dts=String(data.ts||'').trim();var dact=String(data.activity||'').trim();var n=lsh.getLastRow();var rng=lsh.getRange(2,1,n-1,7).getValues();for(var rj=0;rj<rng.length;rj++){var row=rng[rj];var gId=String(row[6]||'').trim();var rTs=String(row[0]||'').trim();var rMob=String(row[2]||'').trim();var rAct=String(row[4]||'').trim();var matchById=(rid!==''&&gId===rid);var matchByTs=(rid===''||gId==='')&&dts!==''&&rMob===dmob&&rTs===dts&&rAct===dact;if(matchById||matchByTs){lsh.deleteRow(rj+2);break;}}}return out({success:true,deleted:true});}if(data.action==='deleteLog'){var lsh2=ss.getSheetByName(LOG_TAB);if(lsh2&&lsh2.getLastRow()>1){var mob3=String(data.mobile||'').trim();var n2=lsh2.getLastRow();for(var rk=n2;rk>=2;rk--){if(String(lsh2.getRange(rk,3).getValue()||'').trim()===mob3){lsh2.deleteRow(rk);}}}return out({success:true});}
+if(data.action==='deleteLogById'){var lsh=ss.getSheetByName(LOG_TAB);if(lsh&&lsh.getLastRow()>1){var rid=String(data.rowId||'').trim();var dmob=String(data.mobile||'').trim();var dts=String(data.ts||'').trim();var dact=String(data.activity||'').trim();var n=lsh.getLastRow();var rng=lsh.getRange(2,1,n-1,7).getValues();for(var rj=0;rj<rng.length;rj++){var row=rng[rj];var gId=String(row[6]||'').trim();var rTs=String(row[0]||'').trim();var rMob=String(row[2]||'').trim();var rAct=String(row[4]||'').trim();var matchById=(rid!==''&&gId===rid);var matchByTs=(rid===''||gId==='')&&dts!==''&&rMob===dmob&&rTs===dts&&rAct===dact;if(matchById||matchByTs){lsh.deleteRow(rj+2);break;}}}return out({success:true,deleted:true});}
+// deleteLog: was previously calling .getValue() ONCE PER ROW inside the
+// loop — for a log with, say, 5,000 rows, that meant 5,000 separate
+// round-trips to Sheets for a single delete. Now reads the whole Mobile
+// column in ONE bulk call and deletes matching rows bottom-to-top (so
+// earlier deletions never shift the row numbers of ones still queued) —
+// same result, one API call instead of thousands.
+if(data.action==='deleteLog'){
+  var lsh2=ss.getSheetByName(LOG_TAB);
+  if(lsh2&&lsh2.getLastRow()>1){
+    var mob3=String(data.mobile||'').trim();
+    var n2=lsh2.getLastRow();
+    var mobCol=lsh2.getRange(2,3,n2-1,1).getValues(); // column C = Mobile, one bulk read
+    for(var rk=mobCol.length-1;rk>=0;rk--){
+      if(String(mobCol[rk][0]||'').trim()===mob3){ lsh2.deleteRow(rk+2); }
+    }
+  }
+  return out({success:true});
+}
 
   // ── Trim activity log to the most recent 10 entries per lead/client — FIFO,
   // oldest deleted first. Runs silently in the background after the app loads,
@@ -4622,15 +4769,19 @@ if(data.action==='tagLeadFolder'){
     try{ return out({success:true, questions:INSIGHT_QUESTIONS}); }
     catch(e){ return out({success:false, error:e.message}); }
   }
+  // Kept the action name for compatibility with the frontend call already
+  // in place, but the response is now plain comprehensive text rather
+  // than the structured findings/priority JSON shape — see
+  // callGeminiForInsightText above for why.
   if(data.action==='getStructuredInsight'){
     try{
       var qId=String(data.questionId||'');
       var q=INSIGHT_QUESTIONS[qId];
       if(!q) return out({success:false, error:'Unknown question'});
       var crmDataForQ=getCRMDataForAnalysis();
-      var rawInsight=callGeminiForInsights(q.instruction, crmDataForQ);
-      var validatedInsight=validateAIResponse(rawInsight);
-      return out({success:true, result:validatedInsight, question:q.label, category:q.category});
+      var answerText=callGeminiForInsightText(q.instruction, crmDataForQ);
+      if(!answerText) answerText='(No answer came back. Try asking again.)';
+      return out({success:true, answer:answerText, question:q.label, category:q.category});
     }catch(e){
       return out({success:false, error:e.message});
     }

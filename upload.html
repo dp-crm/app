@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://script.google.com">
 <link rel="dns-prefetch" href="https://script.google.com">
-<title>Upload Documents — Wealth Matrix Finserv</title>
+<title>Upload Documents — Deep Pocket Fintech</title>
 <style>
 :root{
   --bg:#1B1512; --s1:#2A211D; --s2:#332924; --border:#3A2F2A;
@@ -90,7 +90,7 @@ input[type=file]{display:none}
 <div class="wrap">
   <div class="hdr">
     <div class="logo" id="hdr-logo">🔒</div>
-    <h1 id="hdr-firmname">Wealth Matrix Finserv</h1>
+    <h1 id="hdr-firmname">Deep Pocket Fintech</h1>
     <p>Secure document upload</p>
   </div>
   <div id="app">
@@ -98,9 +98,9 @@ input[type=file]{display:none}
   </div>
 </div>
 
+<script src="./config.js"></script>
 <script>
 // ── CONFIGURATION ── update this if you ever redeploy Apps Script with a new URL
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxi1b4DHWFsXuOCO5XTpsCPmhEawBDpC66eVZW7K1Z6aZ7zwLZ7HYhNd--saAv6CdG5/exec';
 
 var DOC_TYPES = [
   {key:'PAN', label:'PAN'},
@@ -503,12 +503,18 @@ async function init(){
   // coming back to add more documents), matching crm.html's own "show
   // cached first, verify in background" pattern rather than always
   // spinning through a fresh network round-trip before anything appears.
+  // Wrapped defensively: a rendering hiccup here (malformed cached data,
+  // a DOM edge case) must never silently abort the rest of init() and
+  // leave the page stuck on its initial spinner forever — the real
+  // network fetch below still needs to run either way.
   var cached = loadCachedClient(token);
-  if(cached){
-    client = cached;
-    renderSlots();
-    markExistingUploads();
-  }
+  try{
+    if(cached){
+      client = cached;
+      renderSlots();
+      markExistingUploads();
+    }
+  }catch(cacheErr){ console.warn('Cache render failed, continuing to live fetch:', cacheErr.message); }
 
   try{
     // Retries once automatically — Apps Script can be slow or briefly fail on
@@ -554,9 +560,14 @@ function applyFirmBranding(name, logoDataUrl){
     var nameEl=document.getElementById('hdr-firmname');
     if(nameEl) nameEl.textContent=name;
   }
-  if(logoDataUrl){
-    var logoEl=document.getElementById('hdr-logo');
-    if(logoEl) logoEl.innerHTML='<img src="'+logoDataUrl+'" alt="">';
+  // Always explicitly set the logo slot, both ways — a generic uploaded
+  // logo shows when present, but if the firm never uploaded one (or
+  // removed one they'd previously set), this actively falls back to a
+  // real generic placeholder instead of silently leaving whatever was
+  // last cached in the browser.
+  var logoEl=document.getElementById('hdr-logo');
+  if(logoEl){
+    logoEl.innerHTML = logoDataUrl ? '<img src="'+logoDataUrl+'" alt="">' : '🔒';
   }
 }
 async function loadFirmBranding(){

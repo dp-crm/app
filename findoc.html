@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Family Fin Doc — Wealth Matrix Finserv</title>
+<title>Family Fin Doc — Deep Pocket Fintech</title>
 <style>
 :root{
   --bg:#1B1512; --s1:#2A211D; --s2:#332924; --border:#3A2F2A;
@@ -91,7 +91,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 <div class="wrap">
   <div class="hdr">
     <div class="logo" id="hdr-logo">🗂️</div>
-    <h1 id="hdr-firmname">Wealth Matrix Finserv</h1>
+    <h1 id="hdr-firmname">Deep Pocket Fintech</h1>
     <p>Family Financial Information &amp; Documents Organizer</p>
   </div>
   <div id="app">
@@ -99,9 +99,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   </div>
 </div>
 
+<script src="./config.js"></script>
 <script>
 // ── CONFIGURATION ── same Apps Script URL as gatherinfo.html/upload.html — update here if redeployed
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxi1b4DHWFsXuOCO5XTpsCPmhEawBDpC66eVZW7K1Z6aZ7zwLZ7HYhNd--saAv6CdG5/exec';
 
 var token = '';
 var clientName = '';
@@ -223,17 +223,21 @@ async function init(){
   // Instant render from cache — the existing local form snapshot already
   // covered the data itself; this adds the one missing piece (the name for
   // the greeting) so a repeat visit can render immediately instead of
-  // always waiting on a server round-trip first.
+  // always waiting on a server round-trip first. Wrapped defensively: a
+  // rendering hiccup here must never silently abort the rest of init() —
+  // the real network fetch below still has to run regardless.
   var cachedName = loadCachedName(token);
   var cachedForm = loadLocalSnapshot();
   var renderedFromCache = false;
-  if(cachedName){
-    clientName = cachedName;
-    formData = cachedForm || {};
-    ensureFixedRows();
-    renderForm(null);
-    renderedFromCache = true;
-  }
+  try{
+    if(cachedName){
+      clientName = cachedName;
+      formData = cachedForm || {};
+      ensureFixedRows();
+      renderForm(null);
+      renderedFromCache = true;
+    }
+  }catch(cacheErr){ console.warn('Cache render failed, continuing to live fetch:', cacheErr.message); }
 
   var res=await apiPost({action:'getFinDocData', token:token});
   if(!res || res.success===false || !res.name){
@@ -303,7 +307,7 @@ function renderForm(lastUpdated){
     +'<button class="btn-generate" id="btn-generate" onclick="confirmGenerate()">Generate Fin Doc</button>'
     +'</div>'
     +'<div class="savemsg" id="savemsg"></div>'
-    +'<div class="footer-note">Wealth Matrix Finserv LLP · Your information is stored securely and used only to prepare your personal Fin Doc.</div>'
+    +'<div class="footer-note">Deep Pocket Fintech Pvt. Ltd. · Your information is stored securely and used only to prepare your personal Fin Doc.</div>'
   );
 }
 
@@ -446,9 +450,14 @@ function applyFirmBranding(name, logoDataUrl){
     var nameEl=document.getElementById('hdr-firmname');
     if(nameEl) nameEl.textContent=name;
   }
-  if(logoDataUrl){
-    var logoEl=document.getElementById('hdr-logo');
-    if(logoEl) logoEl.innerHTML='<img src="'+logoDataUrl+'" alt="">';
+  // Always explicitly set the logo slot, both ways — a generic uploaded
+  // logo shows when present, but if the firm never uploaded one (or
+  // removed one they'd previously set), this actively falls back to a
+  // real generic placeholder instead of silently leaving whatever was
+  // last cached in the browser.
+  var logoEl=document.getElementById('hdr-logo');
+  if(logoEl){
+    logoEl.innerHTML = logoDataUrl ? '<img src="'+logoDataUrl+'" alt="">' : '🗂️';
   }
 }
 async function loadFirmBranding(){

@@ -9,10 +9,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Deep Pocket">
-<link rel="manifest" href="./crm-manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="theme-color" content="#1B1512">
-<title>Deep Pocket CRM v5.18.0</title>
+<title>Deep Pocket CRM v5.20.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -558,7 +557,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <span style="font-size:10px;font-weight:900;color:#000">DP</span>
     </div>
     <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Deep Pocket CRM</span>
-    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.18.0</span>
+    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.20.0</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
     <button id="global-refresh-btn" onclick="manualTopBarRefresh()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Refresh">
@@ -5140,7 +5139,7 @@ function renderFuDetailInner(mob,nameHint){
 
 
 // Version marker
-var APP_VERSION='5.18.0';
+var APP_VERSION='5.20.0';
 
 
 
@@ -6165,7 +6164,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.30.0';
+var EXPECTED_BACKEND_VERSION = '2.32.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -6989,96 +6988,42 @@ var PIC_CATEGORIES=[
 // animation instead. PIC_CATEGORIES itself is kept — askStructuredInsight
 // below still uses it to show a question label on the loading screen.)
 
-// ── Asking a structured question — shows a full-screen loading state
-// (this genuinely takes several seconds: real data gathering + a Gemini
-// call), then the result overlay. Errors surface plainly rather than
-// failing silently, matching this app's established pattern elsewhere. ──
+// ── Asking one of the 14 structured questions — now renders straight into
+// the existing chat thread as a normal conversation, exactly like typing
+// a question would, rather than a separate full-screen report. The
+// headline/priority/findings-card structure this used to open still
+// exists — it's what the daily email uses (see generateDailyFirmInsights
+// in Code.gs) — showing the same structure again here for every on-demand
+// question was needless duplication and made answers feel long. ──
 async function askStructuredInsight(questionId){
   var allQuestions=[].concat.apply([], PIC_CATEGORIES.map(function(c){return c.questions;}));
   var q=allQuestions.find(function(x){return x.id===questionId;});
   var label=q?q.label:'Analysis';
   if(!hasScript()){ toast('Add Apps Script URL first — check Settings'); return; }
 
-  var ov=document.createElement('div');
-  ov.id='pic-result-ov';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;flex-direction:column';
-  ov.innerHTML='<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center">'
-    +'<div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:globalRefreshSpin 0.8s linear infinite;margin-bottom:20px"></div>'
-    +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">Analysing your practice…</div>'
-    +'<div style="font-size:11px;color:var(--t3);max-width:260px">'+esc(label)+'</div>'
-    +'</div>';
-  document.body.appendChild(ov);
+  stopChatPlaceholderCycle();
+  stopChatChipCarousel();
+  var sendBtn=document.getElementById('chat-send-btn');
+  if(sendBtn) sendBtn.disabled=true;
+  appendChatBubble('user', label);
+  appendTypingIndicator();
 
   try{
     var res=await sheetWrite({action:'getStructuredInsight', questionId:questionId}, 45000);
-    ov.remove();
-    if(res && res.success){
-      renderInsightResultOverlay(res.result, res.question||label);
+    removeTypingIndicator();
+    if(sendBtn) sendBtn.disabled=false;
+    if(res && res.success && res.answer){
+      appendChatBubble('assistant', res.answer);
+      window._chatHistory.push({role:'user', content:label});
+      window._chatHistory.push({role:'assistant', content:res.answer});
     } else {
-      toast('❌ Could not generate insight: '+(res&&res.error||'unknown error'));
+      appendChatBubble('assistant', '⚠️ '+(res&&res.error||'Could not generate an answer — please try again.'));
     }
   }catch(e){
-    ov.remove();
-    toast('❌ Could not reach the server: '+e.message);
+    removeTypingIndicator();
+    if(sendBtn) sendBtn.disabled=false;
+    appendChatBubble('assistant', '⚠️ Could not reach the server: '+e.message);
   }
-}
-
-// ── The structured result view itself — headline, priority, summary,
-// evidence-backed findings (each showing observation/evidence/action
-// separately, never blurred together), the cross-cutting pattern, and a
-// prioritised next-actions list. This is deliberately NOT a chat bubble —
-// it's a report, since that's what was actually asked for. ──
-function priorityColor(p){
-  p=String(p||'').toUpperCase();
-  if(p==='HIGH') return 'var(--red)';
-  if(p==='LOW') return 'var(--t3)';
-  return 'var(--gold)';
-}
-function priorityBadge(p){
-  return '<span style="font-size:9px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:'+priorityColor(p)+';border:1px solid '+priorityColor(p)+';border-radius:999px;padding:2px 8px;white-space:nowrap">'+esc(String(p||'MEDIUM').toUpperCase())+'</span>';
-}
-function renderInsightResultOverlay(result, questionLabel){
-  var ov=document.createElement('div');
-  ov.id='pic-result-ov';
-  ov.style.cssText='position:fixed;inset:0;background:var(--bg);z-index:99999;display:flex;flex-direction:column';
-
-  var findingsHtml=(result.findings&&result.findings.length)
-    ? result.findings.map(function(f){
-        return '<div style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">'
-          +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">'
-          +'<div style="font-size:13px;font-weight:800;color:var(--text)">'+(esc(f.entityName)||esc(caps(f.entityType)))+'</div>'
-          +priorityBadge(f.priority)
-          +'</div>'
-          +(f.observation?'<div style="font-size:12.5px;color:var(--text);line-height:1.5;margin-bottom:6px">'+esc(f.observation)+'</div>':'')
-          +(f.evidence?'<div style="font-size:11px;color:var(--t3);line-height:1.5;margin-bottom:6px"><b style="color:var(--t2)">Evidence:</b> '+esc(f.evidence)+'</div>':'')
-          +(f.recommendedAction?'<div style="font-size:11.5px;color:var(--accent);line-height:1.5;margin-top:6px;padding-top:8px;border-top:1px solid var(--border)"><b>→ </b>'+esc(f.recommendedAction)+'</div>':'')
-          +'</div>';
-      }).join('')
-    : '<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">No specific findings — the data didn\'t support any particular items for this question.</div>';
-
-  var actionsHtml=(result.recommendedActions&&result.recommendedActions.length)
-    ? '<ol style="margin:0;padding-left:18px">'+result.recommendedActions.map(function(a){
-        return '<li style="font-size:12.5px;color:var(--text);line-height:1.6;margin-bottom:6px">'+esc(a)+'</li>';
-      }).join('')+'</ol>'
-    : '<div style="font-size:12px;color:var(--t3)">No specific next actions.</div>';
-
-  ov.innerHTML='<div style="padding:16px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;flex-shrink:0">'
-    +'<div style="flex:1;min-width:0">'
-    +'<div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px">'+esc(questionLabel)+'</div>'
-    +'<div style="font-size:16px;font-weight:800;color:var(--text);line-height:1.3">'+esc(result.headline)+'</div>'
-    +'</div>'
-    +'<span onclick="document.getElementById(\'pic-result-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:8px;margin:-8px;line-height:1">✕</span>'
-    +'</div>'
-    +'<div style="flex:1;overflow-y:auto;padding:16px">'
-    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+priorityBadge(result.priority)+'<span style="font-size:10px;color:var(--t3)">OVERALL PRIORITY</span></div>'
-    +(result.summary?'<div style="font-size:13px;color:var(--text);line-height:1.6;margin-bottom:18px">'+esc(result.summary)+'</div>':'')
-    +'<div style="font-size:11px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--t2);margin-bottom:10px">Findings</div>'
-    +findingsHtml
-    +(result.pattern?'<div style="background:var(--accent2);border:1px solid var(--accent);border-radius:12px;padding:14px;margin:14px 0"><div style="font-size:10px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--accent);margin-bottom:6px">Pattern</div><div style="font-size:12.5px;color:var(--text);line-height:1.5">'+esc(result.pattern)+'</div></div>':'')
-    +'<div style="font-size:11px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--t2);margin:18px 0 10px">Recommended Next Actions</div>'
-    +actionsHtml
-    +'</div>';
-  document.body.appendChild(ov);
 }
 
 function startChatChipCarousel(){
@@ -10359,62 +10304,16 @@ async function triggerBackupNow(){
 }
 
 
-// ── Register service worker for offline app-shell caching (PWA) ──
-// Uses crm-sw.js (not the generic "sw.js") because this same repo folder
-// also hosts the 5 client-facing pages, which must NOT be caught by a
-// service worker scoped to "sw.js" if a future admin tool is added
-// alongside it — an explicit, descriptive filename avoids collisions.
-if('serviceWorker' in navigator){
-  window.addEventListener('load', function(){
-    navigator.serviceWorker.register('./crm-sw.js')
-      .then(function(reg){ console.log('SW registered:', reg.scope); })
-      .catch(function(err){ console.warn('SW registration failed:', err); });
-  });
-}
-
-// ── "Install App" prompt (PWA) — makes real use of crm-manifest.json ──
-// Chrome/Edge/Android fire beforeinstallprompt only when a valid manifest
-// (crm-manifest.json) + a registered service worker (crm-sw.js) + icons
-// are all present and reachable. We capture that event, hold onto it, and
-// surface a small "Install App" toast the user can tap — otherwise the
-// browser's install eligibility would go unused with no way to trigger it
-// from inside the app itself.
-var _deferredInstallPrompt = null;
-window.addEventListener('beforeinstallprompt', function(e){
-  e.preventDefault();
-  _deferredInstallPrompt = e;
-  if(!localStorage.getItem('wm_install_dismissed')){
-    showInstallToast();
-  }
-});
-function showInstallToast(){
-  var bar=document.getElementById('install-bar');
-  if(bar){ bar.style.display='flex'; return; }
-  bar=document.createElement('div');
-  bar.id='install-bar';
-  bar.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;background:var(--accent,#F2E8DE);color:#1B1512;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,.35);font-size:13px;font-weight:700';
-  bar.innerHTML='<span style="flex:1">Install this app on your device for quicker access</span>'
-    +'<button id="install-bar-yes" style="border:none;background:#1B1512;color:#fff;border-radius:8px;padding:8px 12px;font-weight:700;font-size:12px;cursor:pointer">Install</button>'
-    +'<button id="install-bar-no" style="border:none;background:transparent;color:#1B1512;font-size:16px;cursor:pointer;padding:4px 6px">✕</button>';
-  document.body.appendChild(bar);
-  document.getElementById('install-bar-yes').onclick=async function(){
-    bar.style.display='none';
-    if(!_deferredInstallPrompt) return;
-    _deferredInstallPrompt.prompt();
-    try{ await _deferredInstallPrompt.userChoice; }catch(e){}
-    _deferredInstallPrompt=null;
-  };
-  document.getElementById('install-bar-no').onclick=function(){
-    bar.style.display='none';
-    try{ localStorage.setItem('wm_install_dismissed','1'); }catch(e){}
-  };
-}
-window.addEventListener('appinstalled', function(){
-  _deferredInstallPrompt=null;
-  var bar=document.getElementById('install-bar');
-  if(bar) bar.style.display='none';
-  if(typeof toast==='function') toast('✅ App installed');
-});
+// (Service worker registration and the "Install App" prompt were removed
+// deliberately — they depended on crm-sw.js and crm-manifest.json, two
+// extra files that had to be kept in sync with this one and deployed
+// separately. Neither file's content was ever actually reviewed as part
+// of this project, and a misconfigured service worker is a classic,
+// exactly-the-kind-of-bug-already-chased-here cause of "why am I not
+// seeing my updates." The CRM itself works identically without this
+// layer — it only ever provided install-to-home-screen and whatever
+// offline caching the service worker did, neither of which anything
+// else in the app depends on.)
 
 
 // ── Week Follow-up Calendar — next 7 days (excluding today), horizontal strip ──
