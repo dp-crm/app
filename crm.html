@@ -903,6 +903,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="sendTestInsightsEmail()">📧 Send Test AI Insights Email</button></div>
           <div class="si" style="font-size:10px" id="daily-insights-status"></div>
 
+          <div class="si" style="margin-top:14px"><label>AI Data Cache Duration (hours)</label>
+            <input id="ai-cache-hours" type="number" min="1" max="6" step="1" value="3" style="width:100%">
+          </div>
+          <div class="si" style="font-size:10px;color:var(--t3);margin:0 12px 8px"><span>How long the Leads/Clients/Tasks snapshot used by Insights and the AI chat is reused before being rebuilt from the sheet. Lower = fresher data, more Gemini token usage. Higher = faster, cheaper, but Insights may lag behind very recent edits by up to this many hours (any edit made through the app itself still refreshes it immediately). Capped at 6 hours — Google Apps Script does not allow a longer cache.</span></div>
+          <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveAiCacheSettings()">💾 Save Cache Duration</button></div>
+          <div class="si" style="font-size:10px" id="ai-cache-status"></div>
+
           <div class="si" style="font-size:10px;color:var(--t3);margin-top:14px"><span>📥 <b>Automatic Client Email → Task</b> — client emails become tasks automatically. Important: this field records which inbox you EXPECT to be monitored — it can't actually redirect which mailbox gets read (that's fixed by whichever Google account authorized this script, not changeable here). If they don't match, either re-authorize the script under this inbox, or set up mail forwarding from this inbox into the authorized one.</span></div>
           <div style="padding:0 12px 8px"><label class="fl">Expected Client Inbox Email</label><input class="fi" id="cem-inbox" type="email" placeholder="support@yourfirm.com" style="font-size:12px"></div>
           <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveClientEmailMonitoringInbox()">💾 Save</button></div>
@@ -3167,6 +3174,7 @@ async function saveClient(){
     checkClientFolderExists(updated).then(function(exists){
       if(!exists) promptUploadDocsAfterSave(updated);
     });
+    advanceVoiceQueueIfPending();
   } else {
     // ── ADD new client ──
     if(clients.find(function(c){return c.mobile===mob&&(c.name||'').toUpperCase().trim()===name.toUpperCase().trim();})){toast('A client with this exact name and mobile already exists');return;}
@@ -3578,7 +3586,7 @@ async function handleAudioRecordingStopped(){
   setAiVoiceStatus('🧠 Transcribing…', true);
   try{
     var audioBase64=await fileToBase64(blob);
-    var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:mimeType, languageName:voiceLang.name});
+    var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:mimeType, languageName:voiceLang.name, expectsResponse:true});
     setAiVoiceStatus('', false);
     if(res && res.success && res.transcript){
       var corrected2=applyVoiceCorrections(res.transcript); // silently auto-fixes previously-learned mishearings
@@ -3782,6 +3790,39 @@ function showVoiceMatchPicker(matches, title, onPick){
 // step, not just the first. ──
 var _voiceActionQueue=[];
 
+// Applies the structured fields from an UPDATE_RECORD voice action onto an
+// already-open lead/client edit form. Only ever pre-fills — the advisor
+// still has to review and tap Save, same as every other voice action.
+// Anything the AI put in "remarksAddition" (its catch-all for whatever
+// didn't cleanly match mobile/email/status/nextFollowUp) is APPENDED to
+// the existing Remarks text, never overwriting what was already there,
+// and tagged so the advisor can immediately see which part came from the
+// voice command and quickly edit or remove it before saving.
+function applyVoiceUpdateFields(type, r){
+  var prefix=type==='lead' ? 'lf-' : 'cf-';
+  if(r.mobile){ var mEl=document.getElementById(prefix+'mob'); if(mEl) mEl.value=r.mobile; }
+  if(r.email){ var eEl=document.getElementById(prefix+'email'); if(eEl) eEl.value=r.email; }
+  var extraNotes=[];
+  if(type==='lead'){
+    if(r.status){ var sEl=document.getElementById('lf-status'); if(sEl) sEl.value=r.status; }
+    if(r.nextFollowUp){ var fEl=document.getElementById('lf-followup'); if(fEl) fEl.value=r.nextFollowUp; }
+  } else {
+    // Clients don't have a voice-mapped status/next-follow-up field of
+    // their own (they use Stage/Review Date, which don't map cleanly onto
+    // a lead's PROSPECT/CONTACTED-style status) — rather than silently
+    // dropping what the advisor actually said, fold it into the remarks
+    // note instead so nothing spoken is lost.
+    if(r.status) extraNotes.push('Status mentioned: '+r.status);
+    if(r.nextFollowUp) extraNotes.push('Follow-up date mentioned: '+r.nextFollowUp);
+  }
+  var remarksAddition=(r.remarksAddition||'').trim();
+  if(extraNotes.length) remarksAddition=(remarksAddition?remarksAddition+'. ':'')+extraNotes.join('. ');
+  if(remarksAddition){
+    var remEl=document.getElementById(prefix+'rem');
+    if(remEl) remEl.value=(remEl.value&&remEl.value.trim()?remEl.value.trim()+'\n':'')+'🎙️ Voice note: '+remarksAddition;
+  }
+}
+
 function dispatchVoiceAction(r, transcript){
   transcript=transcript||r.taskDetails||r.name||'';
 
@@ -3828,6 +3869,28 @@ function dispatchVoiceAction(r, transcript){
       // resolved.length===0 — left as a plain "Others" task rather than guessing wrong.
     }
 
+  } else if(r.intent==='UPDATE_RECORD'){
+    var resolved3=resolveVoiceNameMatches(r.nameMatches);
+    if(!resolved3.length) resolved3=fallbackVoiceNameSearch(r.name);
+    var applyUpdate=function(m){
+      if(m.type==='lead') editLeadOpen(m.rec.recordId||m.rec.mobile);
+      else editClientOpen(m.rec.recordId||m.rec.mobile);
+      // After the edit form's own field population above (both open
+      // functions run synchronously) — apply the voice-provided changes
+      // on top, then leave it to the advisor to review and save, exactly
+      // like every other voice action never auto-saves.
+      setTimeout(function(){ applyVoiceUpdateFields(m.type, r); }, 80);
+      toast('Review the updates and save');
+    };
+    if(resolved3.length===1){
+      applyUpdate(resolved3[0]);
+    } else if(resolved3.length>1){
+      showVoiceMatchPicker(resolved3, 'Which one did you mean?', applyUpdate);
+    } else {
+      toast('No lead or client found matching "'+(r.name||transcript)+'"');
+      advanceVoiceQueueIfPending(); // nothing opened — no save step to wait for
+    }
+
   } else if(r.intent==='FIND_RECORD'){
     var resolved2=resolveVoiceNameMatches(r.nameMatches);
     if(!resolved2.length) resolved2=fallbackVoiceNameSearch(r.name);
@@ -3869,7 +3932,7 @@ async function runAiVoiceCommand(transcript, voiceLang){
   _voiceActionQueue=[];
   try{
     var candidateNames=buildVoiceCandidateNames();
-    var res=await apiFetch({action:'interpretVoiceCommand', command:transcript, languageName:voiceLang.name, candidateNames:candidateNames});
+    var res=await apiFetch({action:'interpretVoiceCommand', command:transcript, languageName:voiceLang.name, candidateNames:candidateNames, expectsResponse:true});
     if(!res || !res.success || !res.result || !res.result.actions || !res.result.actions.length){
       setAiVoiceStatus('⚠️ '+((res&&res.error)||AI_VOICE_FALLBACK_MSG), true);
       setTimeout(function(){ setAiVoiceStatus('', false); }, 3000);
@@ -6829,7 +6892,7 @@ async function loadInsightsHistory(){
 async function loadDailyInsightsSettings(){
   var statusEl=document.getElementById('daily-insights-status');
   try{
-    var res=await sheetWrite({action:'getDailyInsightsSettings'}, 15000);
+    var res=await sheetWrite({action:'getDailyInsightsSettings', expectsResponse:true}, 15000);
     if(!res || !res.success){
       if(statusEl) statusEl.textContent='⚠️ Could not load: '+(res&&res.error||'unknown error');
       return;
@@ -6843,9 +6906,23 @@ async function loadDailyInsightsSettings(){
     if(hrEl) hrEl.value=String(res.deliveryHour!=null?res.deliveryHour:8);
     if(tzEl) tzEl.value=res.timezone||'Asia/Kolkata';
     if(statusEl){
-      statusEl.textContent=res.enabled
-        ? ('✅ Enabled — sends daily around '+String(res.deliveryHour).padStart(2,'0')+':00 (script project timezone: '+res.scriptTimeZone+')')
-        : 'Disabled';
+      var lines=[];
+      if(res.enabled){
+        lines.push('✅ Enabled — sends daily around '+String(res.deliveryHour).padStart(2,'0')+':00 (script project timezone: '+res.scriptTimeZone+')');
+        // Ground-truth check — the checkbox above only reflects what
+        // Settings SAYS should happen; this reflects whether a trigger
+        // actually exists to make it happen. They can drift apart (a
+        // trigger deleted from the Apps Script editor, wiped by a
+        // redeploy) with no other visible sign of it.
+        lines.push(res.triggerExists
+          ? '✅ Trigger is registered and active'
+          : '❌ No trigger found — click Save below to (re)create it');
+      } else {
+        lines.push('Disabled');
+      }
+      if(res.lastSentStamp) lines.push('Last attempt: '+res.lastSentStamp);
+      if(res.lastSentDate) lines.push('Last real (non-test) send counted for: '+res.lastSentDate+' — won\'t send again automatically until the next calendar day');
+      statusEl.innerHTML=lines.map(function(l){return '<div>'+esc(l)+'</div>';}).join('');
       statusEl.style.color=res.enabled?'var(--green)':'var(--t3)';
     }
   }catch(e){
@@ -6871,6 +6948,38 @@ async function saveDailyInsightsSettings(){
     if(res && res.success){
       toast('✅ Saved');
       loadDailyInsightsSettings();
+    } else {
+      if(statusEl){ statusEl.textContent='⚠️ '+(res&&res.error||'Could not save'); statusEl.style.color='var(--red)'; }
+    }
+  }catch(e){
+    if(statusEl){ statusEl.textContent='⚠️ Could not reach the server: '+e.message; statusEl.style.color='var(--red)'; }
+  }
+}
+async function loadAiCacheSettings(){
+  var hrEl=document.getElementById('ai-cache-hours');
+  var statusEl=document.getElementById('ai-cache-status');
+  if(!hrEl) return;
+  try{
+    var res=await sheetWrite({action:'getAiCacheSettings', expectsResponse:true}, 15000);
+    if(res && res.success){
+      hrEl.value=String(res.hours!=null?res.hours:3);
+      if(statusEl){ statusEl.textContent='Currently caching for '+hrEl.value+' hour(s)'; statusEl.style.color='var(--t3)'; }
+    }
+  }catch(e){ /* non-fatal — form just keeps its default */ }
+}
+async function saveAiCacheSettings(){
+  var session=getSession();
+  if(!session){ toast('Please log in again'); return; }
+  if(!isAdmin()){ toast('Only an Admin can change this'); return; }
+  var statusEl=document.getElementById('ai-cache-status');
+  var hrEl=document.getElementById('ai-cache-hours');
+  var hours=parseFloat(hrEl?hrEl.value:'3')||3;
+  if(statusEl){ statusEl.textContent='Saving…'; statusEl.style.color='var(--t3)'; }
+  try{
+    var res=await sheetWrite({action:'saveAiCacheSettings', requestingUserId:session.userId, hours:hours, expectsResponse:true}, 15000);
+    if(res && res.success){
+      toast('✅ Saved');
+      loadAiCacheSettings();
     } else {
       if(statusEl){ statusEl.textContent='⚠️ '+(res&&res.error||'Could not save'); statusEl.style.color='var(--red)'; }
     }
@@ -7116,7 +7225,8 @@ async function askStructuredInsight(questionId){
   appendTypingIndicator();
 
   try{
-    var res=await sheetWrite({action:'getStructuredInsight', questionId:questionId}, 45000);
+    var _picSession=getSession();
+    var res=await sheetWrite({action:'getStructuredInsight', questionId:questionId, expectsResponse:true, requestingUserId:_picSession?_picSession.userId:''}, 45000);
     removeTypingIndicator();
     if(sendBtn) sendBtn.disabled=false;
     if(res && res.success && res.answer){
@@ -7572,7 +7682,7 @@ async function startChatAudioFallback(){
     toast('Transcribing…');
     try{
       var audioBase64=await fileToBase64(blob);
-      var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:recMime, languageName:voiceLang.name});
+      var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:recMime, languageName:voiceLang.name, expectsResponse:true});
       if(res && res.success && res.transcript){
         if(input) input.value=baseText+res.transcript;
       } else {
@@ -7611,7 +7721,8 @@ async function sendChatMessage(){
   appendTypingIndicator();
 
   try{
-    var res=await sheetWrite({action:'practiceChat', message:message, history:window._chatHistory, expectsResponse:true}, 55000);
+    var _chatSession=getSession();
+    var res=await sheetWrite({action:'practiceChat', message:message, history:window._chatHistory, expectsResponse:true, requestingUserId:_chatSession?_chatSession.userId:''}, 55000);
     removeTypingIndicator();
     if(sendBtn) sendBtn.disabled=false;
     if(res && res.success && res.reply){
@@ -7649,7 +7760,8 @@ async function askContemporaryInsight(){
   appendSearchingIndicator();
 
   try{
-    var res=await sheetWrite({action:'generateContemporaryInsight', expectsResponse:true}, 90000);
+    var _ciSession=getSession();
+    var res=await sheetWrite({action:'generateContemporaryInsight', expectsResponse:true, requestingUserId:_ciSession?_ciSession.userId:''}, 90000);
     removeSearchingIndicator();
     if(sendBtn) sendBtn.disabled=false;
     if(res && res.success){
@@ -8250,13 +8362,21 @@ async function runHealthCheck(){
   // real Gemini call with trivial input, just enough to confirm the API
   // key, model name, and request format are all still working end to end.
   log(''); log('\u2501\u2501 15. AI API connectivity (Gemini) \u2501\u2501');
+  var _hcSession=getSession();
+  var _hcUserId=_hcSession?_hcSession.userId:'';
+  if(!isAdmin()){
+    wn('Insights AI chat test skipped \u2014 Insights is an admin-only feature and this account is not an Admin. Sign in as an Admin to test it.');
+  } else {
+    try{
+      var chatRes=await sheetWrite({action:'practiceChat', message:'Reply with exactly the word: OK', history:[], expectsResponse:true, requestingUserId:_hcUserId}, 20000);
+      if(chatRes && chatRes.reply) ok('Insights AI chat responded \u2014 Gemini connection working ("'+String(chatRes.reply).slice(0,40).replace(/\n/g,' ')+'")');
+      else no('Insights AI chat failed: '+(chatRes&&chatRes.error||'no reply received \u2014 check GEMINI_API_KEY in Script Properties'));
+    }catch(e){ no('Insights AI chat error: '+e.message); }
+  }
+  // Voice Assistant is available to every user (not admin-restricted like
+  // Insights), so this test always runs regardless of role.
   try{
-    var chatRes=await sheetWrite({action:'practiceChat', message:'Reply with exactly the word: OK', history:[], expectsResponse:true}, 20000);
-    if(chatRes && chatRes.reply) ok('Insights AI chat responded \u2014 Gemini connection working ("'+String(chatRes.reply).slice(0,40).replace(/\n/g,' ')+'")');
-    else no('Insights AI chat failed: '+(chatRes&&chatRes.error||'no reply received \u2014 check GEMINI_API_KEY in Script Properties'));
-  }catch(e){ no('Insights AI chat error: '+e.message); }
-  try{
-    var vcRes=await sheetWrite({action:'interpretVoiceCommand', command:'add a lead named Test User mobile 9999999999', languageName:'English', candidateNames:[]}, 20000);
+    var vcRes=await sheetWrite({action:'interpretVoiceCommand', command:'add a lead named Test User mobile 9999999999', languageName:'English', candidateNames:[], expectsResponse:true}, 20000);
     if(vcRes && vcRes.success && vcRes.result && vcRes.result.actions && vcRes.result.actions.length){
       ok('AI Voice Assistant interpreter responded correctly \u2014 intent recognized: '+vcRes.result.actions[0].intent);
     } else {
@@ -9041,6 +9161,7 @@ function loadSettings(){
   loadConnectedCalendarsInfo();
   loadDailyInsightsSettings();
   loadClientEmailMonitoringStatus();
+  loadAiCacheSettings();
 }
 
 // ── Shows/hides the persistent "these changes never made it to the sheet"
