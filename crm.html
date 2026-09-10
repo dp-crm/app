@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Deep Pocket">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="theme-color" content="#1B1512">
-<title>Deep Pocket CRM v5.20.0</title>
+<title>Deep Pocket CRM v5.24.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -158,6 +158,24 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .chips{display:flex;gap:6px;padding:0 12px 9px;overflow-x:auto;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex-shrink:0;padding:7px 15px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--s1);color:var(--t2);cursor:pointer;white-space:nowrap}
+
+/* ── Skeleton loading rows — visible the instant the page HTML parses,
+   before any JavaScript has run. Naturally replaced the moment
+   renderLeads()/renderClients()/renderTasks() set real content into
+   these same containers (they overwrite innerHTML directly), so no JS
+   needs to know skeletons exist or manage removing them — the real
+   render already does that implicitly. Only actually visible on a cold
+   start with no cache yet; on a normal repeat visit the cached render
+   replaces this before it'd ever be noticed, which is the right
+   behavior — skeletons should never outstay an already-available answer. ── */
+.skel-row{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px;overflow:hidden;position:relative}
+.skel-row::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent);animation:skelShimmer 1.4s infinite}
+.skel-line{height:11px;border-radius:6px;background:var(--s2);margin-bottom:8px}
+.skel-line:last-child{margin-bottom:0}
+.skel-line.w60{width:60%}
+.skel-line.w40{width:40%}
+.skel-line.w30{width:30%;height:9px}
+@keyframes skelShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 .chat-chip-in{opacity:0;white-space:normal;animation:chatChipIn .45s ease forwards}
 @keyframes chatChipIn{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes chatPulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(63,160,115,.35)}50%{box-shadow:0 0 0 6px rgba(63,160,115,0)}}
@@ -557,7 +575,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <span style="font-size:10px;font-weight:900;color:#000">DP</span>
     </div>
     <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Deep Pocket CRM</span>
-    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.20.0</span>
+    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.24.0</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
     <button id="global-refresh-btn" onclick="manualTopBarRefresh()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Refresh">
@@ -606,7 +624,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div id="product-chips" style="display:flex;gap:6px;padding:4px 12px 8px;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch"></div>
   <div id="geo-filter-wrap" style="padding:4px 12px 8px"><select id="geo-dropdown" onchange="setFG(this.value)" style="width:100%;padding:9px 10px;font-size:12px;font-weight:600;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:8px;-webkit-appearance:none;cursor:pointer"></select></div>
   <div id="family-filter-wrap" style="padding:0 12px 8px"><select id="family-dropdown" onchange="setFF(this.value)" style="width:100%;padding:9px 10px;font-size:12px;font-weight:600;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:8px;-webkit-appearance:none;cursor:pointer"></select></div>
-  <div id="lead-list"></div>
+  <div id="lead-list"><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div></div>
   <!-- FAB: Add Lead -->
   <button onclick="openAddLead()" style="position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25)" aria-label="Add lead">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -659,6 +677,22 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div style="width:20px;height:20px;border-radius:50%;background:var(--coraldim);display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:10px">✕</div>
       <div id="dash-count-dropped" style="font-size:17px;font-weight:800;color:var(--text);line-height:1">—</div>
       <div style="font-size:8.5px;color:var(--t2);margin-top:4px;line-height:1.2">Dropped</div>
+    </div>
+  </div>
+
+  <!-- AI Practice Pulse — a condensed, max-8-point version of today's daily
+       AI insights email, right on the Dashboard. Deliberately reads
+       already-generated data (see getDashboardPracticePulse in Code.gs)
+       rather than making a fresh AI call on every dashboard load — instant,
+       free, and guaranteed to never say something different from what the
+       email already said. -->
+  <div class="sec" id="dash-practice-pulse-wrap" style="display:none">
+    <div style="background:linear-gradient(135deg,var(--s1),var(--s2));border:1px solid var(--accent);border-radius:var(--r);padding:14px 14px 10px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">
+        <span style="font-size:14px">🧠</span>
+        <span class="lbl" style="color:var(--accent);margin:0">Your Practice, in a Nutshell</span>
+      </div>
+      <div id="dash-practice-pulse-body"></div>
     </div>
   </div>
 
@@ -721,7 +755,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <button class="btn btn-red" style="padding:5px 10px;font-size:11px" onclick="deleteSelectedClients()">🗑 Delete</button>
     </div>
   </div>
-  <div id="client-list" style="padding:4px 12px 100px"></div>
+  <div id="client-list" style="padding:4px 12px 100px"><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div></div>
   <button onclick="openAddClient()" style="position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25)" aria-label="Add client">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
   </button>
@@ -802,6 +836,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
             <div style="padding:0 0 6px"><input class="fi" id="s-import-tab" value="MASTER LIST"></div>
             <button class="btn btn-green btn-full" onclick="importFromSheet()">📤 Import from MASTER LIST</button>
           </div>
+          <div class="si" style="font-size:10px;color:var(--t3);margin-top:14px"><span>🧹 <b>One-time cleanup: clear Follow-up dates on existing clients</b> — clients have no follow-up concept; this only ever mattered as a lead. Older client records converted before this was fixed at the source may still carry a stale value. This is a bulk edit to real data — back up first using the button above.</span></div>
+          <div class="syc"><button class="btn btn-ghost btn-full" style="color:var(--red);border-color:var(--red)" onclick="bulkClearClientFollowUpDates()">🧹 Clear Follow-up Dates on All Clients</button></div>
+          <div class="si" style="font-size:10px" id="bulk-clear-followup-status"></div>
         </div>
       </div>
     </div>
@@ -1049,7 +1086,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <button class="task-filter-chip" data-filter="OPEN" onclick="setTaskFilter('OPEN')">🔵 Open</button>
     <button class="task-filter-chip" data-filter="FINISHED" onclick="setTaskFilter('FINISHED')">✅ Finished</button>
   </div>
-  <div id="task-list" style="padding:4px 12px 100px"></div>
+  <div id="task-list" style="padding:4px 12px 100px"><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div></div>
   <button onclick="openAddTask()" style="position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25)" aria-label="Add task">
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
   </button>
@@ -1102,7 +1139,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="sh-handle"></div>
   <div class="sh-hdr">
     <div class="sh-title" id="lf-title">New Lead</div>
-    <button class="sh-x" onclick="closeOv('ov-lead')">✕</button>
+    <button class="sh-x" aria-label="Close" onclick="closeOv('ov-lead')">✕</button>
   </div>
   <div class="sh-body">
     <input type="hidden" id="lf-orig">
@@ -1224,7 +1261,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="sh-handle"></div>
   <div class="sh-hdr">
     <div class="sh-title" id="cf-title">New Client</div>
-    <button class="sh-x" onclick="closeOv('ov-client')">✕</button>
+    <button class="sh-x" aria-label="Close" onclick="closeOv('ov-client')">✕</button>
   </div>
   <div class="sh-body">
     <input type="hidden" id="cf-orig">
@@ -1445,7 +1482,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <!-- WA PREVIEW -->
 <div class="ov" id="ov-wa"><div class="sh">
   <div class="sh-handle"></div>
-  <div class="sh-hdr"><div class="sh-title">WhatsApp preview</div><button class="sh-x" onclick="closeOv('ov-wa')">✕</button></div>
+  <div class="sh-hdr"><div class="sh-title">WhatsApp preview</div><button class="sh-x" aria-label="Close" onclick="closeOv('ov-wa')">✕</button></div>
   <div class="sh-body">
     <div class="wa-preview"><div class="wa-bubble" id="wa-preview-text"></div></div>
     <div style="margin-top:12px;display:flex;gap:7px;flex-wrap:wrap">
@@ -1462,7 +1499,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <!-- BULK STATUS -->
 <div class="ov" id="ov-bulk"><div class="sh">
   <div class="sh-handle"></div>
-  <div class="sh-hdr"><div class="sh-title">Change status</div><button class="sh-x" onclick="closeOv('ov-bulk')">✕</button></div>
+  <div class="sh-hdr"><div class="sh-title">Change status</div><button class="sh-x" aria-label="Close" onclick="closeOv('ov-bulk')">✕</button></div>
   <div class="sh-body">
     <div style="display:flex;flex-direction:column;gap:8px">
       ${['PROSPECT','CONTACTED','IN PROGRESS','CONVERTED','DROPPED'].map(s=>`<button class="btn btn-ghost btn-full" onclick="applyBulkStatus('${s}')" style="justify-content:flex-start">${s}</button>`).join('')}
@@ -2465,7 +2502,7 @@ function openDetail(mob,type,nameHint){
     + '<div style="padding:12px 14px 8px;border-bottom:1px solid var(--border)">'
     + '<div style="display:flex;align-items:center;justify-content:space-between">'
     + '<div style="font-size:16px;font-weight:800;color:var(--text)">'+toTitle(c.name)+(c.familyName?' <span style="font-weight:700;color:var(--t2)">- '+c.familyName+'</span>':'')+'</div>'
-    + '<button class="sh-x" data-action="close-client">✕</button>'
+    + '<button class="sh-x" aria-label="Close" data-action="close-client">✕</button>'
     + '</div>'
     + '<div style="display:flex;gap:6px;margin-top:5px">'
     + '<span id="doc-status-badge-'+mob+'" style="font-size:9px;font-weight:800;padding:2px 8px;border-radius:999px;background:color-mix(in srgb, var(--blue) 15%, transparent);color:var(--blue);border:1px solid color-mix(in srgb, var(--blue) 35%, transparent)">📁 Documents</span>'
@@ -2761,7 +2798,7 @@ function taskFormHtml(existing, prefill){
   return '<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;overflow:hidden;border:1px solid var(--accent);border-bottom:none;max-height:88vh;display:flex;flex-direction:column">'
     +'<div style="padding:16px 16px 4px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">'
     +'<span style="font-size:15px;font-weight:800;color:var(--accent)">📝 '+(isEdit?'Task':'New Task')+'</span>'
-    +'<span onclick="document.getElementById(\'task-form-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span>'
+    +'<span onclick="document.getElementById(\'task-form-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span>'
     +'</div>'
     +'<div style="overflow-y:auto;padding-bottom:4px">'
     +'<div style="padding:10px 16px 4px">'
@@ -2849,43 +2886,56 @@ async function saveTaskNow(){
   if(!details){ toast('Type the task details'); return; }
   if(!hasScript()){ toast('⚠️ No Apps Script connected — set this up in Sync settings first'); return; }
 
-  var btnSave=document.getElementById('task-btn-save'), btnFinish=document.getElementById('task-btn-finish'), btnDelete=document.getElementById('task-btn-delete');
-  var saveOrigText=btnSave?btnSave.textContent:'';
-  setTaskButtonsBusy(true, btnSave, 'Saving…');
-
+  // Optimistic, matching how Leads/Clients already save — update locally
+  // and close the form immediately, sync in the background. Previously
+  // this awaited the full network round-trip before doing anything
+  // visible at all, which is exactly why task saves felt like 3-5 seconds
+  // while leads/clients felt instant: they were, structurally, the only
+  // one actually making the user wait for it. Safe to do optimistically
+  // here because the outcome is fully known up front — what was typed is
+  // what gets saved, no server-side decision to wait for (contrast with
+  // finishTaskNow below, which genuinely can't be optimistic the same way).
   var existingId=window._editingTaskId;
+  var ov=document.getElementById('task-form-ov');
+
   if(existingId){
     var t=tasks.find(function(x){return x.taskId===existingId;});
-    if(!t){ setTaskButtonsBusy(false, btnSave, saveOrigText); return; }
-    var res=await sheetWrite({action:'updateTask', taskId:existingId,
-      name:name, taskDetails:details, dueDate:dueDate, taskFor:forType, linkedRecordId:window._taskLinkedRecordId||''});
-    if(res && res.success){
-      t.name=name; t.taskDetails=details; t.dueDate=dueDate; t.taskFor=forType; t.linkedRecordId=window._taskLinkedRecordId||'';
-      saveTasks(); renderTasks();
-      toast('✅ Task updated');
-    } else {
-      toast('❌ Could not update: '+(res&&res.error||'unknown error'));
-      setTaskButtonsBusy(false, btnSave, saveOrigText);
-      return;
-    }
+    if(!t){ if(ov) ov.remove(); return; }
+    t.name=name; t.taskDetails=details; t.dueDate=dueDate; t.taskFor=forType; t.linkedRecordId=window._taskLinkedRecordId||'';
+    saveTasks(); renderTasks();
+    if(ov) ov.remove();
+    window._editingTaskId=null;
+    toast('✅ Task updated');
+    showActivity('saving');
+    sheetWrite({action:'updateTask', taskId:existingId,
+      name:name, taskDetails:details, dueDate:dueDate, taskFor:forType, linkedRecordId:window._taskLinkedRecordId||''}).then(function(res){
+        hideActivity();
+        if(!res || !res.success) toast('⚠️ Task update did not save — '+(res&&res.error||'please try again'));
+      }).catch(function(e){ hideActivity(); toast('⚠️ Task update did not save — '+e.message); });
   } else {
     var _taskCreatorSession=getSession();
-    var newTask={createdDate:today(), name:name, taskDetails:details, dueDate:dueDate, status:'Open', taskFor:forType, linkedRecordId:window._taskLinkedRecordId||'', createdBy:_taskCreatorSession?_taskCreatorSession.name:'', createdByRole:_taskCreatorSession?_taskCreatorSession.userType:''};
-    var res2=await sheetWrite({action:'addTask', createdDate:newTask.createdDate, name:newTask.name, taskDetails:newTask.taskDetails, dueDate:newTask.dueDate, status:newTask.status, taskFor:newTask.taskFor, linkedRecordId:newTask.linkedRecordId, createdBy:newTask.createdBy, createdByRole:newTask.createdByRole});
-    if(res2 && res2.success){
-      newTask.taskId=res2.taskId;
-      tasks.unshift(newTask);
-      saveTasks(); renderTasks();
-      toast('✅ Task saved');
-    } else {
-      toast('❌ Could not save: '+(res2&&res2.error||'unknown error'));
-      setTaskButtonsBusy(false, btnSave, saveOrigText);
-      return;
-    }
+    // Guaranteed-unique TEMPORARY ID, same pattern already used for new
+    // Leads/Clients — lets this task be opened/finished/deleted correctly
+    // before the server-assigned Task ID comes back.
+    var tempId='temp_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    var newTask={taskId:tempId, createdDate:today(), name:name, taskDetails:details, dueDate:dueDate, status:'Open', taskFor:forType, linkedRecordId:window._taskLinkedRecordId||'', createdBy:_taskCreatorSession?_taskCreatorSession.name:'', createdByRole:_taskCreatorSession?_taskCreatorSession.userType:''};
+    tasks.unshift(newTask);
+    saveTasks(); renderTasks();
+    if(ov) ov.remove();
+    window._editingTaskId=null;
+    toast('✅ Task saved');
+    advanceVoiceQueueIfPending();
+    showActivity('saving');
+    sheetWrite({action:'addTask', createdDate:newTask.createdDate, name:newTask.name, taskDetails:newTask.taskDetails, dueDate:newTask.dueDate, status:newTask.status, taskFor:newTask.taskFor, linkedRecordId:newTask.linkedRecordId, createdBy:newTask.createdBy, createdByRole:newTask.createdByRole}).then(function(res2){
+      hideActivity();
+      if(res2 && res2.success){
+        newTask.taskId=res2.taskId; // replace the temp ID with the real one
+        saveTasks();
+      } else {
+        toast('⚠️ Task did not save — '+(res2&&res2.error||'please try again'));
+      }
+    }).catch(function(e){ hideActivity(); toast('⚠️ Task did not save — '+e.message); });
   }
-  var ov=document.getElementById('task-form-ov'); if(ov) ov.remove();
-  window._editingTaskId=null;
-  advanceVoiceQueueIfPending();
 }
 
 // Disables all three task-action buttons during a request (prevents
@@ -2899,6 +2949,16 @@ function setTaskButtonsBusy(busy, activeBtn, busyText){
   if(activeBtn && busy) activeBtn.textContent=busyText;
 }
 
+// finishTaskNow deliberately stays closer to the original wait-for-response
+// shape rather than being fully optimistic like saveTaskNow above — the
+// backend's submitTaskDone makes a genuine server-side decision (goes
+// straight to "Finished", or to "Pending Review" for a Maker/Checker
+// workflow, depending on the user's role) that can't be predicted
+// client-side. Guessing "Finished" and correcting it later would mean the
+// status visibly flips for anyone on the review workflow, which is worse
+// than a brief, honest wait. What DOES change here: the overlay closes and
+// the list updates the MOMENT the real answer is known, rather than a
+// separate later step.
 async function finishTaskNow(){
   var taskId=window._editingTaskId;
   if(!taskId) return;
@@ -2922,24 +2982,36 @@ async function finishTaskNow(){
   }
 }
 
+// deleteTaskNow — same reasoning as saveTaskNow: a delete's outcome is
+// fully predictable (the task is just gone), so it's safe to remove it
+// locally and close the form immediately rather than waiting on the
+// round-trip first.
 async function deleteTaskNow(){
   var taskId=window._editingTaskId;
   if(!taskId) return;
   if(!hasScript()){ toast('⚠️ No Apps Script connected'); return; }
-  var btnDelete=document.getElementById('task-btn-delete');
-  var origText=btnDelete?btnDelete.textContent:'';
-  setTaskButtonsBusy(true, btnDelete, 'Deleting…');
-  var res=await sheetWrite({action:'deleteTask', taskId:taskId});
-  if(res && res.success){
-    tasks=tasks.filter(function(x){return x.taskId!==taskId;});
-    saveTasks(); renderTasks();
-    var ov=document.getElementById('task-form-ov'); if(ov) ov.remove();
-    window._editingTaskId=null;
-    toast('Task deleted');
-  } else {
-    toast('❌ Could not delete: '+(res&&res.error||'unknown error'));
-    setTaskButtonsBusy(false, btnDelete, origText);
-  }
+  var delT=tasks.find(function(x){return x.taskId===taskId;});
+  tasks=tasks.filter(function(x){return x.taskId!==taskId;});
+  saveTasks(); renderTasks();
+  var ov=document.getElementById('task-form-ov'); if(ov) ov.remove();
+  window._editingTaskId=null;
+  toast('Task deleted');
+  showActivity('deleting');
+  sheetWrite({action:'deleteTask', taskId:taskId}).then(function(res){
+    hideActivity();
+    if(!res || !res.success){
+      // Roll back — put the task back locally, since the delete never
+      // actually happened server-side, and say so plainly rather than
+      // leaving it silently missing from the list while still existing
+      // in the sheet.
+      if(delT){ tasks.push(delT); saveTasks(); renderTasks(); }
+      toast('⚠️ Could not delete — restored. '+(res&&res.error||'please try again'));
+    }
+  }).catch(function(e){
+    hideActivity();
+    if(delT){ tasks.push(delT); saveTasks(); renderTasks(); }
+    toast('⚠️ Could not delete — restored. '+e.message);
+  });
 }
 
 // Deep-links from the Dashboard's overdue-task card straight into that
@@ -3159,7 +3231,7 @@ async function autoConvert(l){
     name:l.name||'', mobile:l.mobile||'', email:l.email||'',
     country:l.country||'', age:l.age||'', gender:'', pan:'',
     source:l.source||'', referral:l.referral||'',
-    nextFollowUp:l.nextFollowUp||'',
+    nextFollowUp:'', // Clients have no follow-up concept at all — that's specifically a Leads workflow (chasing a prospect). Deliberately never carried over from the lead, even though the lead itself may have had one.
     aum:'', potentialAum:l.potentialAum||'', potentialSip:l.potentialSip||'',
     uploadToken:l.uploadToken||'',  // any upload link already sent to this lead keeps working after conversion
     // If the lead already had a Drive folder tagged (they uploaded documents via
@@ -3686,7 +3758,7 @@ function showVoiceMatchPicker(matches, title, onPick){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;overflow:hidden;border:1px solid var(--accent);border-bottom:none;max-height:70vh;display:flex;flex-direction:column">'
     +'<div style="padding:16px 16px 10px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">'
     +'<span style="font-size:14px;font-weight:800;color:var(--accent)">🎙️ '+esc(title)+'</span>'
-    +'<span onclick="document.getElementById(\'voice-match-picker-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span>'
+    +'<span onclick="document.getElementById(\'voice-match-picker-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span>'
     +'</div>'
     +'<div style="overflow-y:auto">'+rows+'</div>'
     +'</div>';
@@ -4250,6 +4322,7 @@ function nav(name,btn,slideFrom){
   if(name==='dash'){
     var sb3=document.getElementById('shared-search-bar'); if(sb3) sb3.style.display='none';
     renderDash();setTimeout(addSearchClose,100);
+    loadDashboardPracticePulse();
   }
   if(name==='leads'){
     var sb=document.getElementById('shared-search-bar');
@@ -5050,7 +5123,7 @@ function renderFuDetailInner(mob,nameHint){
     +'<div style="font-size:16px;font-weight:800">'+toTitle(l.name)+(l.familyName?' <span style="font-weight:700;color:var(--t2)">- '+l.familyName+'</span>':'')+'</div>'
     +'<div id="lead-folder-badge-'+mob+'" style="display:none;font-size:11px;font-weight:800;color:var(--green);margin-top:2px"></div>'
     +'</div>'
-    +'<button class="sh-x" onclick="checkUnsavedNoteAndClose()">✕</button>'
+    +'<button class="sh-x" aria-label="Close" onclick="checkUnsavedNoteAndClose()">✕</button>'
     +'</div>'
     // Days since last contacted (big stat) — shown first, right after the header
     +daysSinceBlock
@@ -5139,7 +5212,7 @@ function renderFuDetailInner(mob,nameHint){
 
 
 // Version marker
-var APP_VERSION='5.20.0';
+var APP_VERSION='5.24.0';
 
 
 
@@ -5190,6 +5263,39 @@ async function drainPushQueue(){
 // ── COUNTRY CHART IN DASHBOARD (leads) ──
 
 // ── OVERRIDE renderDash to include country leads chart + last sync ──
+// ── AI Practice Pulse — condensed daily insights, right on the Dashboard.
+// Fetched once per session (the underlying data only changes once a day,
+// when the automatic email runs — no reason to re-fetch on every
+// navigation back to the Dashboard within the same session). Gracefully
+// stays hidden if nothing's been generated yet today, rather than showing
+// an empty or broken-looking card. ──
+var _practicePulseLoaded=false;
+async function loadDashboardPracticePulse(){
+  if(_practicePulseLoaded || !hasScript()) return;
+  _practicePulseLoaded=true;
+  try{
+    var res=await sheetWrite({action:'getDashboardPracticePulse'}, 15000);
+    var wrap=document.getElementById('dash-practice-pulse-wrap');
+    var body=document.getElementById('dash-practice-pulse-body');
+    if(!res || !res.success || !res.available || !res.points || !res.points.length){
+      if(wrap) wrap.style.display='none';
+      return;
+    }
+    if(body){
+      body.innerHTML=res.points.map(function(p){
+        return '<div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:12.5px;color:var(--text);line-height:1.5">'
+          +'<span style="flex-shrink:0">'+esc(p.icon)+'</span><span>'+esc(p.text)+'</span></div>';
+      }).join('');
+    }
+    if(wrap) wrap.style.display='block';
+  }catch(e){
+    // Never let this block or clutter the Dashboard — a failed fetch here
+    // just means the card stays hidden, same as "nothing generated yet."
+    var wrap2=document.getElementById('dash-practice-pulse-wrap');
+    if(wrap2) wrap2.style.display='none';
+  }
+}
+
 function renderDash(){
   // Last sync
   var lsEl=document.getElementById('last-sync-time');
@@ -5901,6 +6007,7 @@ async function bootSequenceV17(){
   try{var q=JSON.parse(localStorage.getItem('wm_push_queue')||'[]');if(q.length){_pushQueue=q;setTimeout(drainPushQueue,5000);}}catch(e){}
 
   renderAll(); // Show ALL pages (leads + clients + dash) immediately from cache
+  loadDashboardPracticePulse(); // Dashboard is the default landing page — renderAll() calls renderDash() directly, bypassing nav()'s own hook for this, so it needs calling here too
   updateFUBadge();
 
   if(!hasScript()){
@@ -6164,7 +6271,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.32.0';
+var EXPECTED_BACKEND_VERSION = '2.34.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -6501,7 +6608,7 @@ function showAmbiguousFoldersList(ambiguousList){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:70vh;display:flex;flex-direction:column">'
     +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:14px;font-weight:800;color:var(--accent)">📁 Needs Review ('+ambiguousList.length+')</span>'
-    +'<span id="_afClose" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span></div>'
+    +'<span id="_afClose" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="overflow-y:auto;flex:1">'+rows+'</div></div>';
   document.body.appendChild(ov);
   document.getElementById('_afClose').onclick=function(){ov.remove();};
@@ -7674,7 +7781,7 @@ function showStaleLeadsListPopup(){
   ov.innerHTML='<div style="background:var(--s1);border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;border:1px solid var(--red)">'
     +'<div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">'
     +'<span style="font-size:14px;font-weight:800;color:var(--red)">🕰️ Stale Leads ('+list.length+')</span>'
-    +'<span onclick="document.getElementById(\'stale-leads-list-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span>'
+    +'<span onclick="document.getElementById(\'stale-leads-list-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span>'
     +'</div>'
     +'<div id="stale-leads-rows" style="overflow-y:auto;flex:1;padding:8px 12px">'
     +list.map(function(l,i){
@@ -9242,7 +9349,7 @@ function showReviewReportPreview(c, mob, reportText){
   ov.innerHTML='<div style="background:var(--s1);border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;border:1px solid var(--blue)">'
     +'<div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)">'
     +'<span style="font-size:14px;font-weight:800;color:var(--blue)">💌 Preview before sending</span>'
-    +'<span onclick="this.closest(\'div[style*=fixed]\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span>'
+    +'<span onclick="this.closest(\'div[style*=fixed]\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span>'
     +'</div>'
     +'<div id="'+textId+'" style="font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;padding:16px;overflow-y:auto;flex:1">'+reportText+'</div>'
     +'<div style="display:flex;gap:8px;padding:12px 16px 20px">'
@@ -9564,7 +9671,7 @@ function showCasEmailDraftPrompt(subject, body, tableHtml, filesUsed){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;border:1px solid var(--orange);border-bottom:none">'
     +'<div style="padding:16px 16px 4px;display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:15px;font-weight:800;color:var(--orange)">📧 AI Portfolio Email Draft</span>'
-    +'<span onclick="document.getElementById(\'cas-email-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span>'
+    +'<span onclick="document.getElementById(\'cas-email-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span>'
     +'</div>'
     +(filesUsed&&filesUsed.length?'<div style="padding:4px 16px;font-size:10px;color:var(--t3)">Based on: '+filesUsed.join(', ')+'</div>':'')
     +'<div style="padding:10px 16px 4px"><label class="fl">Subject</label>'
@@ -9614,7 +9721,7 @@ function showWADraftPrompt(person, draftText){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;overflow:hidden;border:1px solid var(--accent);border-bottom:none">'
     +'<div style="padding:16px 16px 4px;display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:15px;font-weight:800;color:var(--accent)">🤖 AI-Drafted Message</span>'
-    +'<span onclick="document.getElementById(\'wa-draft-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span>'
+    +'<span onclick="document.getElementById(\'wa-draft-ov\').remove()" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span>'
     +'</div>'
     +'<div style="padding:6px 16px 4px;font-size:11px;color:var(--t3)">for '+toTitle(person.name)+' — review and edit before sending</div>'
     +'<div style="padding:10px 16px">'
@@ -10014,7 +10121,7 @@ function showReminderList(idx){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:75vh;display:flex;flex-direction:column">'
     +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:14px;font-weight:800;color:var(--text)">'+item.icon+' '+item.title+'</span>'
-    +'<span id="_remListX" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span></div>'
+    +'<span id="_remListX" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="overflow-y:auto;flex:1">'+rows+'</div></div>';
   document.body.appendChild(ov);
   document.getElementById('_remListX').onclick=function(){ov.remove();};
@@ -10109,7 +10216,7 @@ function showSpecialDaysList(){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:75vh;display:flex;flex-direction:column">'
     +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:14px;font-weight:800;color:var(--text)">📅 Upcoming Special Days (30 days)</span>'
-    +'<span id="_spdListX" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span></div>'
+    +'<span id="_spdListX" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="overflow-y:auto;flex:1">'+(rows||'<div style="padding:20px;text-align:center;color:var(--t3)">None in next 30 days</div>')+'</div></div>';
   document.body.appendChild(ov);
   ov.id='_spdListOv';
@@ -10277,7 +10384,7 @@ function showDashList(type){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:78vh;display:flex;flex-direction:column">'
     +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:14px;font-weight:800;color:'+color+'">'+title+' ('+items.length+')</span>'
-    +'<span id="_dListX" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span></div>'
+    +'<span id="_dListX" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="overflow-y:auto;flex:1">'+(rows||'<div style="padding:24px;text-align:center;color:var(--t3);font-size:12px">None</div>')+'</div></div>';
   document.body.appendChild(ov);
   ov.id='_dashListOv';
@@ -10291,6 +10398,37 @@ function showDashList(type){
 
 
 // ── Trigger a manual backup to Google Drive ──
+// ── One-time cleanup: clear "Next Follow-up" on every existing client.
+// Clients never had a real follow-up concept — this only mattered as a
+// lead — but conversion used to copy the lead's follow-up date across
+// before that was fixed at the source (see autoConvert). This cleans up
+// records converted before that fix. A bulk edit to real data, so it's
+// explicit, confirmed, and strongly suggests backing up first rather than
+// running silently or automatically. ──
+async function bulkClearClientFollowUpDates(){
+  var session=getSession();
+  if(!session){ toast('Please log in again'); return; }
+  if(!isAdmin()){ toast('Only an Admin can do this'); return; }
+  var statusEl=document.getElementById('bulk-clear-followup-status');
+  if(!confirm('This clears the Follow-up date field on EVERY existing client record — permanently. Have you backed up first? Tap OK to proceed.')) return;
+  if(statusEl){ statusEl.textContent='Clearing…'; statusEl.style.color='var(--t3)'; }
+  try{
+    var res=await sheetWrite({action:'bulkClearClientFollowUpDates', requestingUserId:session.userId}, 30000);
+    if(res && res.success){
+      // Also clear it locally so the change is reflected immediately without
+      // waiting on the next full sync.
+      clients.forEach(function(c){ c.nextFollowUp=''; });
+      saveC(); renderClients();
+      toast('✅ Cleared on '+res.cleared+' client(s)');
+      if(statusEl){ statusEl.textContent='Done — '+res.cleared+' record(s) updated.'; statusEl.style.color='var(--green)'; }
+    } else {
+      if(statusEl){ statusEl.textContent='⚠️ '+(res&&res.error||'Could not complete'); statusEl.style.color='var(--red)'; }
+    }
+  }catch(e){
+    if(statusEl){ statusEl.textContent='⚠️ Could not reach the server: '+e.message; statusEl.style.color='var(--red)'; }
+  }
+}
+
 async function triggerBackupNow(){
   if(!hasScript()){toast('Add Apps Script URL first');return;}
   toast('☁️ Creating backup...');
@@ -10403,7 +10541,7 @@ function showWeekDayList(dateStr){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:75vh;display:flex;flex-direction:column">'
     +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:14px;font-weight:800;color:var(--text)">📆 '+dateLabel+' ('+(dayLeads.length+dayClients.length+dayEvents.length)+')</span>'
-    +'<span id="_wkListX" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span></div>'
+    +'<span id="_wkListX" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="overflow-y:auto;flex:1">'+(rows||'<div style="padding:24px;text-align:center;color:var(--t3);font-size:12px">No follow-ups or events scheduled</div>')+'</div></div>';
   document.body.appendChild(ov);
   document.getElementById('_wkListX').onclick=function(){ov.remove();};
@@ -11917,7 +12055,7 @@ function showTodaysActivityList(idx){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:75vh;display:flex;flex-direction:column">'
     +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:14px;font-weight:800;color:var(--text)">'+item.icon+' '+item.title+'</span>'
-    +'<span id="_talClose" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span></div>'
+    +'<span id="_talClose" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="overflow-y:auto;flex:1">'+rows+'</div></div>';
   document.body.appendChild(ov);
   document.getElementById('_talClose').onclick=function(){ov.remove();};
@@ -12210,7 +12348,7 @@ function openChangePasswordForm(){
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:340px;overflow:hidden">'
     +'<div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
-    +'<span>🔑 Change Password</span><span onclick="document.getElementById(\'cpw-ov\').remove()" style="cursor:pointer;color:var(--t2);font-size:20px;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span></div>'
+    +'<span>🔑 Change Password</span><span onclick="document.getElementById(\'cpw-ov\').remove()" style="cursor:pointer;color:var(--t2);font-size:20px;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="padding:14px 16px">'
     +'<input id="cpw-old" type="password" placeholder="Current password" autocomplete="current-password" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;margin-bottom:8px">'
     +'<input id="cpw-new" type="password" placeholder="New password" autocomplete="new-password" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;margin-bottom:8px">'
@@ -12280,7 +12418,7 @@ function openCreateUserForm(){
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:340px;overflow:hidden">'
     +'<div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
-    +'<span>➕ Add User</span><span onclick="document.getElementById(\'cu-ov\').remove()" style="cursor:pointer;color:var(--t2);font-size:20px;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">✕</span></div>'
+    +'<span>➕ Add User</span><span onclick="document.getElementById(\'cu-ov\').remove()" style="cursor:pointer;color:var(--t2);font-size:20px;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="padding:14px 16px">'
     +'<input id="cu-name" placeholder="Full name" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;margin-bottom:8px">'
     +'<input id="cu-username" placeholder="Username (for login)" autocapitalize="none" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;margin-bottom:8px">'
