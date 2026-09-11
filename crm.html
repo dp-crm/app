@@ -63,7 +63,7 @@
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;overscroll-behavior:none;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
 #app{display:flex;flex-direction:column;height:100dvh;height:100vh;max-width:var(--shell-w);margin:0 auto;position:relative;overflow-x:hidden}
-#content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(88px + env(safe-area-inset-bottom, 10px));padding-top:calc(46px + env(safe-area-inset-top,0px));position:relative}
+#content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(88px + env(safe-area-inset-bottom, 10px));padding-top:calc(58px + env(safe-area-inset-top,0px));position:relative}
 
 /* ── Global activity pill — makes background work visible (saving,
    deleting, syncing, searching, thinking, etc.) instead of things just
@@ -416,6 +416,29 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .qwa-amber .qwa-ico{background:linear-gradient(150deg,color-mix(in srgb, var(--orange) 75%, white),var(--orange));--qwa-shadow:color-mix(in srgb, var(--orange) 45%, transparent)}
 .qwa-purple .qwa-ico{background:linear-gradient(150deg,color-mix(in srgb, var(--purple) 70%, white),var(--purple));--qwa-shadow:color-mix(in srgb, var(--purple) 45%, transparent)}
 .qwa-teal .qwa-ico{background:linear-gradient(150deg,#3DCFA8,#16A085);--qwa-shadow:rgba(22,160,133,.4)}
+/* Client detail chip window — QUICK LINKS grid only (not the Leads
+   follow-up chip window, which keeps the .qwa-* circular-icon style
+   above unchanged). Square bordered tiles, icon+label combined in one
+   box; :active swaps the tile's own background color in as the press
+   feedback instead of a scale transform. */
+.cql-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;aspect-ratio:1/1;border-radius:11px;border:1.5px solid var(--cql-color,var(--border2));background:var(--s2);cursor:pointer;transition:background .12s ease,color .12s ease;-webkit-user-select:none;user-select:none;padding:4px;box-sizing:border-box}
+.cql-tile:active{background:var(--cql-color,var(--accent))}
+.cql-tile:active .cql-lbl{color:#000}
+.cql-ico{font-size:18px;line-height:1}
+.cql-lbl{font-size:8.5px;font-weight:700;line-height:1.2;text-align:center;color:var(--t2);transition:color .12s ease}
+.cql-green{--cql-color:#25D366}
+.cql-blue{--cql-color:#3498DB}
+.cql-purple{--cql-color:var(--purple)}
+.cql-amber{--cql-color:var(--orange)}
+.cql-teal{--cql-color:#16A085}
+/* Client detail chip window — DOCUMENTS and DATA GATHERED section headers
+   only. A colored, elevated "floating" card treatment instead of the flat
+   var(--s2) block used elsewhere in this panel (Activity Log, Details) —
+   deliberately not shared with those, which keep their existing look. */
+.chip-float{border-radius:11px;padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border:1.5px solid var(--cf-color,var(--border2));background:color-mix(in srgb, var(--cf-color,var(--border2)) 12%, var(--s2));box-shadow:0 4px 14px -6px color-mix(in srgb, var(--cf-color,var(--border2)) 55%, transparent);transition:box-shadow .12s ease,transform .12s ease}
+.chip-float:active{transform:scale(.98);box-shadow:0 2px 6px -3px color-mix(in srgb, var(--cf-color,var(--border2)) 55%, transparent)}
+.chip-float-amber{--cf-color:var(--orange)}
+.chip-float-teal{--cf-color:#16A085}
 @keyframes lockShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 
 /* ══ Adaptive shell — tablet & desktop ══
@@ -569,12 +592,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
      and version on the left; refresh and logout on the right. Pages start
      below this bar, never behind it — see #content's padding-top and the
      #global-topbar CSS rule for how that's enforced. -->
-<div id="global-topbar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:500;height:calc(46px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:rgba(10,10,10,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;padding-left:14px;padding-right:10px">
-  <div style="display:flex;align-items:center;gap:8px;min-width:0">
-    <div style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <span style="font-size:10px;font-weight:900;color:#000">DP</span>
+<div id="global-topbar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:500;height:calc(58px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:rgba(10,10,10,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;padding-left:14px;padding-right:10px">
+  <div style="display:flex;align-items:center;gap:10px;min-width:0">
+    <div style="width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <span style="font-size:14px;font-weight:900;color:#000">DP</span>
     </div>
-    <span style="font-size:12px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Deep Pocket CRM</span>
+    <span style="font-size:17px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Deep Pocket CRM</span>
     <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.24.0</span>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
@@ -800,47 +823,20 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           <div class="si"><span>Target leads/month</span><input class="fi" id="s-goal-leads" type="number" style="width:70px;text-align:center" value="30" onchange="cfg('goalLeads',this.value)"></div>
           <div class="si"><span>Target conversions/month</span><input class="fi" id="s-goal-conv" type="number" style="width:70px;text-align:center" value="5" onchange="cfg('goalConv',this.value)"></div>
         </div>
-      </div>
-    </div>
 
-    <!-- 3. Backup & Import -->
-    <div class="acc-section" id="acc-set-backup">
-      <div class="acc-header" onclick="toggleSettingsSection('set-backup')">
-        <span class="acc-icon">💾</span><span class="acc-title">Backup &amp; Import</span><span class="acc-chevron">▾</span>
-      </div>
-      <div class="acc-body">
-        <div class="sg">
-          <div class="si" style="font-size:10px;color:var(--t3)"><span>☁️ Automatic weekly backups run every Sunday 2 AM to Google Drive (once enabled). Keeps last 8 backups.</span></div>
-          <div class="syc"><button class="btn btn-gold btn-full" onclick="triggerBackupNow()">☁️ Backup Now to Drive</button></div>
-          <div class="syc"><button class="btn btn-ghost btn-full" onclick="exportData()">📥 Export JSON Backup</button></div>
-          <div class="syc"><button class="btn btn-ghost btn-full" onclick="exportCSV()">📥 Export CSV (Excel)</button></div>
-          <div class="syc">
-            <div class="sy-d" style="font-size:10px;margin-bottom:6px">Import tab name from sheet:</div>
-            <div style="padding:0 0 6px"><input class="fi" id="s-import-tab" value="MASTER LIST"></div>
-            <button class="btn btn-green btn-full" onclick="importFromSheet()">📤 Import from MASTER LIST</button>
-          </div>
-          <div class="si" style="font-size:10px;color:var(--t3);margin-top:14px"><span>🧹 <b>One-time cleanup: clear Follow-up dates on existing clients</b> — clients have no follow-up concept; this only ever mattered as a lead. Older client records converted before this was fixed at the source may still carry a stale value. This is a bulk edit to real data — back up first using the button above.</span></div>
-          <div class="syc"><button class="btn btn-ghost btn-full" style="color:var(--red);border-color:var(--red)" onclick="bulkClearClientFollowUpDates()">🧹 Clear Follow-up Dates on All Clients</button></div>
-          <div class="si" style="font-size:10px" id="bulk-clear-followup-status"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 4. System Checking — bundles the three diagnostic tools together -->
-    <div class="acc-section" id="acc-set-syscheck">
-      <div class="acc-header" onclick="toggleSettingsSection('set-syscheck')">
-        <span class="acc-icon">🩺</span><span class="acc-title">System Checking</span><span class="acc-chevron">▾</span>
-      </div>
-      <div class="acc-body">
-        <div class="sg">
-          <div class="si" style="font-size:10px;color:var(--t3)"><span>Full end-to-end test: leads &amp; clients add·update·delete, field-to-column sync, duplicate-proofing, activity-log add/dedupe/delete-by-RawID, Drive folder, and backup. Writes temporary test rows then deletes them.</span></div>
-          <div class="syc"><button class="btn btn-gold btn-full" style="font-weight:700" onclick="runHealthCheck()">🩺 Run Full Health Check</button></div>
-          <div class="si" style="font-size:10px;color:var(--t3);margin-top:8px"><span>Paste your Google Sheet's URL below — it's checked against what the backend is actually connected to. Do this once; every future check then automatically flags it if the backend ever points somewhere else.</span></div>
+        <!-- Google Sheet connection -->
+        <div class="sg" style="margin-top:14px">
+          <div style="font-size:11px;color:var(--t2);margin:0 12px 8px;font-weight:700">📊 Google Sheet Connection</div>
+          <div class="si" style="font-size:10px;color:var(--t3)"><span>Paste your Google Sheet's URL below — it's checked against what the backend is actually connected to. Do this once; every future check then automatically flags it if the backend ever points somewhere else.</span></div>
           <div style="padding:0 12px 4px"><input class="fi" id="sheet-url-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="font-size:11px"></div>
           <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="verifySheetUrlAndSave()">🔗 Verify &amp; Save</button></div>
           <div class="si" style="font-size:10px" id="sheet-verify-result"></div>
+        </div>
 
-          <div class="si" style="font-size:10px;color:var(--t3);margin-top:12px"><span>📅 <b>Reconnect Google Calendar</b> — the app previously assumed your DEFAULT calendar was the right one for client meetings/events, which can quietly be wrong if your real meetings live on a different calendar. Load the list below and pick the correct one explicitly.</span></div>
+        <!-- Google Calendar connection -->
+        <div class="sg" style="margin-top:14px">
+          <div style="font-size:11px;color:var(--t2);margin:0 12px 8px;font-weight:700">📅 Google Calendar Connection</div>
+          <div class="si" style="font-size:10px;color:var(--t3)"><span><b>Reconnect Google Calendar</b> — the app previously assumed your DEFAULT calendar was the right one for client meetings/events, which can quietly be wrong if your real meetings live on a different calendar. Load the list below and pick the correct one explicitly.</span></div>
           <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="loadAvailableCalendars()">📅 Load My Calendars</button></div>
           <div id="calendar-picker-wrap" style="display:none">
             <div style="padding:8px 12px 4px"><select class="fi" id="calendar-picker-select" style="font-size:11px"></select></div>
@@ -848,7 +844,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           </div>
           <div class="si" style="font-size:10px" id="calendar-picker-result"></div>
 
-          <div class="si" style="font-size:10px;color:var(--t3);margin-top:14px"><span>📅 <b>Connected Calendars (up to 3)</b> — pull events &amp; birthdays from other Google accounts too, e.g. other advisors' own calendars. Each one must first be shared with the account below via Google Calendar's own sharing settings — this app can't request that access for you, only verify it.</span></div>
+          <div class="si" style="font-size:10px;color:var(--t3);margin-top:14px"><span><b>Connected Calendars (up to 3)</b> — pull events &amp; birthdays from other Google accounts too, e.g. other advisors' own calendars. Each one must first be shared with the account below via Google Calendar's own sharing settings — this app can't request that access for you, only verify it.</span></div>
           <div class="si" style="font-size:11px" id="connected-cal-script-account">Loading account info…</div>
           <div style="padding:6px 12px 2px" id="connected-cal-inputs">
             <input class="fi" placeholder="Calendar 1 — Gmail address" id="connected-cal-1" style="font-size:11px;margin-bottom:6px">
@@ -857,8 +853,22 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           </div>
           <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveConnectedCalendars()">✅ Save &amp; Verify All</button></div>
           <div id="connected-cal-status" style="padding:0 12px"></div>
+        </div>
 
-          <div class="si" style="font-size:10px;color:var(--t3);margin-top:14px"><span>📬 <b>Daily AI Insights</b> — an automated daily email briefing from the Practice Intelligence Centre: what needs attention, what's an opportunity, one key observation, and today's priorities.</span></div>
+        <!-- Client mail inbox -->
+        <div class="sg" style="margin-top:14px">
+          <div style="font-size:11px;color:var(--t2);margin:0 12px 8px;font-weight:700">📥 Client Mail Inbox</div>
+          <div class="si" style="font-size:10px;color:var(--t3)"><span><b>Automatic Client Email → Task</b> — client emails become tasks automatically. Important: this field records which inbox you EXPECT to be monitored — it can't actually redirect which mailbox gets read (that's fixed by whichever Google account authorized this script, not changeable here). If they don't match, either re-authorize the script under this inbox, or set up mail forwarding from this inbox into the authorized one.</span></div>
+          <div style="padding:0 12px 8px"><label class="fl">Expected Client Inbox Email</label><input class="fi" id="cem-inbox" type="email" placeholder="support@yourfirm.com" style="font-size:12px"></div>
+          <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveClientEmailMonitoringInbox()">💾 Save</button></div>
+          <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="loadClientEmailMonitoringStatus()">🔄 Check Status</button></div>
+          <div class="si" style="font-size:10px" id="cem-status"></div>
+        </div>
+
+        <!-- AI Insights mail id + testing -->
+        <div class="sg" style="margin-top:14px">
+          <div style="font-size:11px;color:var(--t2);margin:0 12px 8px;font-weight:700">📬 AI Insights Mail ID &amp; Testing</div>
+          <div class="si" style="font-size:10px;color:var(--t3)"><span><b>Daily AI Insights</b> — an automated daily email briefing from the Practice Intelligence Centre: what needs attention, what's an opportunity, one key observation, and today's priorities.</span></div>
           <div style="padding:0 12px 8px;display:flex;align-items:center;gap:10px">
             <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer">
               <input type="checkbox" id="di-enabled" style="width:18px;height:18px">
@@ -885,38 +895,53 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveDailyInsightsSettings()">💾 Save Daily Insights Settings</button></div>
           <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="sendTestInsightsEmail()">📧 Send Test AI Insights Email</button></div>
           <div class="si" style="font-size:10px" id="daily-insights-status"></div>
+        </div>
+      </div>
+    </div>
 
-          <div class="si" style="margin-top:14px"><label>AI Data Cache Duration (hours)</label>
-            <input id="ai-cache-hours" type="number" min="1" max="6" step="1" value="3" style="width:100%">
+    <!-- 3. Backup & Import -->
+    <div class="acc-section" id="acc-set-backup">
+      <div class="acc-header" onclick="toggleSettingsSection('set-backup')">
+        <span class="acc-icon">💾</span><span class="acc-title">Backup &amp; Import</span><span class="acc-chevron">▾</span>
+      </div>
+      <div class="acc-body">
+        <div class="sg">
+          <div class="si" style="font-size:10px;color:var(--t3)"><span>☁️ Automatic weekly backups run every Sunday 2 AM to Google Drive (once enabled). Keeps last 8 backups.</span></div>
+          <div class="syc"><button class="btn btn-gold btn-full" onclick="triggerBackupNow()">☁️ Backup Now to Drive</button></div>
+          <div class="syc"><button class="btn btn-ghost btn-full" onclick="exportData()">📥 Export JSON Backup</button></div>
+          <div class="syc"><button class="btn btn-ghost btn-full" onclick="exportCSV()">📥 Export CSV (Excel)</button></div>
+          <div class="syc">
+            <div class="sy-d" style="font-size:10px;margin-bottom:6px">Import tab name from sheet:</div>
+            <div style="padding:0 0 6px"><input class="fi" id="s-import-tab" value="MASTER LIST"></div>
+            <button class="btn btn-green btn-full" onclick="importFromSheet()">📤 Import from MASTER LIST</button>
           </div>
-          <div class="si" style="font-size:10px;color:var(--t3);margin:0 12px 8px"><span>How long the Leads/Clients/Tasks snapshot used by Insights and the AI chat is reused before being rebuilt from the sheet. Lower = fresher data, more Gemini token usage. Higher = faster, cheaper, but Insights may lag behind very recent edits by up to this many hours (any edit made through the app itself still refreshes it immediately). Capped at 6 hours — Google Apps Script does not allow a longer cache.</span></div>
-          <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveAiCacheSettings()">💾 Save Cache Duration</button></div>
-          <div class="si" style="font-size:10px" id="ai-cache-status"></div>
+          <div class="si" style="font-size:10px;color:var(--t3);margin-top:14px"><span>🧹 <b>One-time cleanup: clear Follow-up dates on existing clients</b> — clients have no follow-up concept; this only ever mattered as a lead. Older client records converted before this was fixed at the source may still carry a stale value. This is a bulk edit to real data — back up first using the button above.</span></div>
+          <div class="syc"><button class="btn btn-ghost btn-full" style="color:var(--red);border-color:var(--red)" onclick="bulkClearClientFollowUpDates()">🧹 Clear Follow-up Dates on All Clients</button></div>
+          <div class="si" style="font-size:10px" id="bulk-clear-followup-status"></div>
+        </div>
+      </div>
+    </div>
 
-          <div class="si" style="font-size:10px;color:var(--t3);margin-top:14px"><span>📥 <b>Automatic Client Email → Task</b> — client emails become tasks automatically. Important: this field records which inbox you EXPECT to be monitored — it can't actually redirect which mailbox gets read (that's fixed by whichever Google account authorized this script, not changeable here). If they don't match, either re-authorize the script under this inbox, or set up mail forwarding from this inbox into the authorized one.</span></div>
-          <div style="padding:0 12px 8px"><label class="fl">Expected Client Inbox Email</label><input class="fi" id="cem-inbox" type="email" placeholder="support@yourfirm.com" style="font-size:12px"></div>
-          <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveClientEmailMonitoringInbox()">💾 Save</button></div>
-          <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="loadClientEmailMonitoringStatus()">🔄 Check Status</button></div>
-          <div class="si" style="font-size:10px" id="cem-status"></div>
-
+    <!-- 4. System Checking — a single, comprehensive Full Health Check. Sheet
+         connection, Calendar connection, Client Mail Inbox, and AI Insights
+         mail id + testing now live under Connection above; the standalone
+         Clients Diagnosis / Folder Creation / server-side auto-emailed
+         diagnostic buttons that used to sit here have been retired — their
+         checks (including a real-client Drive folder scan) are now sections
+         within this one Full Health Check, run together every time. -->
+    <div class="acc-section" id="acc-set-syscheck">
+      <div class="acc-header" onclick="toggleSettingsSection('set-syscheck')">
+        <span class="acc-icon">🩺</span><span class="acc-title">System Checking</span><span class="acc-chevron">▾</span>
+      </div>
+      <div class="acc-body">
+        <div class="sg">
+          <div class="si" style="font-size:10px;color:var(--t3)"><span>Full end-to-end test: leads &amp; clients add·update·delete, field-to-column sync, duplicate-proofing, activity-log add/dedupe/delete-by-RawID, Drive folder mechanics AND a real scan of every actual client's Drive folder, and backup. Writes temporary test rows then deletes them.</span></div>
+          <div class="syc"><button class="btn btn-gold btn-full" style="font-weight:700" onclick="runHealthCheck()">🩺 Run Full Health Check</button></div>
           <div class="syc"><pre id="health-result" style="font-size:10px;background:var(--s2);border-radius:8px;padding:10px;white-space:pre-wrap;max-height:340px;overflow-y:auto;margin:0"></pre></div>
           <div class="syc" id="health-report-actions" style="display:none;gap:8px">
             <button class="btn btn-ghost" style="flex:1;font-size:11px" onclick="copyHealthReport()">📋 Copy Report</button>
             <button class="btn btn-ghost" style="flex:1;font-size:11px" onclick="emailHealthReport()">📧 Email Report</button>
           </div>
-          <div class="si" style="font-size:10px;color:var(--t3);margin-top:4px"><span>Prefer a report that finishes and emails itself even if you close the app? Use the button below instead.</span></div>
-          <div class="syc"><button class="btn btn-gold btn-full" style="font-weight:700" onclick="runServerDiagnosticAndEmail()">📧🩺 Run Diagnosis &amp; Auto-Email Report</button></div>
-          <div class="si" style="font-size:10px;color:var(--t3)" id="server-diag-status"></div>
-        </div>
-        <div class="sg" style="margin-top:10px">
-          <div class="si" style="font-size:10px;color:var(--t3)"><span>Checks every real client (not test data): field sync to the sheet, and whether each one has a Drive folder. Offers to create any missing folders.</span></div>
-          <div class="syc"><button class="btn btn-gold btn-full" style="font-weight:700" onclick="runClientsDiagnostic()">🗂️ Run Clients Diagnosis Check</button></div>
-          <div class="syc"><pre id="clients-diag-result" style="font-size:10px;background:var(--s2);border-radius:8px;padding:10px;white-space:pre-wrap;max-height:340px;overflow-y:auto;margin:0"></pre></div>
-        </div>
-        <div class="sg" style="margin-top:10px">
-          <div class="si" style="font-size:10px;color:var(--t3)"><span>Quick check only — does every client have a Drive folder, correctly matched? No test data written, just a read-only scan.</span></div>
-          <div class="syc"><button class="btn btn-ghost btn-full" style="font-weight:700;border-color:var(--accent);color:var(--accent)" onclick="runFolderCheckOnly()">📁 Client Folder Creation Check</button></div>
-          <div class="syc"><pre id="folder-check-result" style="font-size:10px;background:var(--s2);border-radius:8px;padding:10px;white-space:pre-wrap;max-height:340px;overflow-y:auto;margin:0"></pre></div>
         </div>
       </div>
     </div>
@@ -1077,9 +1102,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <button class="task-filter-chip" data-filter="FINISHED" onclick="setTaskFilter('FINISHED')">✅ Finished</button>
   </div>
   <div id="task-list" style="padding:4px 12px 100px"><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div></div>
-  <button onclick="openAddTask()" style="position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25)" aria-label="Add task">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-  </button>
 </div>
 
 
@@ -1120,6 +1142,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <button class="nb" onclick="nav('tasks',this)" id="nav-tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Task</button>
   <button class="nb" onclick="nav('clients',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Clients</button>
 </nav>
+
+<!-- Add Task floating button — lives outside any single .page so it's
+     never a descendant of an element that gets a CSS transform applied
+     (see .page.active's pageSwitchIn animation below). A position:fixed
+     element loses its viewport-relative positioning and instead tracks
+     its nearest transformed ancestor's box for as long as that transform
+     animation runs — which is exactly what made this button briefly
+     flash near the top of the screen before snapping down to its real
+     bottom-right position on every visit to Tasks. Visibility is toggled
+     by nav() below instead of the page's own display:none/block. -->
+<button id="global-add-task-btn" onclick="openAddTask()" style="display:none;position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25)" aria-label="Add task">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+</button>
 
 <!-- AI Voice Assistant status/confirm UI — lives outside any single
      .page so it can render on top of whichever screen the advisor is
@@ -2407,7 +2442,7 @@ function renderClients(){
     var sinceDate=c.convertedDate?fmt(c.convertedDate):'';
     var prods=(c.products||'').trim();
 
-    return '<div onclick="'+clickFn+'" style="background:'+bg+';border-radius:var(--r);padding:12px 14px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;margin-bottom:8px;transition:transform .12s">'
+    return '<div class="ccard" onclick="'+clickFn+'" style="background:'+bg+';border-radius:var(--r);padding:12px 14px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;margin-bottom:8px;transition:transform .12s">'
       +(clientBulkMode?'<div style="width:22px;height:22px;border-radius:50%;border:2px solid var(--accent);background:'+(sel?'var(--accent)':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:9px">'+(sel?'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>':'')+'</div>':'')
       +'<div style="width:46px;height:46px;border-radius:50%;background:'+ac.bg+';border:1.5px solid '+ac.border+';display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:'+ac.text+';flex-shrink:0">'+initials+'</div>'
       +'<div style="flex:1;min-width:0">'
@@ -2531,34 +2566,34 @@ function openDetail(mob,type,nameHint){
     + '</div></div></div>'
     + '<div style="padding:0 14px 8px">'
     + '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.5px;margin-bottom:6px">QUICK LINKS</div>'
-    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px 4px">'
-    + '<div data-aiwa="'+mob+'" class="qwa-btn qwa-green"><span class="qwa-ico">💬</span><span class="qwa-lbl">WhatsApp</span></div>'
-    + '<div data-tel="'+c.mobile+'" class="qwa-btn qwa-blue"><span class="qwa-ico">📞</span><span class="qwa-lbl">Call</span></div>'
-    + '<div data-meet="'+mob+'" class="qwa-btn qwa-purple"><span class="qwa-ico">🎥</span><span class="qwa-lbl">Meet</span></div>'
-    + '<div data-mail="'+(c.email||'')+'" data-mailname="'+toTitle(c.name)+'" class="qwa-btn qwa-amber"><span class="qwa-ico">✉️</span><span class="qwa-lbl">Email</span></div>'
-    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'app\',\'📲 Share App Link\')" class="qwa-btn qwa-green"><span class="qwa-ico">📲</span><span class="qwa-lbl">Share App<br>Link</span></button>'
-    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'cas\',\'📊 Send CAMS CAS\')" class="qwa-btn qwa-blue"><span class="qwa-ico">📊</span><span class="qwa-lbl">CAMS CAS</span></button>'
-    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'welcome\',\'👋 Send Welcome Message\')" class="qwa-btn qwa-green"><span class="qwa-ico">👋</span><span class="qwa-lbl">Welcome</span></button>'
-    + '<button data-uploadlink="'+mob+'" class="qwa-btn qwa-amber"><span class="qwa-ico">📤</span><span class="qwa-lbl">Upload</span></button>'
-    + '<button onclick="startMeetingInsight(\''+mob+'\')" class="qwa-btn qwa-purple"><span class="qwa-ico">🧠</span><span class="qwa-lbl">Meeting<br>Insights</span></button>'
-    + '<button onclick="sendGatherInfoLinkWA(\''+mob+'\')" class="qwa-btn qwa-teal"><span class="qwa-ico">📝</span><span class="qwa-lbl">Gather<br>Info</span></button>'
-    + '<button onclick="sendFinDocLinkWA(\''+mob+'\')" class="qwa-btn qwa-amber"><span class="qwa-ico">🗂️</span><span class="qwa-lbl">FinDoc</span></button>'
-    + '<button onclick="showFeedbackChoicePopup(\''+mob+'\')" class="qwa-btn qwa-green"><span class="qwa-ico">💬</span><span class="qwa-lbl">Feedback</span></button>'
-    + '<button onclick="startClientReviewReport(\''+mob+'\')" class="qwa-btn qwa-blue"><span class="qwa-ico">💌</span><span class="qwa-lbl">Review Report</span></button>'
+    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'
+    + '<div data-aiwa="'+mob+'" class="cql-tile cql-green"><span class="cql-ico">💬</span><span class="cql-lbl">WhatsApp</span></div>'
+    + '<div data-tel="'+c.mobile+'" class="cql-tile cql-blue"><span class="cql-ico">📞</span><span class="cql-lbl">Call</span></div>'
+    + '<div data-meet="'+mob+'" class="cql-tile cql-purple"><span class="cql-ico">🎥</span><span class="cql-lbl">Meet</span></div>'
+    + '<div data-mail="'+(c.email||'')+'" data-mailname="'+toTitle(c.name)+'" class="cql-tile cql-amber"><span class="cql-ico">✉️</span><span class="cql-lbl">Email</span></div>'
+    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'app\',\'📲 Share App Link\')" class="cql-tile cql-green"><span class="cql-ico">📲</span><span class="cql-lbl">Share App<br>Link</span></button>'
+    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'cas\',\'📊 Send CAMS CAS\')" class="cql-tile cql-blue"><span class="cql-ico">📊</span><span class="cql-lbl">CAMS CAS</span></button>'
+    + '<button onclick="showQuickMsgChoicePopup(\''+mob+'\',\'welcome\',\'👋 Send Welcome Message\')" class="cql-tile cql-green"><span class="cql-ico">👋</span><span class="cql-lbl">Welcome</span></button>'
+    + '<button data-uploadlink="'+mob+'" class="cql-tile cql-amber"><span class="cql-ico">📤</span><span class="cql-lbl">Upload</span></button>'
+    + '<button onclick="startMeetingInsight(\''+mob+'\')" class="cql-tile cql-purple"><span class="cql-ico">🧠</span><span class="cql-lbl">Meeting<br>Insights</span></button>'
+    + '<button onclick="sendGatherInfoLinkWA(\''+mob+'\')" class="cql-tile cql-teal"><span class="cql-ico">📝</span><span class="cql-lbl">Gather<br>Info</span></button>'
+    + '<button onclick="sendFinDocLinkWA(\''+mob+'\')" class="cql-tile cql-amber"><span class="cql-ico">🗂️</span><span class="cql-lbl">FinDoc</span></button>'
+    + '<button onclick="showFeedbackChoicePopup(\''+mob+'\')" class="cql-tile cql-green"><span class="cql-ico">💬</span><span class="cql-lbl">Feedback</span></button>'
+    + '<button onclick="startClientReviewReport(\''+mob+'\')" class="cql-tile cql-blue"><span class="cql-ico">💌</span><span class="cql-lbl">Review Report</span></button>'
     + '</div>'
     + '<div id="meeting-insight-body-'+mob+'" style="display:none;padding-top:8px"></div>'
     + '</div>'
     + '<div style="padding:0 14px 8px">'
-    + '<div onclick="toggleChipDocs(\''+mob+'\')" style="background:var(--s2);border-radius:9px;padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">'
-    + '<span style="font-size:9px;color:var(--accent);font-weight:700;letter-spacing:.5px">📁 DOCUMENTS</span>'
-    + '<span id="chip-docs-arrow" style="font-size:11px;color:var(--t3)">▾</span>'
+    + '<div onclick="toggleChipDocs(\''+mob+'\')" class="chip-float chip-float-amber">'
+    + '<span style="font-size:9px;color:var(--orange);font-weight:700;letter-spacing:.5px">📁 DOCUMENTS</span>'
+    + '<span id="chip-docs-arrow" style="font-size:11px;color:var(--orange)">▾</span>'
     + '</div>'
     + '<div id="chip-docs-body" style="display:none;padding-top:6px"></div>'
     + '</div>'
     + '<div style="padding:0 14px 8px">'
-    + '<div onclick="toggleChipData(\''+mob+'\')" style="background:var(--s2);border-radius:9px;padding:10px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">'
-    + '<span style="font-size:9px;color:var(--accent);font-weight:700;letter-spacing:.5px">📝 DATA GATHERED</span>'
-    + '<span id="chip-data-arrow" style="font-size:11px;color:var(--t3)">▾</span>'
+    + '<div onclick="toggleChipData(\''+mob+'\')" class="chip-float chip-float-teal">'
+    + '<span style="font-size:9px;color:#16A085;font-weight:700;letter-spacing:.5px">📝 DATA GATHERED</span>'
+    + '<span id="chip-data-arrow" style="font-size:11px;color:#16A085">▾</span>'
     + '</div>'
     + '<div id="chip-data-body" style="display:none;padding-top:6px"></div>'
     + '</div>'
@@ -3438,6 +3473,7 @@ function describeSpeechRecognitionError(code){
 }
 
 function toggleAiVoiceAssistant(){
+  if(!getSession()){ toast('Please log in again'); return; }
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!hasScript()){ toast('Add Apps Script URL first — check Settings'); return; }
 
@@ -3462,57 +3498,91 @@ function toggleAiVoiceAssistant(){
 }
 
 // ═══════════════════════════════════════════════
-// VOICE ASSISTANT TRIGGER — press-and-hold (\u2265 2s) on a nav button, instead
-// of the old floating Dashboard-only button (removed \u2014 it disappeared the
-// moment you left Dash, and duplicated a control this achieves more
-// consistently). Wired onto:
-//   - Insights (nav-analytics / sidebar-nav-analytics) \u2014 the primary
-//     entry point, always visible and reachable from every screen.
-//   - Dash (nav-dash / sidebar-nav-dash) \u2014 Insights is hidden from
-//     non-admin users entirely (see the isAdmin() check that hides it at
-//     boot), so without this, non-admins would lose voice access
-//     completely. Dash is the one nav button every signed-in user can
-//     always see, so it's the fallback trigger for them.
-// A normal (short) tap on any of these still navigates exactly as before
-// \u2014 only a genuine \u22652s hold is intercepted; the underlying nav() call is
-// otherwise unchanged.
+// VOICE ASSISTANT TRIGGER — true push-to-talk on the Insights nav button:
+// hold \u2265 2s to start recording, keep holding to stay recording, release
+// to stop and send \u2014 replacing the old floating Dashboard-only button
+// (removed \u2014 it disappeared the moment you left Dash). Available to any
+// signed-in user \u2014 see toggleAiVoiceAssistant()'s own session check, the
+// actual authority here; this wiring is just how the gesture reaches it.
+// What each person's voice commands can actually see/act on is scoped
+// server-side per their role (see getAiScopeName in Code.gs), not gated
+// here on the client.
+//
+// Mobile browsers treat a held touch on any element as a native gesture
+// of their own (text-selection callout, a context menu, a link preview)
+// and will cancel the touch sequence outright the moment that kicks in —
+// which is exactly what made a press-and-hold look like it "wasn't
+// connecting" at all: our own timer never got the chance to fire.
+// touchAction/user-select/callout are disabled below specifically to
+// close that gap, on top of preventDefault() on the initial touch.
 // ═══════════════════════════════════════════════
 var VOICE_LONG_PRESS_MS=2000;
 function wireVoiceLongPress(elId, navName){
   var el=document.getElementById(elId);
   if(!el) return; // element may not exist in this layout (e.g. sidebar on mobile)
-  var pressTimer=null, firedLongPress=false;
+  var pressTimer=null;
+
+  el.style.touchAction='none';
+  el.style.webkitUserSelect='none';
+  el.style.userSelect='none';
+  el.style.webkitTouchCallout='none';
+  el.addEventListener('contextmenu', function(e){ e.preventDefault(); });
 
   function clearTimer(){ if(pressTimer){ clearTimeout(pressTimer); pressTimer=null; } }
+  // Checked against the actual live session, not a local flag kept by this
+  // gesture handler \u2014 the browser's own SpeechRecognition can auto-finalize
+  // on a detected pause in speech WHILE the button is still physically
+  // held, which would leave a local "recording active" flag stuck true
+  // with nothing left to stop; checking the real state avoids that
+  // spuriously starting a second recording on release.
+  function voiceSessionLive(){ return !!(_aiVoiceRecog || _aiAudioRecorder); }
   function startPress(e){
-    // Ignore a second finger/pointer landing mid-gesture, and never start
-    // a fresh timer while one is already running for this element.
-    if(pressTimer) return;
-    firedLongPress=false;
+    e.preventDefault(); // beat the browser's own long-press gesture to the punch
+    if(pressTimer || voiceSessionLive()) return;
+    // Keeps subsequent pointer events targeted at this element even if the
+    // finger drifts slightly during a multi-second hold, so a small wobble
+    // doesn't fire pointerleave and prematurely cut off a live recording.
+    if(el.setPointerCapture && e.pointerId!=null){
+      try{ el.setPointerCapture(e.pointerId); }catch(_capErr){}
+    }
     pressTimer=setTimeout(function(){
-      firedLongPress=true;
       pressTimer=null;
+      if(!getSession()){
+        toast('Please log in again');
+        return;
+      }
       if(navigator.vibrate) navigator.vibrate(15);
       _aiVoiceTriggerElId=elId;
-      toggleAiVoiceAssistant();
+      toggleAiVoiceAssistant(); // starts listening/recording — runs for as long as the button stays held
     }, VOICE_LONG_PRESS_MS);
   }
-  function abortPress(){
+  function endPress(e){
+    var wasPending=!!pressTimer; // released before the 2s threshold fired
     clearTimer();
-  }
-  el.addEventListener('pointerdown', startPress);
-  el.addEventListener('pointerup', function(e){
-    clearTimer();
-    if(firedLongPress){
-      // A genuine long-press already happened \u2014 swallow the tap that
-      // ends it so it doesn't also navigate away.
+    if(el.releasePointerCapture && e.pointerId!=null){
+      try{ el.releasePointerCapture(e.pointerId); }catch(_relErr){}
+    }
+    if(!wasPending && voiceSessionLive()){
+      // The 2s hold already started a recording and it's still running —
+      // release stops it and sends whatever was captured.
       e.preventDefault();
-      firedLongPress=false;
+      toggleAiVoiceAssistant();
       return;
     }
-    // Short tap \u2014 exactly the original inline onclick="nav(...)" behavior.
-    nav(navName, el);
-  });
+    if(wasPending){
+      nav(navName, el); // a normal short tap
+    }
+    // else: the threshold had fired, but the session already ended on its
+    // own in the meantime (e.g. SpeechRecognition detected the end of
+    // speech while still held) — already sent, nothing left to do here.
+  }
+  function abortPress(){
+    var wasPending=!!pressTimer;
+    clearTimer();
+    if(!wasPending && voiceSessionLive()) toggleAiVoiceAssistant(); // stop a live session cleanly rather than leave it running unattended
+  }
+  el.addEventListener('pointerdown', startPress);
+  el.addEventListener('pointerup', endPress);
   el.addEventListener('pointercancel', abortPress);
   el.addEventListener('pointerleave', abortPress);
   // Fallback for browsers/environments without Pointer Events \u2014 keeps
@@ -3523,6 +3593,11 @@ function wireVoiceLongPress(elId, navName){
 }
 wireVoiceLongPress('nav-analytics','analytics');
 wireVoiceLongPress('sidebar-nav-analytics','analytics');
+// Maker doesn't get the Insights nav button at all (see canAccessInsightsMenu),
+// so Dash carries the same long-press voice trigger too — the one nav
+// button every signed-in user, Maker included, can always see. Harmless
+// for Checker/Authorizer/Admin as a second way to reach the same voice
+// assistant; a normal short tap still just navigates to Dash as always.
 wireVoiceLongPress('nav-dash','dash');
 wireVoiceLongPress('sidebar-nav-dash','dash');
 
@@ -3654,7 +3729,8 @@ async function handleAudioRecordingStopped(){
   setAiVoiceStatus('🧠 Transcribing…', true);
   try{
     var audioBase64=await fileToBase64(blob);
-    var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:mimeType, languageName:voiceLang.name, expectsResponse:true});
+    var _tvaSession=getSession();
+    var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:mimeType, languageName:voiceLang.name, expectsResponse:true, requestingUserId:_tvaSession?_tvaSession.userId:''});
     setAiVoiceStatus('', false);
     if(res && res.success && res.transcript){
       var corrected2=applyVoiceCorrections(res.transcript); // silently auto-fixes previously-learned mishearings
@@ -4000,7 +4076,8 @@ async function runAiVoiceCommand(transcript, voiceLang){
   _voiceActionQueue=[];
   try{
     var candidateNames=buildVoiceCandidateNames();
-    var res=await apiFetch({action:'interpretVoiceCommand', command:transcript, languageName:voiceLang.name, candidateNames:candidateNames, expectsResponse:true});
+    var _ivcSession=getSession();
+    var res=await apiFetch({action:'interpretVoiceCommand', command:transcript, languageName:voiceLang.name, candidateNames:candidateNames, expectsResponse:true, requestingUserId:_ivcSession?_ivcSession.userId:''});
     if(!res || !res.success || !res.result || !res.result.actions || !res.result.actions.length){
       setAiVoiceStatus('⚠️ '+((res&&res.error)||AI_VOICE_FALLBACK_MSG), true);
       setTimeout(function(){ setAiVoiceStatus('', false); }, 3000);
@@ -4396,8 +4473,11 @@ function renderAll(){
   setTimeout(addSearchClose,100);
 }
 function nav(name,btn,slideFrom){
-  if(name==='analytics' && !isAdmin()){
-    toast('Insights is only available to Admin');
+  // Insights is available to Checker, Authorizer, and Admin — Maker gets
+  // the AI Voice Assistant only, not this menu (redirected to Dash if
+  // reached some other way, e.g. a stale swipe/URL state).
+  if(name==='analytics' && !canAccessInsightsMenu()){
+    toast('Insights is not available on Maker accounts');
     name='dash'; btn=null;
   }
   // Haptic tick + set the swipe slide-direction for this transition —
@@ -4417,6 +4497,11 @@ function nav(name,btn,slideFrom){
   document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});
   var pg=document.getElementById('pg-'+name);
   if(pg) pg.classList.add('active');
+  // Add Task button lives outside .page (see its own comment above for
+  // why) — shown only for Tasks, toggled here alongside the page switch
+  // itself rather than relying on the page's own display:none/block.
+  var addTaskBtn=document.getElementById('global-add-task-btn');
+  if(addTaskBtn) addTaskBtn.style.display=(name==='tasks')?'flex':'none';
   // Activate every nav button for this page — bottom nav AND sidebar — not
   // just whichever one was actually clicked, so both stay in sync even when
   // navigation happens indirectly (e.g. a "view all" link elsewhere).
@@ -4460,7 +4545,7 @@ function nav(name,btn,slideFrom){
     if(sb){sb.style.display='none';var si=document.getElementById('shared-search');if(si){si.value='';si.placeholder='Search leads…';}}
     setTimeout(addSearchClose,100); initLeadSwipe();
   }
-  if(name==='clients') setTimeout(addSearchClose,100);
+  if(name==='clients'){ setTimeout(addSearchClose,100); initClientSwipe(); }
 }
 
 // Search bar is hidden by default on every page — tapping the search icon in
@@ -4473,7 +4558,12 @@ function toggleSharedSearchBar(){
   sb.style.display=showing?'none':'block';
   if(!showing){
     var si=document.getElementById('shared-search');
-    if(si){ si.value=''; setTimeout(function(){si.focus();},50); }
+    // Focus must happen synchronously within this click handler (not
+    // deferred via setTimeout) — mobile browsers only auto-pop the virtual
+    // keyboard when focus() is called as a direct, immediate result of the
+    // user's tap; a deferred focus loses that and silently just selects
+    // the field without opening the keyboard, requiring a second manual tap.
+    if(si){ si.value=''; si.focus(); }
   } else {
     var si2=document.getElementById('shared-search');
     if(si2 && si2.value){ si2.value=''; onSharedSearch(); } // clear any active filter when closing
@@ -5570,7 +5660,6 @@ function makeFuItem(l,itemType){
     // Action row
     +'<div class="fu-actions">'
     +'<a href="whatsapp://send?phone='+waNum+'&text='+msg+'" class="fu-icon-btn wa" data-action="fu-wa-app" data-mob="'+mob+'">'+waIcon()+'</a>'
-    +'<a href="https://web.whatsapp.com/send?phone='+waNum+'&text='+msg+'" target="_blank" class="fu-icon-btn wa">'+waIcon()+'<span style="font-size:9px">W</span></a>'
     +'<a href="tel:'+mob+'" class="fu-icon-btn call"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg></a>'
     +'<a href="botim://call/'+digits+'" class="fu-icon-btn call">📱</a>'
     // Direct date input — tap to change, auto-saves immediately
@@ -5651,7 +5740,7 @@ function renderFU(){
       var p2=document.getElementById('fu-inline-date-'+mob); if(p2)p2.style.display='none';
     }
     if(action==='fu-cancel-date'){ var p3=document.getElementById('fu-inline-date-'+mob); if(p3)p3.style.display='none'; }
-    if(action==='fu-wa-app'){ var waRec=resolveOpenRecord(mob,'lead'); logActivity(waRec?waRec.mobile:mob,'lead','WhatsApp sent',''); }
+    if(action==='fu-wa-app'){ /* no auto activity log — WhatsApp taps are logged only via an explicit quick chip or typed remark */ }
   };
   updateFUBadge();
 }
@@ -6305,7 +6394,7 @@ function renderFuInElement(container, subEl){
       var p2=document.getElementById('fu-inline-date-'+mob);if(p2)p2.style.display='none';
     }
     if(action==='fu-cancel-date'){var p3=document.getElementById('fu-inline-date-'+mob);if(p3)p3.style.display='none';}
-    if(action==='fu-wa-app'){var waRec=resolveOpenRecord(mob,'lead');logActivity(waRec?waRec.mobile:mob,'lead','WhatsApp sent','');}
+    if(action==='fu-wa-app'){ /* no auto activity log — WhatsApp taps are logged only via an explicit quick chip or typed remark */ }
   };
 }
 
@@ -6759,132 +6848,6 @@ function _afResolveClick(idx){
 // CLIENTS DIAGNOSTIC CHECK — focused on real client data (not synthetic
 // test rows for everything): field sync + Drive folder existence.
 // ═══════════════════════════════════════════════════════════════
-// ── Standalone folder check — read-only, no test client written/deleted.
-// Reuses the same checkAllClientFolders backend action as the full diagnostic,
-// but on its own so it's fast and safe to run any time. ──
-async function runFolderCheckOnly(){
-  var el=document.getElementById('folder-check-result');
-  if(el) el.textContent='';
-  function log(m){ if(el){ el.textContent+=m+'\n'; el.scrollTop=el.scrollHeight; } }
-  if(!hasScript()){ log('❌ No Apps Script URL set (Sync tab). Cannot run.'); return; }
-  if(clients.length===0){ log('No clients yet — nothing to check.'); return; }
-  log('Checking '+clients.length+' client'+(clients.length!==1?'s':'')+' against Drive…');
-  try{
-    var payload=clients.map(function(c){return {name:c.name, mobile:c.mobile};});
-    var res=await sheetWrite({action:'checkAllClientFolders', expectsResponse:true, clients:payload});
-    if(res && res.success){
-      log('Checked '+res.totalChecked+' clients against '+res.totalFoldersFound+' existing Drive folders.');
-      log('');
-      if(res.missing && res.missing.length){
-        log('⚠️ '+res.missing.length+' client(s) have NO folder at all:');
-        res.missing.forEach(function(c){ log('   • '+toTitle(c.name)); });
-        showMissingFoldersPrompt(res.missing);
-      }
-      if(res.ambiguous && res.ambiguous.length){
-        log('⚠️ '+res.ambiguous.length+' client(s) have a similarly-named folder needing review:');
-        res.ambiguous.forEach(function(c){ log('   • '+toTitle(c.name)); });
-        showAmbiguousFoldersList(res.ambiguous);
-      }
-      if((!res.missing||!res.missing.length) && (!res.ambiguous||!res.ambiguous.length)){
-        log('✅ Every client already has a correctly-matched Drive folder.');
-      }
-    } else {
-      log('❌ Folder check failed: '+(res&&res.error||'unknown error'));
-    }
-  }catch(e){ log('❌ Folder check error: '+e.message); }
-}
-
-async function runClientsDiagnostic(){
-  var el=document.getElementById('clients-diag-result');
-  var pass=0, fail=0, warn=0;
-  function log(m){ if(el){ el.textContent+=m+'\n'; el.scrollTop=el.scrollHeight; } }
-  function ok(l){ pass++; log('  ✅ '+l); }
-  function no(l){ fail++; log('  ❌ '+l); }
-  function wn(l){ warn++; log('  ⚠️ '+l); }
-  if(el) el.textContent='';
-  if(!hasScript()){ log('❌ No Apps Script URL set (Sync tab). Cannot run.'); return; }
-  log('Running Clients diagnostic check…');
-  log('');
-
-  // ── 1. Field sync: write a test client, confirm all 34 fields round-trip, then
-  //      confirm a modification actually lands in the sheet ──
-  log('━━ 1. Field sync (all fields save · modifications reflect) ━━');
-  var TMOB_CD='9000000006';
-  var colLetter=function(i){ return i<26?String.fromCharCode(65+i):String.fromCharCode(64+Math.floor(i/26))+String.fromCharCode(65+(i%26)); };
-  try{
-    var tc={
-      name:'DIAGCHECK CLIENT', mobile:TMOB_CD, email:'TEST@X.COM', country:'INDIA',
-      source:'DIAGCHECK', referral:'SELF TEST', nextFollowUp:today(),
-      age:'31', gender:'MALE', remarks:'FIELD TEST', createdDate:today(),
-      pan:'ABCDE1234F', dob:'1994-05-15', spouseDob:'1995-06-20', anniversary:'2018-11-10',
-      convertedDate:today(), reviewDate:today(), firstAnniversary:today(),
-      appInstalled:true, broadcastAdded:true,
-      sipDate:'15', healthInsurance:'YES', lifeInsurance:'YES',
-      willDone:true, dueDateHealth:today(), dueDateLife:today(),
-      aum:'25L', potentialAum:'10.50', welcomeSent:true, products:'INVESTMENT',
-      lastContacted:today(), stage:'KYC PENDING', uploadToken:'', potentialSip:'5.25', recordId:'', familyName:'TEST FAMILY'
-    };
-    var row=clientToRow(tc);
-    await sheetWrite({action:'deleteClient',mobile:TMOB_CD});
-    await sheetWrite({action:'appendClient',row:row});
-    await sleep(500);
-    var rd=await scriptGet('CLIENTS',2);
-    var rows=(rd&&rd.rows)?rd.rows.slice(1):[];
-    var got=rows.find(function(r){return String(r[1]||'').trim()===TMOB_CD;});
-    if(!got){ no('Test client not found after write — check backend is deployed (v2.9.7)'); }
-    else{
-      var mism=[];
-      for(var i=0;i<row.length;i++){
-        var w=String(row[i]||'').trim().toLowerCase(), g=String(got[i]||'').trim().toLowerCase();
-        if(w!==g) mism.push(CLIENT_HDRS[i]+' (col '+colLetter(i)+')');
-      }
-      if(mism.length===0) ok('All '+row.length+' fields saved correctly to their columns');
-      else mism.forEach(function(m){ no('Field mismatch: '+m); });
-
-      // Modification test
-      tc.stage='DOCUMENT PENDING';
-      await sheetWrite({action:'updateClient',mobile:TMOB_CD,row:clientToRow(tc)});
-      await sleep(400);
-      rd=await scriptGet('CLIENTS',2); rows=(rd&&rd.rows)?rd.rows.slice(1):[];
-      got=rows.find(function(r){return String(r[1]||'').trim()===TMOB_CD;});
-      var stageIdx=CLIENT_COLS.indexOf('stage');
-      if(got && String(got[stageIdx]||'').trim().toUpperCase()==='DOCUMENT PENDING') ok('A modification made in the app correctly reflects in the sheet');
-      else no('Modification did not reflect in the sheet');
-    }
-  }catch(e){ no('Field sync test error: '+e.message); }
-  await sheetWrite({action:'deleteClient',mobile:TMOB_CD});
-
-  // ── 2. Drive folder existence — every REAL client, not test data ──
-  log(''); log('━━ 2. Drive folders — checking '+clients.length+' real client'+(clients.length!==1?'s':'')+' ━━');
-  if(clients.length===0){
-    wn('No clients yet — nothing to check');
-  } else {
-    try{
-      var payload=clients.map(function(c){return {name:c.name, mobile:c.mobile};});
-      var res=await sheetWrite({action:'checkAllClientFolders', expectsResponse:true, clients:payload});
-      if(res && res.success){
-        ok('Checked '+res.totalChecked+' clients against '+res.totalFoldersFound+' existing Drive folders');
-        if(res.missing && res.missing.length){
-          wn(res.missing.length+' client(s) have no folder at all: '+res.missing.slice(0,5).map(function(c){return toTitle(c.name);}).join(', ')+(res.missing.length>5?'…':''));
-          showMissingFoldersPrompt(res.missing);
-        }
-        if(res.ambiguous && res.ambiguous.length){
-          wn(res.ambiguous.length+' client(s) have a similarly-named folder that needs your review (tap to resolve):');
-          showAmbiguousFoldersList(res.ambiguous);
-        }
-        if((!res.missing||!res.missing.length) && (!res.ambiguous||!res.ambiguous.length)){
-          ok('Every client already has a correctly-matched Drive folder');
-        }
-      } else {
-        no('Folder check failed: '+(res&&res.error||'unknown error — confirm Code.gs v2.9.8 is deployed'));
-      }
-    }catch(e){ no('Folder check error: '+e.message); }
-  }
-
-  log(''); log('━━━━━━━━━━━━');
-  log('RESULT: '+pass+' passed · '+fail+' failed · '+warn+' warnings');
-}
-
 // Popup: "N clients have no folder — create now?" — same safe inline-onclick
 // pattern used elsewhere (avoids the getElementById-after-innerHTML binding issue).
 function showMissingFoldersPrompt(missingList){
@@ -7016,38 +6979,6 @@ async function saveDailyInsightsSettings(){
     if(res && res.success){
       toast('✅ Saved');
       loadDailyInsightsSettings();
-    } else {
-      if(statusEl){ statusEl.textContent='⚠️ '+(res&&res.error||'Could not save'); statusEl.style.color='var(--red)'; }
-    }
-  }catch(e){
-    if(statusEl){ statusEl.textContent='⚠️ Could not reach the server: '+e.message; statusEl.style.color='var(--red)'; }
-  }
-}
-async function loadAiCacheSettings(){
-  var hrEl=document.getElementById('ai-cache-hours');
-  var statusEl=document.getElementById('ai-cache-status');
-  if(!hrEl) return;
-  try{
-    var res=await sheetWrite({action:'getAiCacheSettings', expectsResponse:true}, 15000);
-    if(res && res.success){
-      hrEl.value=String(res.hours!=null?res.hours:3);
-      if(statusEl){ statusEl.textContent='Currently caching for '+hrEl.value+' hour(s)'; statusEl.style.color='var(--t3)'; }
-    }
-  }catch(e){ /* non-fatal — form just keeps its default */ }
-}
-async function saveAiCacheSettings(){
-  var session=getSession();
-  if(!session){ toast('Please log in again'); return; }
-  if(!isAdmin()){ toast('Only an Admin can change this'); return; }
-  var statusEl=document.getElementById('ai-cache-status');
-  var hrEl=document.getElementById('ai-cache-hours');
-  var hours=parseFloat(hrEl?hrEl.value:'3')||3;
-  if(statusEl){ statusEl.textContent='Saving…'; statusEl.style.color='var(--t3)'; }
-  try{
-    var res=await sheetWrite({action:'saveAiCacheSettings', requestingUserId:session.userId, hours:hours, expectsResponse:true}, 15000);
-    if(res && res.success){
-      toast('✅ Saved');
-      loadAiCacheSettings();
     } else {
       if(statusEl){ statusEl.textContent='⚠️ '+(res&&res.error||'Could not save'); statusEl.style.color='var(--red)'; }
     }
@@ -7750,7 +7681,8 @@ async function startChatAudioFallback(){
     toast('Transcribing…');
     try{
       var audioBase64=await fileToBase64(blob);
-      var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:recMime, languageName:voiceLang.name, expectsResponse:true});
+      var _tva2Session=getSession();
+      var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:recMime, languageName:voiceLang.name, expectsResponse:true, requestingUserId:_tva2Session?_tva2Session.userId:''});
       if(res && res.success && res.transcript){
         if(input) input.value=baseText+res.transcript;
       } else {
@@ -8432,19 +8364,17 @@ async function runHealthCheck(){
   log(''); log('\u2501\u2501 15. AI API connectivity (Gemini) \u2501\u2501');
   var _hcSession=getSession();
   var _hcUserId=_hcSession?_hcSession.userId:'';
-  if(!isAdmin()){
-    wn('Insights AI chat test skipped \u2014 Insights is an admin-only feature and this account is not an Admin. Sign in as an Admin to test it.');
-  } else {
-    try{
-      var chatRes=await sheetWrite({action:'practiceChat', message:'Reply with exactly the word: OK', history:[], expectsResponse:true, requestingUserId:_hcUserId}, 20000);
-      if(chatRes && chatRes.reply) ok('Insights AI chat responded \u2014 Gemini connection working ("'+String(chatRes.reply).slice(0,40).replace(/\n/g,' ')+'")');
-      else no('Insights AI chat failed: '+(chatRes&&chatRes.error||'no reply received \u2014 check GEMINI_API_KEY in Script Properties'));
-    }catch(e){ no('Insights AI chat error: '+e.message); }
-  }
-  // Voice Assistant is available to every user (not admin-restricted like
-  // Insights), so this test always runs regardless of role.
+  // Insights and AI Voice Assistant are available to every signed-in
+  // user now (scoped per role server-side), so this test always runs
+  // regardless of role \u2014 it's just checking Gemini connectivity works at
+  // all, not testing the scoping itself.
   try{
-    var vcRes=await sheetWrite({action:'interpretVoiceCommand', command:'add a lead named Test User mobile 9999999999', languageName:'English', candidateNames:[], expectsResponse:true}, 20000);
+    var chatRes=await sheetWrite({action:'practiceChat', message:'Reply with exactly the word: OK', history:[], expectsResponse:true, requestingUserId:_hcUserId}, 20000);
+    if(chatRes && chatRes.reply) ok('Insights AI chat responded \u2014 Gemini connection working ("'+String(chatRes.reply).slice(0,40).replace(/\n/g,' ')+'")');
+    else no('Insights AI chat failed: '+(chatRes&&chatRes.error||'no reply received \u2014 check GEMINI_API_KEY in Script Properties'));
+  }catch(e){ no('Insights AI chat error: '+e.message); }
+  try{
+    var vcRes=await sheetWrite({action:'interpretVoiceCommand', command:'add a lead named Test User mobile 9999999999', languageName:'English', candidateNames:[], expectsResponse:true, requestingUserId:_hcUserId}, 20000);
     if(vcRes && vcRes.success && vcRes.result && vcRes.result.actions && vcRes.result.actions.length){
       ok('AI Voice Assistant interpreter responded correctly \u2014 intent recognized: '+vcRes.result.actions[0].intent);
     } else {
@@ -8512,6 +8442,39 @@ async function runHealthCheck(){
       no((cfsRes&&cfsRes.error)||'Could not reach the central feedback sheet \u2014 product feedback submissions will fail until this account is shared as an editor on it');
     }
   }catch(e){ no('Central feedback sheet check error: '+e.message); }
+
+  log(''); log('\u2501\u2501 19. Real client Drive folders (live scan, not test data) \u2501\u2501');
+  // Everything above this point tests MECHANICS with temporary throwaway
+  // records \u2014 this section instead scans every ACTUAL client and reports
+  // whether each one genuinely has a matched Drive folder. Folded in from
+  // the old standalone "Client Folder Creation Check" button so this one
+  // Full Health Check is the single place that covers both.
+  if(clients.length===0){
+    wn('No real clients yet \u2014 nothing to scan.');
+  } else {
+    try{
+      var fcPayload=clients.map(function(c){return {name:c.name, mobile:c.mobile};});
+      var fcRes=await sheetWrite({action:'checkAllClientFolders', expectsResponse:true, clients:fcPayload}, 30000);
+      if(fcRes && fcRes.success){
+        ok('Checked '+fcRes.totalChecked+' real client(s) against '+fcRes.totalFoldersFound+' existing Drive folder(s)');
+        if(fcRes.missing && fcRes.missing.length){
+          no(fcRes.missing.length+' client(s) have NO folder at all:');
+          fcRes.missing.forEach(function(c){ log('     \u2022 '+toTitle(c.name)); });
+          showMissingFoldersPrompt(fcRes.missing);
+        }
+        if(fcRes.ambiguous && fcRes.ambiguous.length){
+          wn(fcRes.ambiguous.length+' client(s) have a similarly-named folder needing review:');
+          fcRes.ambiguous.forEach(function(c){ log('     \u2022 '+toTitle(c.name)); });
+          showAmbiguousFoldersList(fcRes.ambiguous);
+        }
+        if((!fcRes.missing||!fcRes.missing.length) && (!fcRes.ambiguous||!fcRes.ambiguous.length)){
+          ok('Every real client already has a correctly-matched Drive folder');
+        }
+      } else {
+        no('Real client folder scan failed: '+(fcRes&&fcRes.error||'unknown error'));
+      }
+    }catch(e){ no('Real client folder scan error: '+e.message); }
+  }
 
   // SUMMARY
   log(''); log('\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501');
@@ -8736,34 +8699,6 @@ function emailHealthReport(){
 // person can close the app right after tapping it and still get the
 // email, so the UI confirms immediately rather than waiting for the
 // (potentially 30-60+ second) Apps Script execution to finish and return.
-// The fetch is still sent — just not awaited in a way that blocks the UI
-// or that matters if the tab closes before it resolves, since the
-// diagnostic keeps running server-side regardless (see the comment on
-// runServerDiagnosticAndEmail in Code.gs). ──
-function runServerDiagnosticAndEmail(){
-  if(!hasScript()){ toast('Add Apps Script URL first — check Settings'); return; }
-  var statusEl=document.getElementById('server-diag-status');
-  if(statusEl) statusEl.textContent='🩺 Diagnosis running on the server — you can safely close the app now. The report will arrive by email in a minute or two.';
-  toast('Diagnosis started — you\'ll get an emailed report shortly, even if you close the app now', 5000);
-  // Long explicit timeout — this genuinely can take a minute or more
-  // server-side (multiple sheet round-trips, a couple of Gemini calls, a
-  // few external page fetches). apiFetch()'s default 30s would abort the
-  // CLIENT's wait for a response well before that, which — while it
-  // wouldn't stop the server-side execution or the email — would show a
-  // misleading "error" here for a run that's actually still working fine.
-  sheetWrite({action:'runServerDiagnosticAndEmail'}, 120000).then(function(res){
-    if(statusEl){
-      if(res && res.success) statusEl.textContent='✅ Done — emailed to deeppocket1610@gmail.com ('+res.summary+')';
-      else if(res) statusEl.textContent='⚠️ '+(res.error||'Something went wrong — check Apps Script Executions log');
-    }
-  }).catch(function(){
-    // A network error here just means we didn't hear back — the Apps
-    // Script execution itself was already dispatched and keeps running
-    // regardless, so this is NOT necessarily a failure, just silence.
-    if(statusEl) statusEl.textContent='🩺 Diagnosis is running server-side — check your email in a couple of minutes.';
-  });
-}
-
 async function runFullSyncTest(){
   var el=document.getElementById('full-test-result');
   function log(m){ if(el) el.textContent+=m+'\n'; console.log('[TEST]',m); }
@@ -8974,7 +8909,7 @@ function isInsideHorizontalScroller(el){
   var node=el;
   var depth=0;
   while(node && node!==contentEl && node!==document.body && depth<12){
-    if(node.classList && node.classList.contains('li')) return true;
+    if(node.classList && (node.classList.contains('li') || node.classList.contains('ccard'))) return true;
     if(node.id==='lead-list' || node.id==='client-list') return true;
     var cs=window.getComputedStyle(node);
     if((cs.overflowX==='auto' || cs.overflowX==='scroll') && node.scrollWidth>node.clientWidth+4) return true;
@@ -9018,7 +8953,9 @@ function initTabSwipeNav(){
 }
 
 function navigateTabBySwipe(direction){
-  var order=TAB_SWIPE_ORDER.filter(function(name){ return name!=='analytics' || isAdmin(); });
+  // Insights is excluded from the swipeable order for Maker, same as the
+  // nav button itself — matches canAccessInsightsMenu()/nav()'s own check.
+  var order=TAB_SWIPE_ORDER.filter(function(name){ return name!=='analytics' || canAccessInsightsMenu(); });
   var current=order.find(function(n){ var pg=document.getElementById('pg-'+n); return pg && pg.classList.contains('active'); });
   var idx=order.indexOf(current);
   if(idx<0) return; // current page isn't one of the swipeable tabs (e.g. Settings) — swipe does nothing there
@@ -9138,6 +9075,65 @@ function initSwipe(){
   });
 }
 
+// ── Swipe actions on client cards — same mechanism as lead cards
+// (initSwipe above), applied to #client-list/.ci instead of #lead-list/.li.
+// Leads' swipe is asymmetric (right = quick-log, left = cycle status)
+// because a lead has an obvious "quick log a follow-up call" action; a
+// client's lifecycle stage doesn't have an equivalent, so both directions
+// simply cycle CLIENT_STAGES — left forward, right backward — making it
+// quick to nudge a client's stage one step in either direction without
+// opening the record or using the stage dropdown on the card itself. ──
+var _cSwipeStartX=0, _cSwipeStartY=0, _cSwipeMob='', _cSwiping=false;
+function initClientSwipe(){setTimeout(initSwipeClients,200);}
+function initSwipeClients(){
+  var list=document.getElementById('client-list');
+  if(!list) return;
+  list.addEventListener('touchstart', function(e){
+    var card=e.target.closest('.ccard');
+    if(!card||clientBulkMode) return;
+    _cSwipeStartX=e.touches[0].clientX;
+    _cSwipeStartY=e.touches[0].clientY;
+    var onclick=card.getAttribute('onclick')||'';
+    var m=onclick.match(/openDetail\('([^']+)'/);
+    _cSwipeMob=m?m[1]:'';
+    _cSwiping=true;
+    card.style.transition='transform 0.1s';
+  }, {passive:true});
+
+  list.addEventListener('touchmove', function(e){
+    if(!_cSwiping) return;
+    var dx=e.touches[0].clientX-_cSwipeStartX;
+    var dy=e.touches[0].clientY-_cSwipeStartY;
+    if(Math.abs(dy)>Math.abs(dx)){_cSwiping=false;return;} // vertical scroll
+    var card=e.target.closest('.ccard');
+    if(card && Math.abs(dx)>20) card.style.transform='translateX('+Math.min(60,Math.max(-60,dx))+'px)';
+  }, {passive:true});
+
+  list.addEventListener('touchend', function(e){
+    if(!_cSwiping){_cSwiping=false;return;}
+    _cSwiping=false;
+    var card=e.target.closest('.ccard');
+    if(card) {card.style.transform='';card.style.transition='';}
+    var dx=e.changedTouches[0].clientX-_cSwipeStartX;
+    if(!_cSwipeMob||Math.abs(dx)<50) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var c=clients.find(function(x){return x.recordId===_cSwipeMob||x.mobile===_cSwipeMob;});
+    if(c){
+      var cur=(c.stage||'').toUpperCase();
+      var ci=CLIENT_STAGES.indexOf(cur);
+      if(ci<0) ci=0; // no stage set yet — start from the first stage either direction
+      var nextIdx = dx<-50 ? (ci+1)%CLIENT_STAGES.length : (ci-1+CLIENT_STAGES.length)%CLIENT_STAGES.length;
+      var next=CLIENT_STAGES[nextIdx];
+      c.stage=next; saveC();
+      syncClient(c,'update');
+      toast(toTitle(c.name)+' → '+next);
+      setTimeout(renderClients,300);
+    }
+    _cSwipeMob='';
+  });
+}
+
 
 
 // ── Bulk WhatsApp broadcast ──
@@ -9229,7 +9225,6 @@ function loadSettings(){
   loadConnectedCalendarsInfo();
   loadDailyInsightsSettings();
   loadClientEmailMonitoringStatus();
-  loadAiCacheSettings();
 }
 
 // ── Shows/hides the persistent "these changes never made it to the sheet"
@@ -9560,7 +9555,9 @@ async function confirmSendReviewReport(mob){
   var waNum=digits.length===10?'91'+digits:digits;
   var msg='Hi '+toTitle(c.name)+',\n\nI\'ve put together a quick review of your portfolio — thought you\'d like to see it:\n\n'+link+'\n\nWarm regards\nArjun';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
-  logActivity(mob,'client','Review Report link sent via WhatsApp','');
+  // No auto activity log here — opening the WhatsApp compose window isn't
+  // proof anything was actually sent; log it yourself via a quick chip or
+  // typed remark if you do send it.
 }
 
 function buildReviewReportLink(token){
@@ -10555,7 +10552,8 @@ function showDashList(type){
     items=clients.slice().sort(function(a,b){return parseAumValue(b.aum)-parseAumValue(a.aum);});
   } else if(type==='dropped'){
     title='⚫ Dropped Leads';color='#888';
-    items=leads.filter(function(l){return (l.status||'').toUpperCase()==='DROPPED';});
+    items=leads.filter(function(l){return (l.status||'').toUpperCase()==='DROPPED';})
+      .slice().sort(function(a,b){return (a.name||'').toLowerCase().localeCompare((b.name||'').toLowerCase());});
   }
   var ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
@@ -11500,7 +11498,8 @@ async function sendFinDocLinkWA(mob){
     +'\nArjun K T M'
     +'\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
-  logActivity(mob,'client','Fin Doc link sent via WhatsApp','');
+  // No auto activity log here — see the note on buildReviewReportLink's
+  // WhatsApp send above.
 }
 function buildFeedbackLink(token){
   // feedback.html must sit in the SAME folder as this file (crm.html) — same
@@ -11525,7 +11524,8 @@ async function sendFeedbackLinkWA(mob){
     +'\nArjun K T M'
     +'\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
-  logActivity(mob,'client','Feedback link sent via WhatsApp','');
+  // No auto activity log here — see the note on buildReviewReportLink's
+  // WhatsApp send above.
 }
 
 // ── Channel choice — WhatsApp or Email, shown before the request goes out.
@@ -11625,7 +11625,8 @@ async function sendUploadLinkWA(mob){
     +'\nArjun K T M'
     +'\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
-  logActivity(mob,'client','Upload link sent via WhatsApp','');
+  // No auto activity log here — see the note on buildReviewReportLink's
+  // WhatsApp send above.
 }
 
 // ── Gather Info link — same token as the document upload link, but points
@@ -11648,7 +11649,8 @@ async function sendGatherInfoLinkWA(mob){
     +'\nArjun K T M'
     +'\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
-  logActivity(mob,'client','Gather Info link sent via WhatsApp','');
+  // No auto activity log here — see the note on buildReviewReportLink's
+  // WhatsApp send above.
 }
 
 // ── Same upload-link mechanism, for Leads (pre-conversion) — uses the LEADS 'Upload Token' column (col U) ──
@@ -11678,7 +11680,8 @@ async function sendLeadUploadLinkWA(mob){
     +'\nArjun K T M'
     +'\nDeep Pocket Fintech Pvt. Ltd.';
   window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
-  logActivity(mob,'lead','Upload link sent via WhatsApp','');
+  // No auto activity log here — see the note on buildReviewReportLink's
+  // WhatsApp send above.
 }
 
 function fileToBase64(file){
@@ -11736,6 +11739,14 @@ async function toggleChipDocs(mob){
 
   try{
     var res=await apiFetch({action:'listClientDocuments', clientName:c.name, pan:c.pan, mobile:c.mobile, folderId:c.folderId||''});
+    // First time opening this client's documents (no folderId cached yet):
+    // the server just did a full Drive search to find it. Caching that
+    // result now means every future open for this client goes straight to
+    // the fast getFolderById path instead of repeating that search — same
+    // "find once, tag permanently" pattern already used for leads
+    // (tagFolderToLead) and elsewhere for clients (tagFolderToClient).
+    // Fire-and-forget: the document list itself doesn't need to wait on it.
+    if(!c.folderId && res && res.success && res.folderId){ tagFolderToClient(c, res.folderId); }
     var files = (res && res.success && res.files) ? res.files : [];
     var fileByType = {};
     files.forEach(function(f){ fileByType[f.docType]=f; });
@@ -12328,6 +12339,12 @@ function setSession(s){ localStorage.setItem('wm_session', JSON.stringify(s)); }
 function clearSession(){ localStorage.removeItem('wm_session'); }
 function currentUserType(){ var s=getSession(); return s?s.userType:null; }
 function isAdmin(){ return currentUserType()==='ADMIN'; }
+// Insights menu (chat + the 14 structured questions) is available to
+// Checker, Authorizer, and Admin — Maker gets the AI Voice Assistant only,
+// not this menu. Mirrors verifyCanAccessInsights in Code.gs exactly; kept
+// as its own named check for the same reason as the server-side version —
+// it answers a different question than isAdmin() and could diverge later.
+function canAccessInsightsMenu(){ return currentUserType()!=='MAKER'; }
 
 function showLoginScreen(){
   var ls=document.getElementById('login-screen');
@@ -12756,7 +12773,10 @@ function startAppAfterAuth(){
   var topVerEl=document.getElementById('topbar-version-tag');
   if(topVerEl) topVerEl.textContent='V '+APP_VERSION;
   loadTopbarFirmName();
-  if(!isAdmin()){
+  // Insights is hidden from Maker accounts — they get the AI Voice
+  // Assistant only (see wireVoiceLongPress's Dash-button wiring below).
+  // Checker/Authorizer/Admin keep seeing it.
+  if(!canAccessInsightsMenu()){
     var navBtn=document.getElementById('nav-analytics'); if(navBtn) navBtn.style.display='none';
     var sideBtn=document.getElementById('sidebar-nav-analytics'); if(sideBtn) sideBtn.style.display='none';
   }
@@ -12780,6 +12800,7 @@ if(getSession()){
 try{_analyticsData=JSON.parse(localStorage.getItem('wm_analytics')||'[]');}catch(e){_analyticsData=[];}
 checkURLParams();
 initLeadSwipe();
+initClientSwipe();
 
 // ── Auto-sync interval REMOVED (was here previously) ──
 // This used to silently pull LEADS every 5 minutes with its own incomplete,
