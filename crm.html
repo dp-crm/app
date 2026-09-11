@@ -340,6 +340,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
    is actually held/recording — toggled by the same .listening class. */
 #nav-analytics.listening #nav-analytics-glow{opacity:1;animation:navRecordGlow 1.1s ease-in-out infinite}
 @keyframes navRecordGlow{0%,100%{transform:translateX(-50%) scale(.85);opacity:.75}50%{transform:translateX(-50%) scale(1.08);opacity:1}}
+/* "Charging" state — added the instant the button is pressed, but the
+   transition-delay means nothing is actually visible for the first
+   second of holding (so a normal quick tap never flashes it). From the
+   1s mark to the 2s mark (when real recording begins and .listening
+   takes over) the glow rises smoothly from behind the icon — visible,
+   growing feedback for the whole hold, not just a sudden pop-in once
+   recording actually starts. */
+#nav-analytics-glow{transition:opacity .15s ease, transform .15s ease}
+#nav-analytics.charging #nav-analytics-glow{opacity:.65;transform:translateX(-50%) scale(.85);transition:opacity 1s ease-out 1s, transform 1s ease-out 1s}
 /* The generic small dot (positioned for a flat button) sits oddly next to
    the raised, floating badge here — the glow above is this button's own
    purpose-built replacement for it. Dash and other nav buttons keep the dot. */
@@ -703,19 +712,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
 
-  <!-- AI Practice Pulse — a condensed, max-8-point version of today's daily
-       AI insights email, right on the Dashboard. Deliberately reads
-       already-generated data (see getDashboardPracticePulse in Code.gs)
-       rather than making a fresh AI call on every dashboard load — instant,
-       free, and guaranteed to never say something different from what the
-       email already said. -->
+  <!-- AI "Today's Insights" — a condensed, max-8-point version of today's
+       daily AI insights email, right on the Dashboard, just above Today's
+       Activity. Deliberately reads already-generated data (see
+       getDashboardPracticePulse in Code.gs) rather than making a fresh AI
+       call on every dashboard load — instant, free, and guaranteed to
+       never say something different from what the email already said. -->
   <div class="sec" id="dash-practice-pulse-wrap" style="display:none">
-    <div style="background:linear-gradient(135deg,var(--s1),var(--s2));border:1px solid var(--accent);border-radius:var(--r);padding:14px 14px 10px">
-      <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">
+    <div style="background:linear-gradient(135deg,var(--s1),var(--s2));border:1px solid var(--accent);border-radius:var(--r);padding:14px 14px 12px;box-shadow:0 6px 20px -8px color-mix(in srgb, var(--accent) 45%, transparent)">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
         <span style="font-size:14px">🧠</span>
-        <span class="lbl" style="color:var(--accent);margin:0">Your Practice, in a Nutshell</span>
+        <span class="lbl" style="color:var(--accent);margin:0">Today's Insights</span>
       </div>
-      <div id="dash-practice-pulse-body"></div>
+      <div id="dash-practice-pulse-body" style="display:flex;flex-direction:column;gap:6px"></div>
     </div>
   </div>
 
@@ -893,22 +902,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
             </label>
           </div>
           <div style="padding:0 12px 6px"><label class="fl">Recipient Email</label><input class="fi" id="di-recipient" type="email" placeholder="you@example.com" style="font-size:12px"></div>
-          <div style="padding:0 12px 6px;display:flex;gap:8px">
-            <div style="flex:1"><label class="fl">Delivery Hour (0–23)</label><input class="fi" id="di-hour" type="number" min="0" max="23" value="8" style="font-size:12px"></div>
-            <div style="flex:1"><label class="fl">Timezone</label>
-              <select class="fi" id="di-timezone" style="font-size:12px">
-                <option value="Asia/Kolkata">India (IST)</option>
-                <option value="Asia/Dubai">UAE (GST)</option>
-                <option value="Asia/Riyadh">Saudi Arabia (AST)</option>
-                <option value="Asia/Qatar">Qatar (AST)</option>
-                <option value="Asia/Kuwait">Kuwait (AST)</option>
-                <option value="Asia/Bahrain">Bahrain (AST)</option>
-                <option value="Asia/Muscat">Oman (GST)</option>
-                <option value="UTC">UTC</option>
-              </select>
-            </div>
-          </div>
-          <div class="si" style="font-size:10px;color:var(--t3);margin:0 12px 8px"><span>Apps Script triggers fire based on the script project's own timezone, not this field — for the delivery hour to match your firm's real local time, make sure the Apps Script project's Time Zone (Project Settings) is also set to your firm's timezone. Treat delivery as "approximately" this hour, not to-the-minute.</span></div>
+          <div class="si" style="font-size:10px;color:var(--t3);margin:0 12px 8px"><span>Sends once a day, automatically, around 8am (script project timezone) — this isn't currently adjustable.</span></div>
           <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveDailyInsightsSettings()">💾 Save Daily Insights Settings</button></div>
           <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="sendTestInsightsEmail()">📧 Send Test AI Insights Email</button></div>
           <div class="si" style="font-size:10px" id="daily-insights-status"></div>
@@ -990,7 +984,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
               <option value="kn-IN|Kannada">ಕನ್ನಡ (Kannada)</option>
             </select>
           </div>
-          <div class="si" style="font-size:10px;color:var(--t3);font-style:italic;margin-top:4px"><span>Sets the language for the AI Voice Assistant on the Dashboard — both what it listens for and how it replies.</span></div>
+          <div class="si" style="font-size:10px;color:var(--t3);font-style:italic;margin-top:4px"><span>One setting, three effects: what language the assistant listens for when you speak, what language it tells Gemini your words are in (so it's understood correctly), and what language it replies back in. All three always match this selection — except a couple of fixed English fallback messages, which stay in English regardless.</span></div>
+          <div style="padding:0 12px 4px;display:flex;align-items:center;gap:8px;margin-top:6px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer">
+              <input type="checkbox" id="voice-output-toggle" style="width:18px;height:18px" onchange="setVoiceOutputEnabled(this.checked)">
+              Voice Output (assistant speaks its reply aloud)
+            </label>
+          </div>
+          <div class="si" style="font-size:10px;color:var(--t3);font-style:italic;margin-top:4px"><span>Off by default. Uses your phone's own built-in voice — no extra cost, no server call. Currently speaks for English and Hindi only; the other four languages above still show a text reply but stay silent, since not every phone has a good built-in voice for them yet.</span></div>
         </div>
         <div class="sg" style="margin-top:10px">
           <div style="font-size:11px;color:var(--t2);margin:0 12px 8px;font-weight:700">📅 Special Days</div>
@@ -1150,7 +1151,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <button class="nb" onclick="nav('leads',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Leads</button>
   <button class="nb active" id="nav-dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dash</button>
   <button class="nb" id="nav-analytics" style="gap:1px;position:relative">
-    <span id="nav-analytics-glow" style="position:absolute;top:-40px;left:50%;transform:translateX(-50%) scale(.7);width:90px;height:90px;border-radius:50%;background:radial-gradient(circle, rgba(232,84,63,.85) 0%, rgba(232,84,63,.45) 45%, rgba(232,84,63,0) 72%);opacity:0;z-index:0;pointer-events:none;transition:opacity .15s ease"></span>
+    <span id="nav-analytics-glow" style="position:absolute;top:-40px;left:50%;transform:translateX(-50%) scale(.7);width:90px;height:90px;border-radius:50%;background:radial-gradient(circle, rgba(232,84,63,.85) 0%, rgba(232,84,63,.45) 45%, rgba(232,84,63,0) 72%);opacity:0;z-index:0;pointer-events:none"></span>
     <span style="position:absolute;top:-26px;left:50%;transform:translateX(-50%);width:62px;height:62px;border-radius:50%;background:linear-gradient(145deg,#3FA073,#2C7A57);border:4px solid var(--bg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(47,150,105,.5);z-index:1">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2c.3 3.5 1.3 6 3 7.5S19 12 22 12c-3 0-5.3.9-7 2.5S12.3 18.5 12 22c-.3-3.5-1.3-6-3-7.5S4 12 2 12c3 0 5.3-.9 7-2.5S11.7 5.5 12 2z"/></svg>
     </span>
@@ -3557,6 +3558,12 @@ function wireVoiceLongPress(elId, navName){
   function startPress(e){
     e.preventDefault(); // beat the browser's own long-press gesture to the punch
     if(pressTimer || voiceSessionLive()) return;
+    // Added immediately, not after a delay \u2014 the CSS transition-delay on
+    // #nav-analytics.charging is what keeps this invisible for the first
+    // second (so a normal quick tap never flashes it), then rises smoothly
+    // from the 1s mark to the 2s mark, giving visible, growing feedback for
+    // the whole hold instead of a sudden pop-in once recording starts.
+    el.classList.add('charging');
     // Keeps subsequent pointer events targeted at this element even if the
     // finger drifts slightly during a multi-second hold, so a small wobble
     // doesn't fire pointerleave and prematurely cut off a live recording.
@@ -3566,10 +3573,16 @@ function wireVoiceLongPress(elId, navName){
     pressTimer=setTimeout(function(){
       pressTimer=null;
       if(!getSession()){
+        el.classList.remove('charging');
         toast('Please log in again');
         return;
       }
-      if(navigator.vibrate) navigator.vibrate(15);
+      el.classList.remove('charging'); // .listening (added inside toggleAiVoiceAssistant's start path) takes over the glow from here
+      // A single, moderate vibration \u2014 not a custom pattern \u2014 so it reads
+      // as a normal phone tap/click sensation rather than something
+      // app-specific. Same duration used again on stop, below, so start
+      // and stop feel like a matched pair.
+      if(navigator.vibrate) navigator.vibrate(40);
       _aiVoiceTriggerElId=elId;
       toggleAiVoiceAssistant(); // starts listening/recording — runs for as long as the button stays held
     }, VOICE_LONG_PRESS_MS);
@@ -3577,6 +3590,7 @@ function wireVoiceLongPress(elId, navName){
   function endPress(e){
     var wasPending=!!pressTimer; // released before the 2s threshold fired
     clearTimer();
+    el.classList.remove('charging'); // released before recording started \u2014 no vibration, nothing happened yet
     if(el.releasePointerCapture && e.pointerId!=null){
       try{ el.releasePointerCapture(e.pointerId); }catch(_relErr){}
     }
@@ -3584,6 +3598,7 @@ function wireVoiceLongPress(elId, navName){
       // The 2s hold already started a recording and it's still running —
       // release stops it and sends whatever was captured.
       e.preventDefault();
+      if(navigator.vibrate) navigator.vibrate(40); // matches the start vibration \u2014 recording has finished
       toggleAiVoiceAssistant();
       return;
     }
@@ -3597,7 +3612,11 @@ function wireVoiceLongPress(elId, navName){
   function abortPress(){
     var wasPending=!!pressTimer;
     clearTimer();
-    if(!wasPending && voiceSessionLive()) toggleAiVoiceAssistant(); // stop a live session cleanly rather than leave it running unattended
+    el.classList.remove('charging');
+    if(!wasPending && voiceSessionLive()){
+      if(navigator.vibrate) navigator.vibrate(40); // same stop vibration \u2014 a cancelled hold still cleanly ends a live recording
+      toggleAiVoiceAssistant(); // stop a live session cleanly rather than leave it running unattended
+    }
   }
   el.addEventListener('pointerdown', startPress);
   el.addEventListener('pointerup', endPress);
@@ -3864,6 +3883,12 @@ function learnVoiceCorrection(originalText, editedText){
 }
 
 var AI_VOICE_FALLBACK_MSG='Sorry, I could not find this. Please try again manually.';
+// Mirrors VC_ANALYTICAL_FALLBACK on the server exactly — used client-side
+// only to recognize this specific fixed message (see speakVoiceReply
+// below, which needs to know a reply is one of these two fixed English
+// strings rather than a normal AI-generated reply in whatever language
+// was selected).
+var AI_VOICE_ANALYTICAL_FALLBACK_MSG='Sorry, I cannot process that here. Please explore the AI Insights menu instead.';
 
 // Builds the deduplicated name list sent up with every voice command so
 // Gemini matches spoken names against REAL leads/clients instead of
@@ -4070,7 +4095,11 @@ function dispatchVoiceAction(r, transcript){
     }
 
   } else {
-    toast(AI_VOICE_FALLBACK_MSG);
+    // Uses the server's actual reply text (which now differs between a
+    // genuinely unrecognized command and an analytical question redirected
+    // to Insights) rather than a single hardcoded generic message for
+    // every unhandled intent.
+    toast(r.reply||AI_VOICE_FALLBACK_MSG);
     advanceVoiceQueueIfPending();
   }
 }
@@ -4079,11 +4108,43 @@ function dispatchVoiceAction(r, transcript){
 // see the advanceVoiceQueueIfPending() calls in saveLead() and
 // saveTaskNow(). Harmless no-op when nothing is queued (the overwhelming
 // majority of commands, which are single-step).
+// ── Voice Output (Settings > App Settings, off by default — opt-in only).
+// Stage 2 of voice output: speaks the AI's reply back using the device's
+// own built-in text-to-speech (free, no API call, no token cost — same
+// family of browser API as speech INPUT already uses) — but only for
+// English and Hindi. The other four supported input languages (Malayalam,
+// Tamil, Telugu, Kannada) stay text-only for now: built-in TTS voice
+// quality/availability for those is inconsistent across real devices —
+// some phones have no voice for them at all and would either silently
+// stay quiet or read the text with an English accent, which would look
+// broken rather than helpful. Revisit if device TTS support improves. ──
+var VOICE_OUTPUT_TTS_LANGS={'en-IN':true, 'hi-IN':true};
+function speakVoiceReply(text, voiceLangCode){
+  if(!cfg_.voiceOutputEnabled) return; // off by default — never speaks unless explicitly turned on
+  if(!text || typeof speechSynthesis==='undefined') return; // not supported on this device/browser — text confirmation already shown regardless
+  // The two fixed fallback messages are always literal English text
+  // regardless of which voice language is selected (see VC_FALLBACK /
+  // VC_ANALYTICAL_FALLBACK on the server) — spoken as English rather than
+  // whatever language was selected, so an English sentence is never read
+  // aloud in a Hindi voice.
+  var isFixedFallback=(text===AI_VOICE_FALLBACK_MSG || text===AI_VOICE_ANALYTICAL_FALLBACK_MSG);
+  var speakLang=isFixedFallback ? 'en-IN' : voiceLangCode;
+  if(!VOICE_OUTPUT_TTS_LANGS[speakLang]) return; // Stage 2 — English/Hindi only, stays silent (text-only) for the other four
+  try{
+    speechSynthesis.cancel(); // stop anything still speaking from a previous command before starting this one
+    var utter=new SpeechSynthesisUtterance(text);
+    utter.lang=speakLang;
+    speechSynthesis.speak(utter);
+  }catch(e){ /* never let a TTS failure disrupt the rest of the voice flow — it already has a text confirmation */ }
+}
+
 function advanceVoiceQueueIfPending(){
   if(!_voiceActionQueue.length) return;
   var next=_voiceActionQueue.shift();
   setTimeout(function(){
-    toast('Next: '+(next.reply||'continuing your command…'));
+    var nextReply=next.reply||'continuing your command…';
+    toast('Next: '+nextReply);
+    speakVoiceReply(next.reply||'', getVoiceLanguage().code);
     dispatchVoiceAction(next, '');
   }, 400); // brief pause so the just-closed form's own toast isn't stepped on
 }
@@ -4103,7 +4164,9 @@ async function runAiVoiceCommand(transcript, voiceLang){
     }
     var actions=res.result.actions.slice(0,3); // defensive cap — a real spoken command realistically never needs more than a couple of steps
     var first=actions[0];
-    setAiVoiceStatus((first.reply||AI_VOICE_FALLBACK_MSG), true);
+    var firstReply=first.reply||AI_VOICE_FALLBACK_MSG;
+    setAiVoiceStatus(firstReply, true);
+    speakVoiceReply(firstReply, voiceLang.code);
     setTimeout(function(){ setAiVoiceStatus('', false); }, 2500);
 
     if(actions.length>1){
@@ -5502,16 +5565,20 @@ async function drainPushQueue(){
 // ── COUNTRY CHART IN DASHBOARD (leads) ──
 
 // ── OVERRIDE renderDash to include country leads chart + last sync ──
-// ── AI Practice Pulse — condensed daily insights, right on the Dashboard.
-// Fetched once per session (the underlying data only changes once a day,
-// when the automatic email runs — no reason to re-fetch on every
-// navigation back to the Dashboard within the same session). Gracefully
-// stays hidden if nothing's been generated yet today, rather than showing
-// an empty or broken-looking card. ──
-var _practicePulseLoaded=false;
+// ── AI "Today's Insights" — condensed daily insights, right on the
+// Dashboard, just above Today's Activity. Gracefully stays hidden if
+// nothing's been generated yet today, rather than showing an empty or
+// broken-looking card. ──
+// Tracks the CALENDAR DAY this was last successfully loaded (not just a
+// one-time-per-session flag) — the underlying report itself only changes
+// once a day (the 8am automatic send), but an advisor who keeps the app
+// open across midnight should still see the new day's insights without
+// having to force-reload the page.
+var _practicePulseLoadedForDate='';
 async function loadDashboardPracticePulse(){
-  if(_practicePulseLoaded || !hasScript()) return;
-  _practicePulseLoaded=true;
+  var todayKey=new Date().toDateString();
+  if(_practicePulseLoadedForDate===todayKey || !hasScript()) return;
+  _practicePulseLoadedForDate=todayKey;
   try{
     var _dppSession=getSession();
     var res=await sheetWrite({action:'getDashboardPracticePulse', expectsResponse:true, requestingUserId:_dppSession?_dppSession.userId:''}, 20000);
@@ -5522,9 +5589,24 @@ async function loadDashboardPracticePulse(){
       return;
     }
     if(body){
+      // Each point renders as its own small card — a colored left accent
+      // (inferred from the point's own icon: red=attention, green=
+      // opportunity, blue=observation, gold=priority, neutral otherwise)
+      // rather than a flat list, so this reads as a distinct "insights
+      // feed" rather than a paragraph or a chat-style bubble.
+      var accentFor=function(icon){
+        if(icon==='🔴') return 'var(--red)';
+        if(icon==='🟢') return 'var(--green)';
+        if(icon==='📊') return 'var(--blue)';
+        if(icon==='📋') return 'var(--accent)';
+        return 'var(--t3)';
+      };
       body.innerHTML=res.points.map(function(p){
-        return '<div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:12.5px;color:var(--text);line-height:1.5">'
-          +'<span style="flex-shrink:0">'+esc(p.icon)+'</span><span>'+esc(p.text)+'</span></div>';
+        var ac=accentFor(p.icon);
+        return '<div style="display:flex;gap:10px;align-items:flex-start;background:var(--bg);border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:9px;padding:9px 11px">'
+          +'<span style="flex-shrink:0;font-size:14px;line-height:1.4">'+esc(p.icon)+'</span>'
+          +'<span style="font-size:12.5px;color:var(--text);line-height:1.45">'+esc(p.text)+'</span>'
+          +'</div>';
       }).join('');
     }
     if(wrap) wrap.style.display='block';
@@ -6949,16 +7031,12 @@ async function loadDailyInsightsSettings(){
     }
     var enEl=document.getElementById('di-enabled');
     var recEl=document.getElementById('di-recipient');
-    var hrEl=document.getElementById('di-hour');
-    var tzEl=document.getElementById('di-timezone');
     if(enEl) enEl.checked=!!res.enabled;
     if(recEl) recEl.value=res.recipientEmail||'';
-    if(hrEl) hrEl.value=String(res.deliveryHour!=null?res.deliveryHour:8);
-    if(tzEl) tzEl.value=res.timezone||'Asia/Kolkata';
     if(statusEl){
       var lines=[];
       if(res.enabled){
-        lines.push('✅ Enabled — sends daily around '+String(res.deliveryHour).padStart(2,'0')+':00 (script project timezone: '+res.scriptTimeZone+')');
+        lines.push('✅ Enabled — sends daily, once a day, around 8am (script project timezone: '+res.scriptTimeZone+')');
         // Ground-truth check — the checkbox above only reflects what
         // Settings SAYS should happen; this reflects whether a trigger
         // actually exists to make it happen. They can drift apart (a
@@ -6990,22 +7068,12 @@ async function saveDailyInsightsSettings(){
   var statusEl=document.getElementById('daily-insights-status');
   var enabled=document.getElementById('di-enabled').checked;
   var recipient=document.getElementById('di-recipient').value.trim();
-  // Clamp to a real hour (0-23) before it ever leaves the browser — a
-  // number input's max="23" doesn't reliably stop someone from typing
-  // more digits than that on every platform, and nothing downstream used
-  // to catch it either. This is exactly how an hour value like 1413 (not
-  // a real hour, but a valid positive integer) got silently saved and
-  // displayed as this field's value.
-  var hourRaw=parseInt(document.getElementById('di-hour').value,10);
-  var hour=(isNaN(hourRaw) || hourRaw<0 || hourRaw>23) ? 8 : hourRaw;
-  document.getElementById('di-hour').value=String(hour); // reflect the corrected value back into the field immediately
-  var timezone=document.getElementById('di-timezone').value;
   if(enabled && !recipient){ toast('Enter a recipient email first'); return; }
   if(statusEl){ statusEl.textContent='Saving…'; statusEl.style.color='var(--t3)'; }
   try{
     var res=await sheetWrite({
       action:'saveDailyInsightsSettings', requestingUserId:session.userId,
-      enabled:enabled, recipientEmail:recipient, deliveryHour:hour, timezone:timezone
+      enabled:enabled, recipientEmail:recipient
     }, 15000);
     if(res && res.success){
       toast('✅ Saved');
@@ -7058,7 +7126,7 @@ async function loadClientEmailMonitoringStatus(){
   var inboxEl=document.getElementById('cem-inbox');
   var statusEl=document.getElementById('cem-status');
   try{
-    var res=await sheetWrite({action:'getClientEmailMonitoringStatus'}, 15000);
+    var res=await sheetWrite({action:'getClientEmailMonitoringStatus', expectsResponse:true}, 15000);
     if(res && res.success){
       if(inboxEl && !inboxEl.value) inboxEl.value=res.status.configuredInbox||'';
       renderClientEmailStatus(res.status);
@@ -7077,7 +7145,7 @@ async function saveClientEmailMonitoringInbox(){
   var statusEl=document.getElementById('cem-status');
   if(statusEl){ statusEl.textContent='Saving…'; statusEl.style.color='var(--t3)'; }
   try{
-    var res=await sheetWrite({action:'saveClientEmailMonitoringInbox', requestingUserId:session.userId, inbox:inbox}, 15000);
+    var res=await sheetWrite({action:'saveClientEmailMonitoringInbox', requestingUserId:session.userId, inbox:inbox, expectsResponse:true}, 15000);
     if(res && res.success){
       toast('✅ Saved');
       renderClientEmailStatus(res.status);
@@ -7993,7 +8061,7 @@ async function runHealthCheck(){
   log('\u2501\u2501 SHEET IDENTITY \u2501\u2501');
   var _confirmedSheetIdFromCheck='';
   try{
-    var siRes=await sheetWrite({action:'getSheetIdentity'}, 15000);
+    var siRes=await sheetWrite({action:'getSheetIdentity', expectsResponse:true}, 15000);
     if(siRes && siRes.success){
       ok('Connected sheet: "'+siRes.sheetName+'"');
       log('     ID: '+siRes.sheetId);
@@ -8234,7 +8302,7 @@ async function runHealthCheck(){
       else wn('No Birthday calendar found in the calendar list \u2014 check Google Contacts has birthdays saved, and that the account running the script (not necessarily the advisor\'s own login) is the one with those contacts');
     } else { wn('Calendar check returned no response'); }
 
-    var connInfo=await apiFetch({action:'getConnectedCalendarsInfo'});
+    var connInfo=await apiFetch({action:'getConnectedCalendarsInfo', expectsResponse:true});
     if(connInfo && connInfo.success && connInfo.calendars && connInfo.calendars.length){
       connInfo.calendars.forEach(function(c){
         if(c.name) ok('Connected calendar "'+c.email+'" \u2014 reachable ("'+c.name+'")');
@@ -8548,7 +8616,7 @@ async function verifySheetUrlAndSave(){
   }
   if(resultEl){ resultEl.textContent='Checking…'; resultEl.style.color='var(--t3)'; }
   try{
-    var siRes=await sheetWrite({action:'getSheetIdentity'}, 15000);
+    var siRes=await sheetWrite({action:'getSheetIdentity', expectsResponse:true}, 15000);
     if(!siRes || !siRes.success){
       if(resultEl){ resultEl.textContent='⚠️ Could not read sheet identity: '+(siRes&&siRes.error||'unknown error'); resultEl.style.color='var(--red)'; }
       return;
@@ -8583,7 +8651,7 @@ async function loadAvailableCalendars(){
   if(!session){ toast('Please log in again'); return; }
   if(resultEl){ resultEl.textContent='Loading…'; resultEl.style.color='var(--t3)'; }
   try{
-    var res=await sheetWrite({action:'listAvailableCalendars'}, 20000);
+    var res=await sheetWrite({action:'listAvailableCalendars', expectsResponse:true}, 30000);
     if(!res || !res.success){
       if(resultEl){ resultEl.textContent='⚠️ '+(res&&res.error||'Could not load calendars'); resultEl.style.color='var(--red)'; }
       return;
@@ -8643,7 +8711,7 @@ async function saveCalendarSelection(){
 async function loadConnectedCalendarsInfo(){
   var accountEl=document.getElementById('connected-cal-script-account');
   try{
-    var res=await sheetWrite({action:'getConnectedCalendarsInfo'}, 15000);
+    var res=await sheetWrite({action:'getConnectedCalendarsInfo', expectsResponse:true}, 15000);
     if(res && res.success){
       if(accountEl){
         accountEl.innerHTML=res.scriptAccountEmail
@@ -8673,7 +8741,7 @@ async function saveConnectedCalendars(){
   }).filter(function(e){ return e; });
   if(statusEl){ statusEl.innerHTML='<div style="font-size:10px;color:var(--t3);padding:6px 0">Verifying…</div>'; }
   try{
-    var res=await sheetWrite({action:'saveConnectedCalendars', requestingUserId:session.userId, emails:emails}, 25000);
+    var res=await sheetWrite({action:'saveConnectedCalendars', requestingUserId:session.userId, emails:emails, expectsResponse:true}, 35000);
     if(res && res.success){
       if(statusEl){
         statusEl.innerHTML=(res.results||[]).map(function(r){
@@ -9252,6 +9320,8 @@ function loadSettings(){
   renderFontSizeButtons(cfg_.fontSizeMode||'small');
   var langEl=document.getElementById('voice-language-select');
   if(langEl) langEl.value=cfg_.voiceLanguage||'en-IN|English';
+  var voEl=document.getElementById('voice-output-toggle');
+  if(voEl) voEl.checked=!!cfg_.voiceOutputEnabled;
   renderFailedWritesBanner();
   loadConnectedCalendarsInfo();
   loadDailyInsightsSettings();
@@ -9306,6 +9376,11 @@ function getVoiceLanguage(){
   var stored=cfg_.voiceLanguage||'en-IN|English';
   var parts=stored.split('|');
   return {code:parts[0]||'en-IN', name:parts[1]||'English'};
+}
+// ── App Settings > Voice Output — off by default, opt-in only. See
+// speakVoiceReply for where this actually gets used. ──
+function setVoiceOutputEnabled(enabled){
+  cfg('voiceOutputEnabled', !!enabled);
 }
 
 // ── App Settings > Font Size — three modes (small/medium/large). Scales the
