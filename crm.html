@@ -735,31 +735,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div id="dash-funnel" style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px"></div>
   </div>
 
-  <!-- Today's Activity — follow-ups, events, SIP/review/anniversary/birthdays due today, tasks due/overdue, all clubbed. Made visually prominent via the coral label, not a border, matching the borderless card language used throughout. -->
+  <!-- Today's Activity — merged with the former "Planning Nudges" into one
+       swipeable capsule feed (see renderDashboardActivityFeed): follow-ups,
+       events, SIP/review/anniversary/birthdays due today, tasks due/
+       overdue, plus forward-looking nudges (reviews/insurance due soon,
+       upcoming special days), all in one list. Made visually prominent via
+       the coral label, not a border, matching the borderless card language
+       used throughout. -->
   <div class="sec">
     <div style="background:var(--s1);border-radius:var(--r);padding:14px 12px 10px">
       <div class="lbl" style="color:var(--coral);margin-bottom:8px">📋 Today's Activity</div>
       <div id="dash-alert" style="display:none"></div>
       <div id="dash-todays-activity"></div>
     </div>
-  </div>
-
-  <!-- Week Follow-up Planner -->
-  <div class="sec">
-    <div class="lbl" style="color:var(--accent)">📆 This Week's Follow-ups</div>
-    <div id="dash-weekcal"><div style="font-size:11px;color:var(--t3);text-align:center;padding:8px">Loading...</div></div>
-  </div>
-
-  <!-- Client Stage Pipeline -->
-  <div class="sec">
-    <div class="lbl" style="color:var(--accent)">🎯 Client Stages — Pending</div>
-    <div id="dash-stage-table"></div>
-  </div>
-
-  <!-- Planning Nudges (forward-looking only — Today's Activity above covers same-day items) -->
-  <div class="sec" id="dash-reminders-wrap">
-    <div class="lbl" style="color:var(--accent)">🧭 Planning Nudges</div>
-    <div id="dash-reminders"><div style="font-size:11px;color:var(--t3);text-align:center;padding:8px">Loading...</div></div>
   </div>
   </div>
 </div>
@@ -985,13 +973,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
             </select>
           </div>
           <div class="si" style="font-size:10px;color:var(--t3);font-style:italic;margin-top:4px"><span>Controls what language the assistant listens for when you speak, and what language it tells Gemini your words are in (so it's understood correctly). The written reply it gives back is always in English, regardless of this selection — by design, so the on-screen confirmation is always readable no matter which language you spoke in.</span></div>
-          <div style="padding:0 12px 4px;display:flex;align-items:center;gap:8px;margin-top:6px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer">
-              <input type="checkbox" id="voice-output-toggle" style="width:18px;height:18px" onchange="setVoiceOutputEnabled(this.checked)">
-              Voice Output (assistant speaks its reply aloud)
-            </label>
-          </div>
-          <div class="si" style="font-size:10px;color:var(--t3);font-style:italic;margin-top:4px"><span>Off by default. Uses your phone's own built-in voice — no extra cost, no server call. Since the reply is always in English, this speaks in English every time, whichever of the six languages above you use to speak to it. Not supported on iPhone (iOS does not offer this to apps at all) — Android only.</span></div>
         </div>
         <div class="sg" style="margin-top:10px">
           <div style="font-size:11px;color:var(--t2);margin:0 12px 8px;font-weight:700">📅 Special Days</div>
@@ -2350,7 +2331,7 @@ async function deleteSelectedClients(){
 // Parse a free-text financial value (e.g. "25,00,000" or "₹25L" or "2Cr") into a number for sorting.
 // Global — used by Clients (AUM/Potential AUM) AND Leads (Potential AUM) sorting, and by
 // dashboard list views. Was previously trapped inside renderClients() and silently broke
-// showStageList/showDashList whenever they called it — fixed by promoting it here.
+// showDashList whenever it called it — fixed by promoting it here.
 function parseAumValue(v){
   v=(v||'').toString().toUpperCase().replace(/[₹,\s]/g,'');
   var num=parseFloat(v)||0;
@@ -4112,33 +4093,12 @@ function dispatchVoiceAction(r, transcript){
 // see the advanceVoiceQueueIfPending() calls in saveLead() and
 // saveTaskNow(). Harmless no-op when nothing is queued (the overwhelming
 // majority of commands, which are single-step).
-// ── Voice Output (Settings > App Settings, off by default — opt-in only).
-// Speaks the AI's reply back using the device's own built-in text-to-
-// speech (free, no API call, no token cost — same family of browser API
-// as speech INPUT already uses). The reply text itself is always English
-// now regardless of which language was selected for voice input (see the
-// "reply" instruction in interpretVoiceCommand's prompt, Code.gs) — so
-// this always speaks in English too, for every selected input language.
-// Voice INPUT can still be any of the six supported languages; only the
-// AI's spoken/written reply is English-only, strictly, by design. ──
-function speakVoiceReply(text){
-  if(!cfg_.voiceOutputEnabled) return; // off by default — never speaks unless explicitly turned on
-  if(!text || typeof speechSynthesis==='undefined') return; // not supported on this device/browser — text confirmation already shown regardless
-  try{
-    speechSynthesis.cancel(); // stop anything still speaking from a previous command before starting this one
-    var utter=new SpeechSynthesisUtterance(text);
-    utter.lang='en-IN'; // the reply text is always English — see comment above
-    speechSynthesis.speak(utter);
-  }catch(e){ /* never let a TTS failure disrupt the rest of the voice flow — it already has a text confirmation */ }
-}
-
 function advanceVoiceQueueIfPending(){
   if(!_voiceActionQueue.length) return;
   var next=_voiceActionQueue.shift();
   setTimeout(function(){
     var nextReply=next.reply||'continuing your command…';
     toast('Next: '+nextReply);
-    speakVoiceReply(next.reply||'');
     dispatchVoiceAction(next, '');
   }, 400); // brief pause so the just-closed form's own toast isn't stepped on
 }
@@ -4160,7 +4120,6 @@ async function runAiVoiceCommand(transcript, voiceLang){
     var first=actions[0];
     var firstReply=first.reply||AI_VOICE_FALLBACK_MSG;
     setAiVoiceStatus(firstReply, true);
-    speakVoiceReply(firstReply);
     setTimeout(function(){ setAiVoiceStatus('', false); }, 2500);
 
     if(actions.length>1){
@@ -5616,12 +5575,30 @@ async function loadDashboardPracticePulse(){
       if(wrap) wrap.style.display='none';
       return;
     }
+    // Points already dismissed today (swiped away earlier) never reappear
+    // until a genuinely new report is spooled tomorrow — tracked the same
+    // way as the Today's Activity capsules below, same dismiss-key
+    // (date-scoped), different ID prefix so the two never collide.
+    var dismissed=getDismissedCapsuleIds();
+    var points=res.points.map(function(p){
+      return {icon:p.icon, text:p.text, _dismissId:'pulse_'+simpleStrHash((p.icon||'')+'|'+(p.text||''))};
+    }).filter(function(p){ return dismissed.indexOf(p._dismissId)===-1; });
+
+    if(!points.length){
+      // Everything for today has already been swiped away — stays hidden
+      // until the next daily report is spooled, exactly like it would if
+      // nothing had ever been generated today.
+      if(wrap) wrap.style.display='none';
+      return;
+    }
+
     if(body){
-      // Each point renders as its own small card — a colored left accent
-      // (inferred from the point's own icon: red=attention, green=
-      // opportunity, blue=observation, gold=priority, neutral otherwise)
-      // rather than a flat list, so this reads as a distinct "insights
-      // feed" rather than a paragraph or a chat-style bubble.
+      // Each point renders as its own small swipeable capsule — a colored
+      // left accent (inferred from the point's own icon: red=attention,
+      // green=opportunity, blue=observation, gold=priority, neutral
+      // otherwise) rather than a flat list, so this reads as a distinct
+      // "insights feed" rather than a paragraph or a chat-style bubble.
+      // Swipe left or right to dismiss just that point for today.
       var accentFor=function(icon){
         if(icon==='🔴') return 'var(--red)';
         if(icon==='🟢') return 'var(--green)';
@@ -5629,13 +5606,14 @@ async function loadDashboardPracticePulse(){
         if(icon==='📋') return 'var(--accent)';
         return 'var(--t3)';
       };
-      body.innerHTML=res.points.map(function(p){
+      body.innerHTML=points.map(function(p){
         var ac=accentFor(p.icon);
-        return '<div style="display:flex;gap:10px;align-items:flex-start;background:var(--bg);border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:9px;padding:9px 11px">'
+        return '<div class="dact-capsule" data-dismissid="'+p._dismissId+'" style="display:flex;gap:10px;align-items:flex-start;background:var(--bg);border:1px solid var(--border);border-left:3px solid '+ac+';border-radius:9px;padding:9px 11px;touch-action:pan-y">'
           +'<span style="flex-shrink:0;font-size:14px;line-height:1.4">'+esc(p.icon)+'</span>'
           +'<span style="font-size:12.5px;color:var(--text);line-height:1.45">'+esc(p.text)+'</span>'
           +'</div>';
       }).join('');
+      wireDashCapsuleSwipe(body, function(){ if(wrap) wrap.style.display='none'; });
     }
     if(wrap) wrap.style.display='block';
   }catch(e){
@@ -5675,7 +5653,6 @@ function renderDash(){
       +'<div style="font-size:12px;color:var(--t2)">All follow-ups done for today!</div>'
       +'</div>';
 
-  renderTodaysActivity(); // consolidated: follow-ups, events, SIP, review, anniversary — today
   // Update prominent totals
   // Total leads = active leads (Prospect + Contacted + In Progress)
   var prospCount=leads.filter(function(l){return (l.status||'').toUpperCase()==='PROSPECT';}).length;
@@ -5687,10 +5664,8 @@ function renderDash(){
   var elC=document.getElementById('dash-total-clients');if(elC)elC.textContent=totalClients;
   var elD=document.getElementById('dash-count-dropped');if(elD)elD.textContent=droppedCount;
   updateFUBadge();
-  renderReminders(); // build reminders section in dashboard
-  renderStageTable(); // client lifecycle stage pipeline
+  renderDashboardActivityFeed(); // merged Today's Activity + Planning Nudges, swipeable capsules
   renderPipelineFunnel(); // desktop-only lead pipeline funnel (no-op cost on mobile, just hidden)
-  renderWeekCalendar(); // 7-day follow-up planning strip
   // Show popup for leads/clients not physically met in 1+ year
   checkPhysicalMeetReminder();
 }
@@ -7146,7 +7121,7 @@ function renderClientEmailStatus(status){
   var statusEl=document.getElementById('cem-status');
   if(!statusEl || !status) return;
   var lines=[];
-  lines.push((status.triggerActive?'✅ Monitoring trigger is active':'⚠️ Monitoring trigger is not set up yet — run setupClientEmailMonitoringTrigger() once in the Apps Script editor'));
+  lines.push((status.triggerActive?'✅ Monitoring trigger is active':'⚠️ Monitoring trigger is not set up yet — save a recipient inbox above to turn this on'));
   lines.push('Emails turned into tasks so far: '+status.emailsProcessedSoFar);
   if(status.actualAuthorizedInbox){
     if(status.configuredInbox && !status.matches){
@@ -8277,7 +8252,7 @@ async function runHealthCheck(){
   // 8. STAGE + 90-DAY LOGIC
   log(''); log('\u2501\u2501 8. Stage pipeline \u2501\u2501');
   if(typeof CLIENT_STAGES!=='undefined' && CLIENT_STAGES.length===6) ok('6 lifecycle stages defined'); else no('CLIENT_STAGES not defined with 6 stages');
-  if(typeof renderStageTable==='function' && typeof showStageList==='function') ok('Dashboard stage pipeline wired'); else no('Stage pipeline functions missing');
+  ok('Dashboard stage pipeline and week planner were removed by request \u2014 skipping that check');
 
   // 9. UPLOAD LINK (client self-upload page)
   log(''); log('\u2501\u2501 9. Client upload link \u2501\u2501');
@@ -8727,7 +8702,7 @@ async function saveCalendarSelection(){
     var res=await sheetWrite({action:'saveCalendarSelection', requestingUserId:session.userId, calendarId:calId}, 15000);
     if(res && res.success){
       if(resultEl){ resultEl.textContent='✅ Now using "'+res.calendarName+'" for events shown in Today\'s Activity.'; resultEl.style.color='var(--green)'; }
-      pullCalendarEvents().then(function(){ renderTodaysActivity(); }); // refresh immediately with the new source
+      pullCalendarEvents().then(function(){ renderDashboardActivityFeed(); }); // refresh immediately with the new source
     } else {
       if(resultEl){ resultEl.textContent='⚠️ '+(res&&res.error||'Could not save'); resultEl.style.color='var(--red)'; }
     }
@@ -8787,7 +8762,7 @@ async function saveConnectedCalendars(){
         }).join('') || '<div style="font-size:10px;color:var(--t3);padding:6px 0">No calendars entered.</div>';
       }
       if((res.results||[]).some(function(r){return r.ok;})){
-        pullCalendarEvents().then(function(){ renderTodaysActivity(); }); // refresh immediately with whatever now works
+        pullCalendarEvents().then(function(){ renderDashboardActivityFeed(); }); // refresh immediately with whatever now works
       }
     } else if(statusEl){
       statusEl.innerHTML='<div style="font-size:10px;color:var(--red);padding:6px 0">⚠️ '+esc(res&&res.error||'Could not save')+'</div>';
@@ -9356,8 +9331,6 @@ function loadSettings(){
   renderFontSizeButtons(cfg_.fontSizeMode||'small');
   var langEl=document.getElementById('voice-language-select');
   if(langEl) langEl.value=cfg_.voiceLanguage||'en-IN|English';
-  var voEl=document.getElementById('voice-output-toggle');
-  if(voEl) voEl.checked=!!cfg_.voiceOutputEnabled;
   renderFailedWritesBanner();
   loadConnectedCalendarsInfo();
   loadDailyInsightsSettings();
@@ -9412,11 +9385,6 @@ function getVoiceLanguage(){
   var stored=cfg_.voiceLanguage||'en-IN|English';
   var parts=stored.split('|');
   return {code:parts[0]||'en-IN', name:parts[1]||'English'};
-}
-// ── App Settings > Voice Output — off by default, opt-in only. See
-// speakVoiceReply for where this actually gets used. ──
-function setVoiceOutputEnabled(enabled){
-  cfg('voiceOutputEnabled', !!enabled);
 }
 
 // ── App Settings > Font Size — three modes (small/medium/large). Scales the
@@ -10354,11 +10322,12 @@ function setClientSort(field){
 // "Last contacted" = most recent activity log entry date, falls back to convertedDate
 
 
-// ── renderReminders — builds the Reminders section in Dashboard ──
+// ── renderReminders — builds the item list for the "Planning Nudges" half
+// of the merged dashboard feed (see renderDashboardActivityFeed, which
+// renders both halves together). No longer targets its own DOM element —
+// merged into "Today's Activity" — this only computes and returns items.
 // Timing: SIP = 5 days before, Health/Life = 30 days before, Birthday/Anniversary = on the date
 function renderReminders(){
-  var el=document.getElementById('dash-reminders');
-  if(!el) return;
   var now=new Date(); var items=[];
 
   function waNum(c){var n=(c.mobile||'').replace(/\D/g,'');return n.length===10?'91'+n:n;}
@@ -10410,14 +10379,63 @@ function renderReminders(){
   }
 
   if(!items.length){
-    el.innerHTML='<div style="font-size:11px;color:var(--t3);text-align:center;padding:10px;font-style:italic">Nothing coming up in the near term 🎉</div>';
-    return;
+    window._remItems=[];
+    return [];
   }
 
-  el.innerHTML=items.map(function(item,idx){
-    var clickable=item.isSpecialDay?'onclick="showSpecialDaysList()"':'onclick="showReminderList('+idx+')"';
-    return '<div '+clickable+' style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:'+item.bg+';border:1px solid '+item.color+'33;margin-bottom:6px;cursor:pointer">'
-      +'<span style="font-size:20px;flex-shrink:0">'+item.icon+'</span>'
+  // Store items for click handler
+  window._remItems=items;
+  return items;
+}
+
+// ── Merged Today's Activity + Planning Nudges — combined into one
+// swipeable capsule feed. Both source functions above still do all the
+// real data-gathering exactly as before (untouched internally); each now
+// just returns its items instead of rendering directly, and this is the
+// only thing that actually renders to the DOM, into the one remaining
+// "Today's Activity" container. Every item — from either source, plus
+// special-day items — becomes one capsule, tappable to open its own
+// existing detail view, swipeable to dismiss for the rest of the day. ──
+function renderDashboardActivityFeed(){
+  var el=document.getElementById('dash-todays-activity');
+  if(!el) return;
+  var activityItems=renderTodaysActivity()||[];
+  var reminderItems=renderReminders()||[];
+  var dismissed=getDismissedCapsuleIds();
+
+  var combined=[];
+  activityItems.forEach(function(item,idx){
+    var c={}; for(var k in item) c[k]=item[k];
+    c._origin='activity'; c._idx=idx;
+    combined.push(c);
+  });
+  reminderItems.forEach(function(item,idx){
+    var c={}; for(var k in item) c[k]=item[k];
+    c._origin='reminder'; c._idx=idx;
+    combined.push(c);
+  });
+  combined.forEach(function(item){
+    item._dismissId='act_'+simpleStrHash((item.title||'')+'|'+(item.sub||''));
+  });
+  combined=combined.filter(function(item){ return dismissed.indexOf(item._dismissId)===-1; });
+
+  function renderEmptyState(){
+    el.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--s1);border-radius:var(--r);border:1px solid var(--border)">'
+      +'<div style="font-size:18px">🎉</div>'
+      +'<div style="font-size:12px;color:var(--t2)">All caught up — nothing due today!</div>'
+      +'</div>';
+  }
+
+  if(!combined.length){ renderEmptyState(); return; }
+
+  el.innerHTML=combined.map(function(item){
+    var clickFn;
+    if(item.isSpecialDay) clickFn='showSpecialDaysList()';
+    else if(item.action) clickFn=item.action;
+    else if(item._origin==='activity') clickFn='showTodaysActivityList('+item._idx+')';
+    else clickFn='showReminderList('+item._idx+')';
+    return '<div class="dact-capsule" data-dismissid="'+item._dismissId+'" data-clickfn="'+encodeURIComponent(clickFn)+'" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;background:var(--s2);border:1px solid '+item.color+'33;margin-bottom:6px;cursor:pointer;touch-action:pan-y">'
+      +'<span style="font-size:15px;flex-shrink:0;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb, '+item.color+' 15%, transparent);display:flex;align-items:center;justify-content:center">'+item.icon+'</span>'
       +'<div style="flex:1;min-width:0">'
       +'<div style="font-size:12px;font-weight:700;color:var(--text)">'+item.title+'</div>'
       +'<div style="font-size:10px;color:var(--t3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+item.sub+'</div>'
@@ -10426,8 +10444,7 @@ function renderReminders(){
       +'</div>';
   }).join('');
 
-  // Store items for click handler
-  window._remItems=items;
+  wireDashCapsuleSwipe(el, renderEmptyState);
 }
 
 // Show clickable list popup for a reminder group
@@ -10465,7 +10482,7 @@ function showReminderList(idx){
         var row=b.closest('[style*="border-bottom"]');
         if(row) row.style.opacity='0.3';
         // Refresh reminders after short delay
-        setTimeout(function(){ ov.remove(); renderReminders(); renderDash(); }, 800);
+        setTimeout(function(){ ov.remove(); renderDash(); }, 800);
       }
     }
     var ch=e.target.closest('.rem-chip-open');
@@ -10633,54 +10650,6 @@ function renderPipelineFunnel(){
     + '</div></div>';
 }
 
-function renderStageTable(){
-  var el=document.getElementById('dash-stage-table');
-  if(!el) return;
-  var counts={}; CLIENT_STAGES.forEach(function(s){counts[s]=0;});
-  clients.forEach(function(c){ var s=(c.stage||'').toUpperCase().trim(); if(counts.hasOwnProperty(s)) counts[s]++; });
-  var totalPending=CLIENT_STAGES.reduce(function(a,s){return a+counts[s];},0);
-  var maxCount=Math.max.apply(null, CLIENT_STAGES.map(function(s){return counts[s];}).concat([1]));
-  var rows=CLIENT_STAGES.map(function(s){
-    var n=counts[s]; var dim=n===0?'opacity:.45;':'';
-    var pct = n===0 ? 0 : Math.max(6, Math.round(n/maxCount*100)); // floor of 6% so a nonzero stage is still visible
-    return '<div onclick="showStageList(\''+s+'\')" style="padding:10px 12px;cursor:pointer;'+dim+'">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
-      +'<span style="font-size:12px;font-weight:600;color:var(--text)">'+s+'</span>'
-      +'<span style="display:flex;align-items:center;gap:6px">'
-      +'<span style="font-size:14px;font-weight:800;color:'+(n>0?'var(--text)':'var(--t3)')+'">'+n+'</span>'
-      +'<span style="font-size:11px;color:var(--t3)">\u203A</span></span></div>'
-      +'<div style="height:5px;border-radius:999px;background:var(--s2);overflow:hidden">'
-      +'<div style="height:100%;width:'+pct+'%;border-radius:999px;background:var(--coral)"></div></div>'
-      +'</div>';
-  }).join('');
-  el.innerHTML='<div style="background:var(--s1);border-radius:var(--r);overflow:hidden">'
-    +rows
-    +'<div style="padding:8px 12px;font-size:10px;color:var(--t3);text-align:right">'+totalPending+' client'+(totalPending!==1?'s':'')+' in a pending stage</div></div>';
-}
-
-function showStageList(stage){
-  var su=(stage||'').toUpperCase().trim();
-  var items=clients.filter(function(c){return (c.stage||'').toUpperCase().trim()===su;})
-    .sort(function(a,b){return parseAumValue(b.aum)-parseAumValue(a.aum);});
-  var ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
-  var rows=items.map(function(item){
-    var sub=(item.country||'')+(item.aum?' \u00B7 \uD83D\uDCB0'+item.aum:'')+(item.lastContacted?' \u00B7 last '+fmt(item.lastContacted):'');
-    return '<div data-slmob="'+item.mobile+'" data-slname="'+encodeURIComponent(item.name||'')+'" class="sl-row" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer">'
-      +'<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+toTitle(item.name)+'</div>'
-      +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+sub+'</div></div>'
-      +'<span style="font-size:12px;color:var(--accent)">\u203A</span></div>';
-  }).join('');
-  ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:78vh;display:flex;flex-direction:column">'
-    +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
-    +'<span style="font-size:14px;font-weight:800;color:var(--accent)">\uD83C\uDFAF '+su+' ('+items.length+')</span>'
-    +'<span id="_slX" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center">\u2715</span></div>'
-    +'<div style="overflow-y:auto;flex:1">'+(rows||'<div style="padding:24px;text-align:center;color:var(--t3);font-size:12px">No clients in this stage</div>')+'</div></div>';
-  document.body.appendChild(ov);
-  ov.addEventListener('click',function(e){ var row=e.target.closest('.sl-row'); if(row){var m=row.dataset.slmob;if(m){ov.remove();openDetail(m,'client',row.dataset.slname);}} });
-  document.getElementById('_slX').onclick=function(){ov.remove();};
-}
-
 function showDashList(type){
   var title,items=[],color='var(--accent)';
   if(type==='prospect'){
@@ -10784,105 +10753,6 @@ async function triggerBackupNow(){
 
 
 // ── Week Follow-up Calendar — next 7 days (excluding today), horizontal strip ──
-function renderWeekCalendar(){
-  var el=document.getElementById('dash-weekcal');
-  if(!el) return;
-  var now=new Date();
-  var days=[];
-  for(var i=1;i<=7;i++){
-    var d=new Date(now);
-    d.setDate(d.getDate()+i);
-    var dateStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    var dayName=DAYS_OF_WEEK[d.getDay()].substring(0,3);
-    var dayNum=d.getDate();
-    var leadCount=leads.filter(function(l){return l.nextFollowUp===dateStr;}).length;
-    var clientCount=clients.filter(function(c){return c.nextFollowUp===dateStr;}).length;
-    var fuCount=leadCount+clientCount;
-    var evCount=calendarEventsOn(dateStr).length;
-    days.push({dateStr:dateStr, dayName:dayName, dayNum:dayNum, fuCount:fuCount, evCount:evCount});
-  }
-
-  // Compact squares, arranged 4-per-row (2 rows: 4 + 3) — follow-ups and
-  // calendar events shown as two SEPARATE, clearly labeled pills, never merged
-  var html='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">';
-  days.forEach(function(d){
-    var hasAny=d.fuCount>0||d.evCount>0;
-    var bg=hasAny?'var(--s1)':'var(--s2)';
-    var border=hasAny?'var(--accent)':'var(--border)';
-    html+='<div class="wk-day" data-wkdate="'+d.dateStr+'" style="background:'+bg+';border:1.5px solid '+border+';border-radius:10px;padding:7px 4px;text-align:center;cursor:pointer;min-height:76px;display:flex;flex-direction:column;justify-content:space-between">'
-      +'<div>'
-      +'<div style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.3px">'+d.dayName+'</div>'
-      +'<div style="font-size:15px;font-weight:900;color:var(--text);margin:2px 0 4px">'+d.dayNum+'</div>'
-      +'</div>'
-      +'<div style="display:flex;flex-direction:column;gap:3px">'
-      +'<div style="background:'+(d.fuCount>0?'rgba(255,255,255,.15)':'transparent')+';border:1px solid '+(d.fuCount>0?'var(--accent)':'transparent')+';border-radius:6px;padding:2px 3px;font-size:9px;font-weight:800;color:'+(d.fuCount>0?'var(--accent)':'var(--t3)')+'">📋 '+d.fuCount+' FU</div>'
-      +'<div style="background:'+(d.evCount>0?'color-mix(in srgb, var(--blue) 15%, transparent)':'transparent')+';border:1px solid '+(d.evCount>0?'var(--blue)':'transparent')+';border-radius:6px;padding:2px 3px;font-size:9px;font-weight:800;color:'+(d.evCount>0?'var(--blue)':'var(--t3)')+'">📅 '+d.evCount+' Ev</div>'
-      +'</div>'
-      +'</div>';
-  });
-  html+='</div>';
-  el.innerHTML=html;
-
-  // Click delegation — show that day's follow-ups AND calendar events
-  el.onclick=function(e){
-    var dayEl=e.target.closest('.wk-day');
-    if(dayEl) showWeekDayList(dayEl.dataset.wkdate);
-  };
-}
-
-// Show list of leads/clients with follow-up on a specific date
-function showWeekDayList(dateStr){
-  var dayLeads=leads.filter(function(l){return l.nextFollowUp===dateStr;});
-  var dayClients=clients.filter(function(c){return c.nextFollowUp===dateStr;});
-  var dayEvents=calendarEventsOn(dateStr);
-  var d=new Date(dateStr);
-  var dateLabel=DAYS_OF_WEEK[d.getDay()]+', '+d.getDate()+' '+MONTHS[d.getMonth()];
-
-  // Calendar events shown first, distinct styling (not tappable to a lead/client)
-  var rows='';
-  dayEvents.forEach(function(ev){
-    var isBday=ev.type==='birthday';
-    var icon=isBday?'🎂':'📅';
-    var color=isBday?'#25D366':'var(--blue)';
-    var bg=isBday?'rgba(37,211,102,.06)':'color-mix(in srgb, var(--blue) 6%, transparent)';
-    var label=isBday?'Birthday':'Calendar Event · '+ev.time;
-    rows+='<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);background:'+bg+'">'
-      +'<span style="font-size:16px">'+icon+'</span>'
-      +'<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+ev.title+'</div>'
-      +'<div style="font-size:10px;color:'+color+';margin-top:2px">'+label+'</div></div>'
-      +'</div>';
-  });
-  dayLeads.forEach(function(l){
-    rows+='<div class="wk-row" data-wkmob="'+l.mobile+'" data-wktype="lead" data-wkname="'+encodeURIComponent(l.name||'')+'" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer">'
-      +'<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+toTitle(l.name)+'</div>'
-      +'<div style="font-size:10px;color:var(--t3);margin-top:2px">📋 Lead · '+(l.status||'')+'</div></div>'
-      +'<span style="font-size:12px;color:var(--accent)">›</span></div>';
-  });
-  dayClients.forEach(function(c){
-    rows+='<div class="wk-row" data-wkmob="'+c.mobile+'" data-wktype="client" data-wkname="'+encodeURIComponent(c.name||'')+'" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer">'
-      +'<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+toTitle(c.name)+'</div>'
-      +'<div style="font-size:10px;color:var(--t3);margin-top:2px">👥 Client</div></div>'
-      +'<span style="font-size:12px;color:var(--blue)">›</span></div>';
-  });
-
-  var ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
-  ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:75vh;display:flex;flex-direction:column">'
-    +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
-    +'<span style="font-size:14px;font-weight:800;color:var(--text)">📆 '+dateLabel+' ('+(dayLeads.length+dayClients.length+dayEvents.length)+')</span>'
-    +'<span id="_wkListX" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
-    +'<div style="overflow-y:auto;flex:1">'+(rows||'<div style="padding:24px;text-align:center;color:var(--t3);font-size:12px">No follow-ups or events scheduled</div>')+'</div></div>';
-  document.body.appendChild(ov);
-  document.getElementById('_wkListX').onclick=function(){ov.remove();};
-  ov.addEventListener('click',function(e){
-    var row=e.target.closest('.wk-row');
-    if(row){
-      ov.remove();
-      var mob=row.dataset.wkmob, type=row.dataset.wktype;
-      if(type==='client') openDetail(mob,'client',row.dataset.wkname); else openFuDetail(mob,row.dataset.wkname);
-    }
-  });
-}
 
 
 // ── Follow-up card for an overdue CLIENT (companion to makeFuItem for leads) ──
@@ -11016,7 +10886,7 @@ async function pullTasks(){
       }).filter(function(t){ return t.name || t.taskDetails; }); // keep any row with real content, ID or not
       tasks = filterTasksForRole(tasks);
       saveTasks();
-      if(typeof renderTodaysActivity==='function') renderTodaysActivity();
+      if(typeof renderDashboardActivityFeed==='function') renderDashboardActivityFeed();
       if(document.getElementById('pg-tasks') && document.getElementById('pg-tasks').classList.contains('active')) renderTasks();
       // Rows from before the Task ID system existed won't have one yet —
       // backfill them once in the background, then silently re-pull so they
@@ -12115,6 +11985,84 @@ async function checkClientFolderExists(client){
 // ── Today's Activity — consolidated prominent view on the dashboard ──
 // Order (fixed, per spec): Follow-ups today → Events today → SIP due (5d) →
 // Review meetings due (30d) → Anniversary today. Any empty category is skipped.
+// ── Dashboard capsule dismiss-tracking — shared by both the AI "Today's
+// Insights" card and the merged Today's Activity feed below. Swiping a
+// capsule left or right removes it from view for the rest of the day
+// only — tracked client-side (localStorage), keyed by today's date, so it
+// naturally resets the moment a new day (and, for the AI card, a new
+// spooled report) begins. Not persisted server-side on purpose: this is a
+// per-device "I've seen this" marker, not CRM data. ──
+function todaysDashDismissKey(){
+  var d=new Date();
+  return 'dashDismissed_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function getDismissedCapsuleIds(){
+  try{ return JSON.parse(localStorage.getItem(todaysDashDismissKey())||'[]'); }catch(e){ return []; }
+}
+function dismissCapsuleId(id){
+  try{
+    var ids=getDismissedCapsuleIds();
+    if(ids.indexOf(id)===-1){ ids.push(id); localStorage.setItem(todaysDashDismissKey(), JSON.stringify(ids)); }
+  }catch(e){ /* non-fatal — worst case a dismissed capsule reappears on next render */ }
+}
+// Simple, stable string hash — items don't otherwise have an ID that
+// would survive a full data reload, so one is derived from their own
+// text instead.
+function simpleStrHash(s){
+  var h=0;
+  for(var i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; }
+  return String(h);
+}
+// Generic swipe-to-dismiss wiring, shared by both capsule sections —
+// swipe either direction past a threshold to remove a card from view (and
+// record it dismissed for today); a tap with negligible movement instead
+// fires that card's own click action, if it has one. Touch-only by
+// design, same as the rest of this app's swipe gestures — no swipe
+// affordance on desktop, where these still work as a plain tap-only list.
+function wireDashCapsuleSwipe(container, onEmpty){
+  var startX=0, startY=0, swiping=null, dx=0;
+  container.addEventListener('touchstart', function(e){
+    var card=e.target.closest('.dact-capsule');
+    if(!card) return;
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+    swiping=card; dx=0;
+    card.style.transition='';
+  }, {passive:true});
+  container.addEventListener('touchmove', function(e){
+    if(!swiping) return;
+    var curDx=e.touches[0].clientX-startX;
+    var curDy=e.touches[0].clientY-startY;
+    if(Math.abs(curDy)>Math.abs(curDx)){ swiping=null; return; } // vertical scroll, not a swipe-dismiss
+    dx=curDx;
+    swiping.style.transform='translateX('+dx+'px)';
+    swiping.style.opacity=String(Math.max(0.2, 1-Math.abs(dx)/150));
+  }, {passive:true});
+  container.addEventListener('touchend', function(){
+    if(!swiping) return;
+    var card=swiping; swiping=null;
+    if(Math.abs(dx)>70){
+      card.style.transition='transform .2s ease, opacity .2s ease';
+      card.style.transform='translateX('+(dx>0?'120%':'-120%')+')';
+      card.style.opacity='0';
+      dismissCapsuleId(card.dataset.dismissid);
+      setTimeout(function(){
+        card.remove();
+        if(!container.querySelector('.dact-capsule') && onEmpty) onEmpty();
+      }, 200);
+    } else {
+      card.style.transition='transform .15s ease, opacity .15s ease';
+      card.style.transform='';
+      card.style.opacity='';
+    }
+  });
+  container.addEventListener('click', function(e){
+    var card=e.target.closest('.dact-capsule');
+    if(!card || Math.abs(dx)>10) return; // a swipe just happened, not a tap — don't also fire the click action
+    var fn=card.dataset.clickfn;
+    if(fn){ try{ new Function(decodeURIComponent(fn))(); }catch(err){ console.error('dashboard capsule click failed:', err); } }
+  });
+}
+
 function renderTodaysActivity(){
   var el=document.getElementById('dash-todays-activity');
   if(!el) return;
@@ -12301,26 +12249,12 @@ function renderTodaysActivity(){
   }catch(e){ console.warn('Today\'s Activity — 1st Anniversary section failed:', e.message); }
 
   if(!items.length){
-    el.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--s1);border-radius:var(--r);border:1px solid var(--border)">'
-      +'<div style="font-size:18px">🎉</div>'
-      +'<div style="font-size:12px;color:var(--t2)">All caught up — nothing due today!</div>'
-      +'</div>';
-    return;
+    window._todaysActivityItems=[];
+    return [];
   }
 
-  el.innerHTML=items.map(function(item,idx){
-    var clickAttr=item.action?'onclick="'+item.action+'"':'onclick="showTodaysActivityList('+idx+')"';
-    return '<div '+clickAttr+' style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:var(--s2);margin-bottom:6px;cursor:pointer">'
-      +'<span style="font-size:15px;flex-shrink:0;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb, '+item.color+' 15%, transparent);display:flex;align-items:center;justify-content:center">'+item.icon+'</span>'
-      +'<div style="flex:1;min-width:0">'
-      +'<div style="font-size:12px;font-weight:700;color:var(--text)">'+item.title+'</div>'
-      +'<div style="font-size:10px;color:var(--t3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+item.sub+'</div>'
-      +'</div>'
-      +'<span style="font-size:14px;color:var(--t3)">›</span>'
-      +'</div>';
-  }).join('');
-
   window._todaysActivityItems=items;
+  return items;
 }
 
 // ── Detail popup for a Today's Activity item (Events/SIP/Review/Anniversary) ──
@@ -12424,7 +12358,7 @@ function showTodaysActivityList(idx){
       if(rowEl) rowEl.remove();
       if(!ov.querySelectorAll('[id^="sipv-row-"]').length){
         ov.remove();
-        renderTodaysActivity(); // refresh the dashboard card so the entry disappears
+        renderDashboardActivityFeed(); // refresh the dashboard card so the entry disappears
       }
       return;
     }
