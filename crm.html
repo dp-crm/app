@@ -87,9 +87,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .ptr-indicator.spinning svg{animation:globalRefreshSpin .7s linear infinite}
 
 /* ── Page-switch transition — a quick fade+slide instead of an instant
-   swap, on both a swipe and a normal tab tap, so navigation feels like a
-   real app transition rather than a page reload. Direction is set inline
-   per-swipe (see navigateTabBySwipe); a plain tap defaults to a gentle
+   swap on a normal tab tap, so navigation feels like a real app
+   transition rather than a page reload. A plain tap defaults to a gentle
    fade with no horizontal offset. ── */
 @keyframes pageSwitchIn{from{opacity:0;transform:translateX(var(--page-slide-from,0px))}to{opacity:1;transform:translateX(0)}}
 .page.active{animation:pageSwitchIn .2s ease-out}
@@ -712,22 +711,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
 
-  <!-- AI "Today's Insights" — a condensed, max-8-point version of today's
-       daily AI insights email, right on the Dashboard, just above Today's
-       Activity. Deliberately reads already-generated data (see
-       getDashboardPracticePulse in Code.gs) rather than making a fresh AI
-       call on every dashboard load — instant, free, and guaranteed to
-       never say something different from what the email already said. -->
-  <div class="sec" id="dash-practice-pulse-wrap" style="display:none">
-    <div style="background:linear-gradient(135deg,var(--s1),var(--s2));border:1px solid var(--accent);border-radius:var(--r);padding:14px 14px 12px;box-shadow:0 6px 20px -8px color-mix(in srgb, var(--accent) 45%, transparent)">
-      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
-        <span style="font-size:14px">🧠</span>
-        <span class="lbl" style="color:var(--accent);margin:0">Today's Insights</span>
-      </div>
-      <div id="dash-practice-pulse-body" style="display:flex;flex-direction:column;gap:6px"></div>
-    </div>
-  </div>
-
   <div class="dash-grid-2col">
   <!-- Lead Pipeline Funnel — desktop only, built from the same lead-status counts as the stat tiles above -->
   <div class="sec dash-funnel-sec" style="display:none">
@@ -749,6 +732,28 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div id="dash-todays-activity"></div>
     </div>
   </div>
+  </div>
+
+  <!-- AI "Today's Insights" — a condensed, max-8-point version of today's
+       daily AI insights email, right on the Dashboard, just below Today's
+       Activity. Deliberately reads already-generated data (see
+       getDashboardPracticePulse in Code.gs) rather than making a fresh AI
+       call on every dashboard load — instant, free, and guaranteed to
+       never say something different from what the email already said.
+       Kept OUTSIDE .dash-grid-2col on purpose — that grid is a fixed
+       2-column desktop layout pairing Pipeline Overview with Today's
+       Activity; adding a 3rd item to it would break that pairing, so this
+       stays a separate section directly below it instead, which achieves
+       the same "after Today's Activity" ordering on both mobile and
+       desktop without touching the grid's own layout. -->
+  <div class="sec" id="dash-practice-pulse-wrap" style="display:none">
+    <div style="background:linear-gradient(135deg,var(--s1),var(--s2));border:1px solid var(--accent);border-radius:var(--r);padding:14px 14px 12px;box-shadow:0 6px 20px -8px color-mix(in srgb, var(--accent) 45%, transparent)">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+        <span style="font-size:14px">🧠</span>
+        <span class="lbl" style="color:var(--accent);margin:0">Today's Insights</span>
+      </div>
+      <div id="dash-practice-pulse-body" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
   </div>
 </div>
 
@@ -4515,11 +4520,11 @@ function nav(name,btn,slideFrom){
     toast('Insights is not available on Maker accounts');
     name='dash'; btn=null;
   }
-  // Haptic tick + set the swipe slide-direction for this transition —
-  // defaults to a neutral fade (no left/right offset) for a plain tap;
-  // navigateTabBySwipe() passes an explicit direction as the 3rd arg for
-  // the swipe case, so each transition gets the direction that actually
-  // caused it, not whatever the last one happened to leave behind.
+  // Haptic tick + reset the page-slide transition to a neutral fade (no
+  // left/right offset) — every call to nav() is a plain tap now that
+  // swipe-between-tabs has been removed, so slideFrom is always its
+  // default; the parameter itself is left in place in case something
+  // else ever wants to pass a direction again.
   document.documentElement.style.setProperty('--page-slide-from', slideFrom||'0px');
   if(navigator.vibrate) navigator.vibrate(6);
   // Pause the chat's background animations whenever leaving Insights — these
@@ -9000,81 +9005,10 @@ async function quickAddFromContacts(){
 var _swipeStartX=0, _swipeStartY=0, _swipeMob='', _swiping=false;
 
 // ═══════════════════════════════════════════════
-// NATIVE-APP GESTURES — swipe left/right between the 5 bottom-nav tabs,
-// and pull-down-to-refresh. Both are deliberately careful not to hijack
-// gestures that already belong to something else in the app: the lead/
-// client card swipe-to-log-follow-up (initSwipe, right below this), and
-// any horizontally-scrollable strip (the week calendar, status tabs,
-// chip rows, etc.) — those are detected live by actually checking
-// whether the touched element can scroll, rather than a hardcoded list
-// that would silently go stale as new horizontal strips get added later.
+// NATIVE-APP GESTURES — pull-down-to-refresh below. (Swipe left/right
+// between bottom-nav tabs was removed by request — the lead/client card
+// swipe-to-log-follow-up, right below this, is untouched and unrelated.)
 // ═══════════════════════════════════════════════
-
-// True if the touch started inside something that already owns
-// horizontal gestures — either a genuinely scrollable strip (checked by
-// its real scrollWidth vs clientWidth, not just its CSS) or a lead/client
-// list card (owned by initSwipe's own touch handlers).
-function isInsideHorizontalScroller(el){
-  var contentEl=document.getElementById('content');
-  var node=el;
-  var depth=0;
-  while(node && node!==contentEl && node!==document.body && depth<12){
-    if(node.classList && (node.classList.contains('li') || node.classList.contains('ccard'))) return true;
-    if(node.id==='lead-list' || node.id==='client-list') return true;
-    var cs=window.getComputedStyle(node);
-    if((cs.overflowX==='auto' || cs.overflowX==='scroll') && node.scrollWidth>node.clientWidth+4) return true;
-    node=node.parentElement;
-    depth++;
-  }
-  return false;
-}
-
-var TAB_SWIPE_ORDER=['leads','dash','analytics','tasks','clients'];
-var _tabSwipeStartX=0, _tabSwipeStartY=0, _tabSwiping=false, _tabSwipeBlocked=false;
-
-function initTabSwipeNav(){
-  var contentEl=document.getElementById('content');
-  if(!contentEl || contentEl._tabSwipeInit) return;
-  contentEl._tabSwipeInit=true;
-
-  contentEl.addEventListener('touchstart', function(e){
-    if(e.touches.length!==1) return;
-    // Also skip while any full-screen overlay/modal is open (add/edit
-    // forms, the AI voice confirm bubble, etc.) — a swipe there should
-    // never navigate away underneath an open form.
-    var overlayOpen=document.querySelector('div[style*="z-index:9999"], div[style*="z-index:99999"], div[style*="z-index:100000"], .ai-voice-confirm.show');
-    _tabSwipeBlocked=isInsideHorizontalScroller(e.target) || !!overlayOpen;
-    _tabSwipeStartX=e.touches[0].clientX;
-    _tabSwipeStartY=e.touches[0].clientY;
-    _tabSwiping=true;
-  }, {passive:true});
-
-  contentEl.addEventListener('touchend', function(e){
-    if(!_tabSwiping || _tabSwipeBlocked){ _tabSwiping=false; return; }
-    _tabSwiping=false;
-    var dx=e.changedTouches[0].clientX-_tabSwipeStartX;
-    var dy=e.changedTouches[0].clientY-_tabSwipeStartY;
-    // Require a clearly horizontal, deliberate swipe — well past normal
-    // scroll jitter, and much more horizontal than vertical — so a normal
-    // vertical scroll can never accidentally trigger a tab change.
-    if(Math.abs(dx)<80 || Math.abs(dx)<Math.abs(dy)*1.5) return;
-    navigateTabBySwipe(dx>0?-1:1);
-  }, {passive:true});
-}
-
-function navigateTabBySwipe(direction){
-  // Insights is excluded from the swipeable order for Maker, same as the
-  // nav button itself — matches canAccessInsightsMenu()/nav()'s own check.
-  var order=TAB_SWIPE_ORDER.filter(function(name){ return name!=='analytics' || canAccessInsightsMenu(); });
-  var current=order.find(function(n){ var pg=document.getElementById('pg-'+n); return pg && pg.classList.contains('active'); });
-  var idx=order.indexOf(current);
-  if(idx<0) return; // current page isn't one of the swipeable tabs (e.g. Settings) — swipe does nothing there
-  var nextIdx=idx+direction;
-  if(nextIdx<0 || nextIdx>=order.length) return; // no wraparound at the ends, same as tapping past the first/last tab would do
-  var nextName=order[nextIdx];
-  var btn=document.querySelector('.nb[onclick*="nav(\''+nextName+'\'"]');
-  nav(nextName, btn, direction>0?'16px':'-16px');
-}
 
 // ── Pull-to-refresh — only engages when already scrolled to the very top
 // of the page (so it can never interfere with normal scrolling further
@@ -12830,7 +12764,6 @@ function startAppAfterAuth(){
   if(isLockEnabled()){ showLockScreen(); }
   load();loadActivityLog();loadTasks();bootSequenceV17();
   applyFontSizeMode(cfg_.fontSizeMode||'small');
-  initTabSwipeNav();
   initPullToRefresh();
   var topBar=document.getElementById('global-topbar'); if(topBar) topBar.style.display='flex';
   var dashWelcome=document.getElementById('dash-welcome');
