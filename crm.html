@@ -340,15 +340,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
    is actually held/recording — toggled by the same .listening class. */
 #nav-analytics.listening #nav-analytics-glow{opacity:1;animation:navRecordGlow 1.1s ease-in-out infinite}
 @keyframes navRecordGlow{0%,100%{transform:translateX(-50%) scale(.85);opacity:.75}50%{transform:translateX(-50%) scale(1.08);opacity:1}}
-/* "Charging" state — added the instant the button is pressed, but the
-   transition-delay means nothing is actually visible for the first
-   second of holding (so a normal quick tap never flashes it). From the
-   1s mark to the 2s mark (when real recording begins and .listening
-   takes over) the glow rises smoothly from behind the icon — visible,
-   growing feedback for the whole hold, not just a sudden pop-in once
-   recording actually starts. */
+/* "Charging" state — added the instant the button is pressed. Recording
+   now starts just past the 1s mark (VOICE_LONG_PRESS_MS), so this has to
+   build noticeably faster than before: a short 150ms delay (just enough
+   that a normal quick tap never flashes it) then rises for the remaining
+   ~850ms, arriving fully grown right as real recording begins and
+   .listening takes over — visible, growing feedback for the whole hold
+   rather than a sudden pop-in. */
 #nav-analytics-glow{transition:opacity .15s ease, transform .15s ease}
-#nav-analytics.charging #nav-analytics-glow{opacity:.65;transform:translateX(-50%) scale(.85);transition:opacity 1s ease-out 1s, transform 1s ease-out 1s}
+#nav-analytics.charging #nav-analytics-glow{opacity:.65;transform:translateX(-50%) scale(.85);transition:opacity .85s ease-out .15s, transform .85s ease-out .15s}
 /* The generic small dot (positioned for a flat button) sits oddly next to
    the raised, floating badge here — the glow above is this button's own
    purpose-built replacement for it. Dash and other nav buttons keep the dot. */
@@ -984,14 +984,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
               <option value="kn-IN|Kannada">ಕನ್ನಡ (Kannada)</option>
             </select>
           </div>
-          <div class="si" style="font-size:10px;color:var(--t3);font-style:italic;margin-top:4px"><span>One setting, three effects: what language the assistant listens for when you speak, what language it tells Gemini your words are in (so it's understood correctly), and what language it replies back in. All three always match this selection — except a couple of fixed English fallback messages, which stay in English regardless.</span></div>
+          <div class="si" style="font-size:10px;color:var(--t3);font-style:italic;margin-top:4px"><span>Controls what language the assistant listens for when you speak, and what language it tells Gemini your words are in (so it's understood correctly). The written reply it gives back is always in English, regardless of this selection — by design, so the on-screen confirmation is always readable no matter which language you spoke in.</span></div>
           <div style="padding:0 12px 4px;display:flex;align-items:center;gap:8px;margin-top:6px">
             <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer">
               <input type="checkbox" id="voice-output-toggle" style="width:18px;height:18px" onchange="setVoiceOutputEnabled(this.checked)">
               Voice Output (assistant speaks its reply aloud)
             </label>
           </div>
-          <div class="si" style="font-size:10px;color:var(--t3);font-style:italic;margin-top:4px"><span>Off by default. Uses your phone's own built-in voice — no extra cost, no server call. Currently speaks for English and Hindi only; the other four languages above still show a text reply but stay silent, since not every phone has a good built-in voice for them yet.</span></div>
+          <div class="si" style="font-size:10px;color:var(--t3);font-style:italic;margin-top:4px"><span>Off by default. Uses your phone's own built-in voice — no extra cost, no server call. Since the reply is always in English, this speaks in English every time, whichever of the six languages above you use to speak to it. Not supported on iPhone (iOS does not offer this to apps at all) — Android only.</span></div>
         </div>
         <div class="sg" style="margin-top:10px">
           <div style="font-size:11px;color:var(--t2);margin:0 12px 8px;font-weight:700">📅 Special Days</div>
@@ -3518,7 +3518,7 @@ function toggleAiVoiceAssistant(){
 
 // ═══════════════════════════════════════════════
 // VOICE ASSISTANT TRIGGER — true push-to-talk on the Insights nav button:
-// hold \u2265 2s to start recording, keep holding to stay recording, release
+// hold \u2265 1s to start recording, keep holding to stay recording, release
 // to stop and send \u2014 replacing the old floating Dashboard-only button
 // (removed \u2014 it disappeared the moment you left Dash). Available to any
 // signed-in user \u2014 see toggleAiVoiceAssistant()'s own session check, the
@@ -3535,7 +3535,17 @@ function toggleAiVoiceAssistant(){
 // touchAction/user-select/callout are disabled below specifically to
 // close that gap, on top of preventDefault() on the initial touch.
 // ═══════════════════════════════════════════════
-var VOICE_LONG_PRESS_MS=2000;
+var VOICE_LONG_PRESS_MS=1000;
+// Wrapped in try/catch defensively — some browsers can throw rather than
+// just no-op on an unsupported/blocked call. Worth knowing plainly: iOS
+// Safari (including this app installed as a home-screen PWA) has never
+// implemented the Vibration API at all — navigator.vibrate is simply
+// undefined there, so vibration will never fire on iPhone regardless of
+// this code; that's an Apple platform decision, not something fixable
+// from here. Android Chrome supports it normally.
+function tryVibrate(ms){
+  try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){ /* unsupported/blocked — never let this disrupt the voice flow */ }
+}
 function wireVoiceLongPress(elId, navName){
   var el=document.getElementById(elId);
   if(!el) return; // element may not exist in this layout (e.g. sidebar on mobile)
@@ -3582,23 +3592,23 @@ function wireVoiceLongPress(elId, navName){
       // as a normal phone tap/click sensation rather than something
       // app-specific. Same duration used again on stop, below, so start
       // and stop feel like a matched pair.
-      if(navigator.vibrate) navigator.vibrate(40);
+      tryVibrate(40);
       _aiVoiceTriggerElId=elId;
       toggleAiVoiceAssistant(); // starts listening/recording — runs for as long as the button stays held
     }, VOICE_LONG_PRESS_MS);
   }
   function endPress(e){
-    var wasPending=!!pressTimer; // released before the 2s threshold fired
+    var wasPending=!!pressTimer; // released before the 1s threshold fired
     clearTimer();
     el.classList.remove('charging'); // released before recording started \u2014 no vibration, nothing happened yet
     if(el.releasePointerCapture && e.pointerId!=null){
       try{ el.releasePointerCapture(e.pointerId); }catch(_relErr){}
     }
     if(!wasPending && voiceSessionLive()){
-      // The 2s hold already started a recording and it's still running —
+      // The 1s hold already started a recording and it's still running —
       // release stops it and sends whatever was captured.
       e.preventDefault();
-      if(navigator.vibrate) navigator.vibrate(40); // matches the start vibration \u2014 recording has finished
+      tryVibrate(40); // matches the start vibration \u2014 recording has finished
       toggleAiVoiceAssistant();
       return;
     }
@@ -3614,7 +3624,7 @@ function wireVoiceLongPress(elId, navName){
     clearTimer();
     el.classList.remove('charging');
     if(!wasPending && voiceSessionLive()){
-      if(navigator.vibrate) navigator.vibrate(40); // same stop vibration \u2014 a cancelled hold still cleanly ends a live recording
+      tryVibrate(40); // same stop vibration \u2014 a cancelled hold still cleanly ends a live recording
       toggleAiVoiceAssistant(); // stop a live session cleanly rather than leave it running unattended
     }
   }
@@ -3883,12 +3893,6 @@ function learnVoiceCorrection(originalText, editedText){
 }
 
 var AI_VOICE_FALLBACK_MSG='Sorry, I could not find this. Please try again manually.';
-// Mirrors VC_ANALYTICAL_FALLBACK on the server exactly — used client-side
-// only to recognize this specific fixed message (see speakVoiceReply
-// below, which needs to know a reply is one of these two fixed English
-// strings rather than a normal AI-generated reply in whatever language
-// was selected).
-var AI_VOICE_ANALYTICAL_FALLBACK_MSG='Sorry, I cannot process that here. Please explore the AI Insights menu instead.';
 
 // Builds the deduplicated name list sent up with every voice command so
 // Gemini matches spoken names against REAL leads/clients instead of
@@ -4109,31 +4113,21 @@ function dispatchVoiceAction(r, transcript){
 // saveTaskNow(). Harmless no-op when nothing is queued (the overwhelming
 // majority of commands, which are single-step).
 // ── Voice Output (Settings > App Settings, off by default — opt-in only).
-// Stage 2 of voice output: speaks the AI's reply back using the device's
-// own built-in text-to-speech (free, no API call, no token cost — same
-// family of browser API as speech INPUT already uses) — but only for
-// English and Hindi. The other four supported input languages (Malayalam,
-// Tamil, Telugu, Kannada) stay text-only for now: built-in TTS voice
-// quality/availability for those is inconsistent across real devices —
-// some phones have no voice for them at all and would either silently
-// stay quiet or read the text with an English accent, which would look
-// broken rather than helpful. Revisit if device TTS support improves. ──
-var VOICE_OUTPUT_TTS_LANGS={'en-IN':true, 'hi-IN':true};
-function speakVoiceReply(text, voiceLangCode){
+// Speaks the AI's reply back using the device's own built-in text-to-
+// speech (free, no API call, no token cost — same family of browser API
+// as speech INPUT already uses). The reply text itself is always English
+// now regardless of which language was selected for voice input (see the
+// "reply" instruction in interpretVoiceCommand's prompt, Code.gs) — so
+// this always speaks in English too, for every selected input language.
+// Voice INPUT can still be any of the six supported languages; only the
+// AI's spoken/written reply is English-only, strictly, by design. ──
+function speakVoiceReply(text){
   if(!cfg_.voiceOutputEnabled) return; // off by default — never speaks unless explicitly turned on
   if(!text || typeof speechSynthesis==='undefined') return; // not supported on this device/browser — text confirmation already shown regardless
-  // The two fixed fallback messages are always literal English text
-  // regardless of which voice language is selected (see VC_FALLBACK /
-  // VC_ANALYTICAL_FALLBACK on the server) — spoken as English rather than
-  // whatever language was selected, so an English sentence is never read
-  // aloud in a Hindi voice.
-  var isFixedFallback=(text===AI_VOICE_FALLBACK_MSG || text===AI_VOICE_ANALYTICAL_FALLBACK_MSG);
-  var speakLang=isFixedFallback ? 'en-IN' : voiceLangCode;
-  if(!VOICE_OUTPUT_TTS_LANGS[speakLang]) return; // Stage 2 — English/Hindi only, stays silent (text-only) for the other four
   try{
     speechSynthesis.cancel(); // stop anything still speaking from a previous command before starting this one
     var utter=new SpeechSynthesisUtterance(text);
-    utter.lang=speakLang;
+    utter.lang='en-IN'; // the reply text is always English — see comment above
     speechSynthesis.speak(utter);
   }catch(e){ /* never let a TTS failure disrupt the rest of the voice flow — it already has a text confirmation */ }
 }
@@ -4144,7 +4138,7 @@ function advanceVoiceQueueIfPending(){
   setTimeout(function(){
     var nextReply=next.reply||'continuing your command…';
     toast('Next: '+nextReply);
-    speakVoiceReply(next.reply||'', getVoiceLanguage().code);
+    speakVoiceReply(next.reply||'');
     dispatchVoiceAction(next, '');
   }, 400); // brief pause so the just-closed form's own toast isn't stepped on
 }
@@ -4166,7 +4160,7 @@ async function runAiVoiceCommand(transcript, voiceLang){
     var first=actions[0];
     var firstReply=first.reply||AI_VOICE_FALLBACK_MSG;
     setAiVoiceStatus(firstReply, true);
-    speakVoiceReply(firstReply, voiceLang.code);
+    speakVoiceReply(firstReply);
     setTimeout(function(){ setAiVoiceStatus('', false); }, 2500);
 
     if(actions.length>1){
