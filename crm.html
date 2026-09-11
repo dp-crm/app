@@ -4547,6 +4547,7 @@ function renderAll(){
   if(anaPage&&anaPage.classList.contains('active')){ loadAllBusinessInsights(); }
   setTimeout(addSearchClose,100);
 }
+var _navGeneration=0;
 function nav(name,btn,slideFrom){
   // Insights is available to Checker, Authorizer, and Admin — Maker gets
   // the AI Voice Assistant only, not this menu (redirected to Dash if
@@ -4571,7 +4572,29 @@ function nav(name,btn,slideFrom){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});
   var pg=document.getElementById('pg-'+name);
-  if(pg) pg.classList.add('active');
+  // .page.active controls BOTH display:none→block AND the pageSwitchIn
+  // animation at once — browsers (Safari/WebKit especially) can fail to
+  // reliably start a CSS animation on an element that becomes displayed
+  // in that same paint frame, sometimes skipping or truncating it
+  // partway, which is exactly the kind of intermittent, timing-dependent
+  // glitch ("looks fine sometimes, not on a return visit") that presented
+  // as header/content misalignment. Forcing a reflow between "now
+  // display:none" and "now displayed and animating" — read a layout
+  // property, THEN add the class on the next frame — gives the browser a
+  // clean boundary to start the animation from, instead of potentially
+  // coalescing both changes into one paint.
+  if(pg){
+    void pg.offsetHeight;
+    // Guards against a rapid second nav() call landing before this
+    // deferred frame fires — without this, a stale callback could add
+    // .active to a page the user has already navigated away from,
+    // leaving two pages active (and visible) at once.
+    var myNavGen=++_navGeneration;
+    requestAnimationFrame(function(){
+      if(myNavGen!==_navGeneration) return;
+      pg.classList.add('active');
+    });
+  }
   // Add Task button lives outside .page (see its own comment above for
   // why) — shown only for Tasks, toggled here alongside the page switch
   // itself rather than relying on the page's own display:none/block.
@@ -4588,6 +4611,17 @@ function nav(name,btn,slideFrom){
   // like its content starts near the bottom instead of at the top.
   var contentEl=document.getElementById('content');
   if(contentEl) contentEl.scrollTop=0;
+  // Re-asserted once more shortly after — several of the render calls below
+  // (Dashboard's "Today's Insights" card especially) fetch and insert their
+  // own content ASYNCHRONOUSLY, after this function has already returned.
+  // That late insertion changes the page's height, and on some phones/
+  // browsers a height change shifts the current scroll position (or leaves
+  // it computed against stale layout), which is exactly what made the
+  // header/content look subtly offset specifically when RETURNING to a
+  // page rather than loading it fresh — the immediate reset above still
+  // matters for the instant visual snap, this is the follow-up that holds
+  // once any async content has actually landed.
+  setTimeout(function(){ if(contentEl) contentEl.scrollTop=0; }, 350);
   // Render on page switch
   if(name==='analytics'){
     var sb4=document.getElementById('shared-search-bar'); if(sb4) sb4.style.display='none';
@@ -7088,7 +7122,15 @@ async function sendTestInsightsEmail(){
   toast('Sending test email — this can take up to 30 seconds…', 4000);
   try{
     var res=await sheetWrite({action:'sendTestInsightsEmail', requestingUserId:session.userId}, 40000);
-    if(res && res.success) toast('✅ Test email sent to '+recipient);
+    if(res && res.success){
+      toast('✅ Test email sent to '+recipient);
+      // A test send stores a genuine, freshly-comprehended report the same
+      // way the automatic one does — the Dashboard's "Today's Insights"
+      // should reflect it, not keep showing whatever was cached earlier
+      // today. Resetting this forces the next Dashboard visit to re-fetch
+      // instead of reusing today's already-loaded (now stale) result.
+      _practicePulseLoadedForDate='';
+    }
     else toast('❌ Could not send: '+(res&&res.error||'unknown error'));
   }catch(e){
     toast('❌ Could not reach the server: '+e.message);
