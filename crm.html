@@ -6968,7 +6968,11 @@ async function loadDailyInsightsSettings(){
           ? '✅ Trigger is registered and active'
           : '❌ No trigger found — click Save below to (re)create it');
       } else {
-        lines.push('Disabled');
+        // Distinguishing this clearly matters — "Send Test" always works
+        // regardless of this setting (it deliberately bypasses it), which
+        // can easily read as "this is all working" even while the actual
+        // automatic daily send has never been turned on.
+        lines.push('❌ Disabled — the automatic daily send will NOT run until you check \u201cEnable Daily AI Insights\u201d above and tap Save. \u201cSend Test\u201d always works regardless of this setting, so a successful test does not mean this is on.');
       }
       if(res.lastSentStamp) lines.push('Last attempt: '+res.lastSentStamp);
       if(res.lastSentDate) lines.push('Last real (non-test) send counted for: '+res.lastSentDate+' — won\'t send again automatically until the next calendar day');
@@ -6986,7 +6990,15 @@ async function saveDailyInsightsSettings(){
   var statusEl=document.getElementById('daily-insights-status');
   var enabled=document.getElementById('di-enabled').checked;
   var recipient=document.getElementById('di-recipient').value.trim();
-  var hour=parseInt(document.getElementById('di-hour').value,10);
+  // Clamp to a real hour (0-23) before it ever leaves the browser — a
+  // number input's max="23" doesn't reliably stop someone from typing
+  // more digits than that on every platform, and nothing downstream used
+  // to catch it either. This is exactly how an hour value like 1413 (not
+  // a real hour, but a valid positive integer) got silently saved and
+  // displayed as this field's value.
+  var hourRaw=parseInt(document.getElementById('di-hour').value,10);
+  var hour=(isNaN(hourRaw) || hourRaw<0 || hourRaw>23) ? 8 : hourRaw;
+  document.getElementById('di-hour').value=String(hour); // reflect the corrected value back into the field immediately
   var timezone=document.getElementById('di-timezone').value;
   if(enabled && !recipient){ toast('Enter a recipient email first'); return; }
   if(statusEl){ statusEl.textContent='Saving…'; statusEl.style.color='var(--t3)'; }
