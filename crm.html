@@ -449,7 +449,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .cql-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;aspect-ratio:1/1;border-radius:11px;border:1.5px solid var(--cql-color,var(--border2));background:var(--s2);cursor:pointer;transition:background .12s ease,color .12s ease;-webkit-user-select:none;user-select:none;padding:4px;box-sizing:border-box}
 .cql-tile:active{background:var(--cql-color,var(--accent))}
 .cql-tile:active .cql-lbl{color:#000}
-.cql-ico{font-size:18px;line-height:1}
+.cql-ico{font-size:23px;line-height:1}
 .cql-lbl{font-size:8.5px;font-weight:700;line-height:1.2;text-align:center;color:var(--t2);transition:color .12s ease}
 .cql-green{--cql-color:#25D366}
 .cql-blue{--cql-color:#3498DB}
@@ -1125,7 +1125,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <button class="nb sidebar-nb" onclick="nav('tasks',this)" id="sidebar-nav-tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Task</span></button>
   <button class="nb sidebar-nb" id="sidebar-nav-analytics">
     <span style="width:32px;height:32px;border-radius:9px;background:linear-gradient(145deg,#3FA073,#2C7A57);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2c.3 3.5 1.3 6 3 7.5S19 12 22 12c-3 0-5.3.9-7 2.5S12.3 18.5 12 22c-.3-3.5-1.3-6-3-7.5S4 12 2 12c3 0 5.3-.9 7-2.5S11.7 5.5 12 2z"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"><line x1="4" y1="9" x2="4" y2="15"/><line x1="9" y1="6.5" x2="9" y2="17.5"/><line x1="12.5" y1="4" x2="12.5" y2="20"/><line x1="16" y1="6.5" x2="16" y2="17.5"/><line x1="20" y1="9" x2="20" y2="15"/></svg>
     </span>
     <span style="color:#3FA073;font-weight:800">Insights</span>
   </button>
@@ -1137,7 +1137,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <button class="nb" id="nav-analytics" style="gap:1px;position:relative">
     <span id="nav-analytics-glow" style="position:absolute;top:-40px;left:50%;transform:translateX(-50%) scale(.7);width:90px;height:90px;border-radius:50%;background:radial-gradient(circle, rgba(232,84,63,.85) 0%, rgba(232,84,63,.45) 45%, rgba(232,84,63,0) 72%);opacity:0;z-index:0;pointer-events:none"></span>
     <span style="position:absolute;top:-26px;left:50%;transform:translateX(-50%);width:62px;height:62px;border-radius:50%;background:linear-gradient(145deg,#3FA073,#2C7A57);border:4px solid var(--bg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(47,150,105,.5);z-index:1">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2c.3 3.5 1.3 6 3 7.5S19 12 22 12c-3 0-5.3.9-7 2.5S12.3 18.5 12 22c-.3-3.5-1.3-6-3-7.5S4 12 2 12c3 0 5.3-.9 7-2.5S11.7 5.5 12 2z"/></svg>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="9" x2="4" y2="15"/><line x1="9" y1="6.5" x2="9" y2="17.5"/><line x1="12.5" y1="4" x2="12.5" y2="20"/><line x1="16" y1="6.5" x2="16" y2="17.5"/><line x1="20" y1="9" x2="20" y2="15"/></svg>
     </span>
     <span style="height:36px"></span>
     <span style="font-size:12px;font-weight:800;color:#3FA073">Insights</span>
@@ -12062,6 +12062,35 @@ function renderTodaysActivity(){
         action:"nav('tasks',null);setTaskFilter('DUE');"});
     }
   }catch(e){ console.warn('Today\'s Activity — Tasks section failed:', e.message); }
+
+  // ── 0c. Client pending-stage counts — one capsule per stage, in the same
+  // fixed order CLIENT_STAGES itself is defined in (not sorted by count).
+  // Hidden entirely for any stage with zero clients in it. Tapping
+  // navigates to the Clients page pre-filtered to that exact stage, sorted
+  // by Potential AUM (descending) so the highest-value pending clients in
+  // that stage surface first — both the filter and the sort reuse the
+  // Clients page's own existing functions, nothing new was built for this. ──
+  try{
+    var stageCounts={};
+    CLIENT_STAGES.forEach(function(s){ stageCounts[s]=0; });
+    clients.forEach(function(c){
+      var s=(c.stage||'').toUpperCase().trim();
+      if(stageCounts.hasOwnProperty(s)) stageCounts[s]++;
+    });
+    var stageIcons={
+      'KYC PENDING':'🪪', 'DOCUMENT PENDING':'📄', 'PROFILE CREATION PENDING':'👤',
+      'MANDATE PENDING':'📝', 'INVESTMENT PENDING':'💰', 'GRATITUDE CALL PENDING':'📞'
+    };
+    CLIENT_STAGES.forEach(function(stage){
+      var n=stageCounts[stage];
+      if(!n) return;
+      var label=stage.charAt(0)+stage.slice(1).toLowerCase(); // "KYC PENDING" -> "KYC pending" (title-cases the whole rest, fine for these short all-caps labels)
+      items.push({icon:stageIcons[stage]||'🎯', color:'var(--purple)', bg:'color-mix(in srgb, var(--purple) 8%, transparent)',
+        title:n+' '+label,
+        sub:'Tap to view '+(n>1?'these clients':'this client'),
+        action:"nav('clients',null);setStageFilterClient('"+stage+"');setClientSort('potentialAum');"});
+    });
+  }catch(e){ console.warn('Today\'s Activity — Client stage-pending section failed:', e.message); }
 
   // ── 1. Follow-ups today (leads + clients) ──
   try{
