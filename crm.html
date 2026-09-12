@@ -673,31 +673,39 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div id="geo-filter-wrap" style="padding:4px 12px 8px"><select id="geo-dropdown" onchange="setFG(this.value)" style="width:100%;padding:9px 10px;font-size:12px;font-weight:600;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:8px;-webkit-appearance:none;cursor:pointer"></select></div>
   <div id="family-filter-wrap" style="padding:0 12px 8px"><select id="family-dropdown" onchange="setFF(this.value)" style="width:100%;padding:9px 10px;font-size:12px;font-weight:600;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:8px;-webkit-appearance:none;cursor:pointer"></select></div>
   <div id="lead-list"><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div></div>
-  <!-- FAB: Add Lead — tap opens a compact 3-option quick-add menu instead
-       of jumping straight to the form. Manual Lead reproduces the exact
-       old single-tap behavior; Contact List and Camera are new entry
-       points. Tap the + again (now rotated to an ×) or tap the dimmed
-       backdrop to collapse without picking anything. -->
-  <div id="lead-fab-backdrop" onclick="closeLeadFabMenu()" style="display:none;position:fixed;inset:0;z-index:997"></div>
-  <div id="lead-fab-menu" style="display:none;position:fixed;bottom:154px;right:18px;z-index:999;flex-direction:column;align-items:flex-end;gap:10px">
-    <button onclick="closeLeadFabMenu();openCameraLeadCapture()" style="display:flex;align-items:center;gap:9px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:9px 16px 9px 9px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)">
-      <span style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📷</span>
-      <span style="font-size:13px;font-weight:700;color:var(--text)">Camera</span>
-    </button>
-    <button onclick="closeLeadFabMenu();openAddLead();pickContactInto('lf')" style="display:flex;align-items:center;gap:9px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:9px 16px 9px 9px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)">
-      <span style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📇</span>
-      <span style="font-size:13px;font-weight:700;color:var(--text)">Contact List</span>
-    </button>
-    <button onclick="closeLeadFabMenu();openAddLead()" style="display:flex;align-items:center;gap:9px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:9px 16px 9px 9px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)">
-      <span style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">👤</span>
-      <span style="font-size:13px;font-weight:700;color:var(--text)">Manual Lead</span>
-    </button>
-  </div>
-  <input type="file" id="lead-camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleLeadCameraCapture(this)">
-  <button id="lead-fab-btn" onclick="toggleLeadFabMenu()" style="position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25);transition:transform .15s ease" aria-label="Add lead">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</div>
+
+<!-- FAB: Add Lead — lives outside .page (same reasoning as the Add Task
+     button below: a position:fixed child of an ancestor that gets the
+     pageSwitchIn transform animation tracks that ancestor's box during
+     the transition instead of the true viewport, causing it to render in
+     the wrong place or pop in late — this was happening here and on the
+     Client FAB, already fixed once before for Add Task). Tap opens a
+     compact 3-option quick-add menu instead of jumping straight to the
+     form. Manual Lead reproduces the exact old single-tap behavior;
+     Contact List and Camera are new entry points. Tap the + again (now
+     rotated to an ×) or tap the dimmed backdrop to collapse without
+     picking anything. Shown only on the Leads page — toggled in nav()
+     alongside the page switch itself, same pattern as Add Task. -->
+<div id="lead-fab-backdrop" onclick="closeLeadFabMenu()" style="display:none;position:fixed;inset:0;z-index:997"></div>
+<div id="lead-fab-menu" style="display:none;position:fixed;bottom:154px;right:18px;z-index:999;flex-direction:column;align-items:flex-end;gap:10px">
+  <button onclick="closeLeadFabMenu();openCameraLeadCapture()" style="display:flex;align-items:center;gap:9px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:9px 16px 9px 9px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)">
+    <span style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📷</span>
+    <span style="font-size:13px;font-weight:700;color:var(--text)">Camera</span>
+  </button>
+  <button onclick="closeLeadFabMenu();openAddLead();pickContactInto('lf')" style="display:flex;align-items:center;gap:9px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:9px 16px 9px 9px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)">
+    <span style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📇</span>
+    <span style="font-size:13px;font-weight:700;color:var(--text)">Contact List</span>
+  </button>
+  <button onclick="closeLeadFabMenu();openAddLead()" style="display:flex;align-items:center;gap:9px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:9px 16px 9px 9px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)">
+    <span style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">👤</span>
+    <span style="font-size:13px;font-weight:700;color:var(--text)">Manual Lead</span>
   </button>
 </div>
+<input type="file" id="lead-camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleLeadCameraCapture(this)">
+<button id="lead-fab-btn" onclick="toggleLeadFabMenu()" style="display:none;position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25);transition:transform .15s ease" aria-label="Add lead">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
 
 <!-- DASHBOARD -->
 <div class="page active" id="pg-dash">
@@ -779,10 +787,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
   <div id="client-list" style="padding:4px 12px 100px"><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div></div>
-  <button onclick="openAddClient()" style="position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25)" aria-label="Add client">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-  </button>
 </div>
+
+<!-- FAB: Add Client — lives outside .page (same reasoning as Add Lead/Add
+     Task above: a position:fixed child of an ancestor that gets the
+     pageSwitchIn transform animation tracks that ancestor's box during
+     the transition instead of the true viewport, causing it to render in
+     the wrong place or pop in late). Shown only on the Clients page —
+     toggled in nav() alongside the page switch itself. -->
+<button id="client-fab-btn" onclick="openAddClient()" style="display:none;position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25)" aria-label="Add client">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
 
 <!-- SETTINGS -->
 <!-- SETTINGS -->
@@ -4623,6 +4638,13 @@ function nav(name,btn,slideFrom){
   // itself rather than relying on the page's own display:none/block.
   var addTaskBtn=document.getElementById('global-add-task-btn');
   if(addTaskBtn) addTaskBtn.style.display=(name==='tasks')?'flex':'none';
+  // Add Lead and Add Client buttons — same reasoning and same pattern as
+  // Add Task above (moved outside .page for the identical fix).
+  var addLeadBtn=document.getElementById('lead-fab-btn');
+  if(addLeadBtn) addLeadBtn.style.display=(name==='leads')?'flex':'none';
+  if(name!=='leads' && typeof closeLeadFabMenu==='function') closeLeadFabMenu(); // reset the quick-add menu if it was left open while navigating away
+  var addClientBtn=document.getElementById('client-fab-btn');
+  if(addClientBtn) addClientBtn.style.display=(name==='clients')?'flex':'none';
   // Activate every nav button for this page — bottom nav AND sidebar — not
   // just whichever one was actually clicked, so both stay in sync even when
   // navigation happens indirectly (e.g. a "view all" link elsewhere).
