@@ -5942,25 +5942,55 @@ function openCameraLeadCapture(){
 // a modern phone camera photo is far higher resolution than needed to
 // keep printed business-card text legible, and sending it unresized would
 // mean a much larger, slower, costlier upload for no extraction benefit.
+// Tries a canvas-based resize/compress first (keeps the upload small and
+// fast) — but canvas decode of a camera photo is NOT reliable for every
+// format on every device. iPhones frequently save photos as HEIC/HEIF,
+// and browser Image()/Canvas support for decoding that format varies by
+// iOS/Safari version — when it can't decode, img.onerror fires and this
+// used to just fail the whole capture with a generic error, which is
+// almost certainly what was actually happening. Gemini itself natively
+// accepts HEIC/HEIF/JPEG/PNG/WEBP directly (confirmed against Google's
+// own documentation), so the fix is: if the browser can't decode it for
+// resizing, skip resizing entirely and send the original file's own
+// bytes with its own real MIME type — Gemini decodes it fine even when
+// the browser couldn't. Resizing is a nice-to-have for upload size/cost;
+// it must never be a hard requirement for the feature to work at all.
 function resizeImageForLeadCapture(file){
-  return new Promise(function(resolve, reject){
+  return new Promise(function(resolve){
     var img=new Image();
     var url=URL.createObjectURL(file);
-    img.onload=function(){
+    var settled=false;
+    function fallbackToOriginal(){
+      if(settled) return; settled=true;
       URL.revokeObjectURL(url);
-      var maxDim=1280; // comfortably enough to keep printed text readable
-      var w=img.width, h=img.height;
-      if(w>maxDim || h>maxDim){
-        if(w>h){ h=Math.round(h*maxDim/w); w=maxDim; }
-        else{ w=Math.round(w*maxDim/h); h=maxDim; }
+      fileToBase64(file).then(function(b64){
+        resolve({base64:b64, mimeType:file.type||'image/jpeg'});
+      }).catch(function(){
+        resolve(null); // truly unreadable file — handleLeadCameraCapture treats this as a clean failure
+      });
+    }
+    img.onload=function(){
+      if(settled) return; settled=true;
+      URL.revokeObjectURL(url);
+      try{
+        var maxDim=1280; // comfortably enough to keep printed text readable
+        var w=img.width, h=img.height;
+        if(w>maxDim || h>maxDim){
+          if(w>h){ h=Math.round(h*maxDim/w); w=maxDim; }
+          else{ w=Math.round(w*maxDim/h); h=maxDim; }
+        }
+        var canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        var dataUrl=canvas.toDataURL('image/jpeg', 0.82); // quality kept high enough for legible text, well below source fidelity
+        resolve({base64:dataUrl.split(',')[1], mimeType:'image/jpeg'});
+      }catch(canvasErr){
+        // Some browsers decode the image fine but then refuse to export
+        // the canvas (a "tainted canvas" or similar) — same fallback.
+        fallbackToOriginal();
       }
-      var canvas=document.createElement('canvas');
-      canvas.width=w; canvas.height=h;
-      canvas.getContext('2d').drawImage(img,0,0,w,h);
-      var dataUrl=canvas.toDataURL('image/jpeg', 0.82); // quality kept high enough for legible text, well below source fidelity
-      resolve(dataUrl.split(',')[1]); // strip the "data:image/jpeg;base64," prefix
     };
-    img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error('Could not load the photo')); };
+    img.onerror=fallbackToOriginal; // couldn't decode for resizing (e.g. HEIC) — send the original instead of failing outright
     img.src=url;
   });
 }
@@ -5995,9 +6025,21 @@ async function handleLeadCameraCapture(inputEl){
   if(!hasScript()){ toast('Add Apps Script URL first'); return; }
   toast('📷 Reading contact details…', 4000);
   try{
-    var resizedBase64=await resizeImageForLeadCapture(file);
+    var img=await resizeImageForLeadCapture(file);
+    if(!img){
+      toast('Couldn\'t read that photo. Please retake it or add the Lead manually.', 4000);
+      return;
+    }
+    // Gemini's own limit is 4MB for the whole prompt — this only matters
+    // on the fallback (unresized) path, since the resized path is already
+    // well under this. A friendly message here beats an opaque failure
+    // from the API for the rare oversized raw photo.
+    if(img.base64.length*0.75 > 3500000){
+      toast('That photo is too large to process as-is. Please retake it (resizing failed for this photo\'s format) or add the Lead manually.', 5000);
+      return;
+    }
     var _lcSession=getSession();
-    var res=await apiFetch({action:'extractLeadFromImage', imageBase64:resizedBase64, mimeType:'image/jpeg', expectsResponse:true, requestingUserId:_lcSession?_lcSession.userId:''});
+    var res=await apiFetch({action:'extractLeadFromImage', imageBase64:img.base64, mimeType:img.mimeType, expectsResponse:true, requestingUserId:_lcSession?_lcSession.userId:''});
     if(!res || !res.success || !res.lead){
       toast((res&&res.error)||'Couldn\'t read the contact details. Please retake the photo or add the Lead manually.', 4000);
       return;
@@ -6735,7 +6777,7 @@ async function testActivityLog(){
     log(found?'✅ Read back OK — entry found in sheet':'❌ Entry NOT found in sheet (write failed silently)');
   }catch(e){ log('❌ Read failed: '+e.message); }
   log('3️⃣ Deleting test entry...');
-  var del=await sheetWrite({action:'deleteLogEntry',mobile:testMob,ts:testTs});
+  var del=await sheetWrite({action:'deleteLogById',mobile:testMob,ts:testTs,activity:'\uD83E\uDDEA Test activity'});
   if(del&&del.error){ log('⚠️ Delete failed: '+del.error); }
   else{ log('✅ Delete OK'); }
   await new Promise(function(r){setTimeout(r,1500);});
