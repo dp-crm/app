@@ -673,8 +673,28 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div id="geo-filter-wrap" style="padding:4px 12px 8px"><select id="geo-dropdown" onchange="setFG(this.value)" style="width:100%;padding:9px 10px;font-size:12px;font-weight:600;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:8px;-webkit-appearance:none;cursor:pointer"></select></div>
   <div id="family-filter-wrap" style="padding:0 12px 8px"><select id="family-dropdown" onchange="setFF(this.value)" style="width:100%;padding:9px 10px;font-size:12px;font-weight:600;color:var(--text);background:var(--s2);border:1px solid var(--border);border-radius:8px;-webkit-appearance:none;cursor:pointer"></select></div>
   <div id="lead-list"><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div><div class="skel-row"><div class="skel-line w60"></div><div class="skel-line w40"></div><div class="skel-line w30"></div></div></div>
-  <!-- FAB: Add Lead -->
-  <button onclick="openAddLead()" style="position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25)" aria-label="Add lead">
+  <!-- FAB: Add Lead — tap opens a compact 3-option quick-add menu instead
+       of jumping straight to the form. Manual Lead reproduces the exact
+       old single-tap behavior; Contact List and Camera are new entry
+       points. Tap the + again (now rotated to an ×) or tap the dimmed
+       backdrop to collapse without picking anything. -->
+  <div id="lead-fab-backdrop" onclick="closeLeadFabMenu()" style="display:none;position:fixed;inset:0;z-index:997"></div>
+  <div id="lead-fab-menu" style="display:none;position:fixed;bottom:154px;right:18px;z-index:999;flex-direction:column;align-items:flex-end;gap:10px">
+    <button onclick="closeLeadFabMenu();openCameraLeadCapture()" style="display:flex;align-items:center;gap:9px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:9px 16px 9px 9px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)">
+      <span style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📷</span>
+      <span style="font-size:13px;font-weight:700;color:var(--text)">Camera</span>
+    </button>
+    <button onclick="closeLeadFabMenu();openAddLead();pickContactInto('lf')" style="display:flex;align-items:center;gap:9px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:9px 16px 9px 9px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)">
+      <span style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📇</span>
+      <span style="font-size:13px;font-weight:700;color:var(--text)">Contact List</span>
+    </button>
+    <button onclick="closeLeadFabMenu();openAddLead()" style="display:flex;align-items:center;gap:9px;background:var(--s1);border:1px solid var(--border);border-radius:999px;padding:9px 16px 9px 9px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)">
+      <span style="width:36px;height:36px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">👤</span>
+      <span style="font-size:13px;font-weight:700;color:var(--text)">Manual Lead</span>
+    </button>
+  </div>
+  <input type="file" id="lead-camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleLeadCameraCapture(this)">
+  <button id="lead-fab-btn" onclick="toggleLeadFabMenu()" style="position:fixed;bottom:92px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:999;box-shadow:0 4px 16px rgba(255,255,255,0.25);transition:transform .15s ease" aria-label="Add lead">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
   </button>
 </div>
@@ -1195,7 +1215,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       </div>
       <div class="acc-body">
       <div class="frow">
-        <div class="fg"><label class="fl" style="display:flex;align-items:center;gap:6px">Name * <span onclick="pickContactInto('lf')" style="cursor:pointer;font-size:14px" title="Pick from contacts">👤📱</span></label><input class="fi" id="lf-name" placeholder="Full name" autocomplete="off" oninput="autoCaps(this);deriveFamilyName(this,document.getElementById('lf-family'),'_lfFamilyLocked')"><div class="ac-list" id="lf-ac-list"></div></div>
+        <div class="fg"><label class="fl">Name *</label><input class="fi" id="lf-name" placeholder="Full name" autocomplete="off" oninput="autoCaps(this);deriveFamilyName(this,document.getElementById('lf-family'),'_lfFamilyLocked')"><div class="ac-list" id="lf-ac-list"></div></div>
         <div class="fg"><label class="fl">Family Name</label><input class="fi" id="lf-family" list="familyname-suggestions" placeholder="e.g. Nair Family" oninput="autoCaps(this);_lfFamilyLocked=true"></div>
       </div>
       <div class="fg"><label class="fl">Mobile *</label><input class="fi" id="lf-mob" type="tel" inputmode="numeric" placeholder="9847012345" required oninput="this.value=normalizeMobileInput(this.value)"></div>
@@ -3492,15 +3512,17 @@ function toggleAiVoiceAssistant(){
 }
 
 // ═══════════════════════════════════════════════
-// VOICE ASSISTANT TRIGGER — true push-to-talk on the Insights nav button:
-// hold \u2265 1s to start recording, keep holding to stay recording, release
-// to stop and send \u2014 replacing the old floating Dashboard-only button
-// (removed \u2014 it disappeared the moment you left Dash). Available to any
-// signed-in user \u2014 see toggleAiVoiceAssistant()'s own session check, the
-// actual authority here; this wiring is just how the gesture reaches it.
-// What each person's voice commands can actually see/act on is scoped
-// server-side per their role (see getAiScopeName in Code.gs), not gated
-// here on the client.
+// VOICE ASSISTANT TRIGGER — on the Insights nav button: hold ≥1s to start
+// recording, then let go — recording keeps running, no need to keep
+// holding. A second, quick tap on the same button stops it and sends
+// whatever was captured. Replaced the earlier true push-to-talk model
+// (hold the whole time, release to stop), which was awkward for anything
+// longer than a short phrase. Available to any signed-in user — see
+// toggleAiVoiceAssistant()'s own session check, the actual authority
+// here; this wiring is just how the gesture reaches it. What each
+// person's voice commands can actually see/act on is scoped server-side
+// per their role (see getAiScopeName in Code.gs), not gated here on the
+// client.
 //
 // Mobile browsers treat a held touch on any element as a native gesture
 // of their own (text-selection callout, a context menu, a link preview)
@@ -3534,24 +3556,30 @@ function wireVoiceLongPress(elId, navName){
 
   function clearTimer(){ if(pressTimer){ clearTimeout(pressTimer); pressTimer=null; } }
   // Checked against the actual live session, not a local flag kept by this
-  // gesture handler \u2014 the browser's own SpeechRecognition can auto-finalize
-  // on a detected pause in speech WHILE the button is still physically
-  // held, which would leave a local "recording active" flag stuck true
-  // with nothing left to stop; checking the real state avoids that
-  // spuriously starting a second recording on release.
+  // gesture handler — the browser's own SpeechRecognition can auto-finalize
+  // on a detected pause in speech, which would leave a local "recording
+  // active" flag stuck true with nothing left to stop; checking the real
+  // state avoids that spuriously starting a second recording on the next tap.
   function voiceSessionLive(){ return !!(_aiVoiceRecog || _aiAudioRecorder); }
   function startPress(e){
     e.preventDefault(); // beat the browser's own long-press gesture to the punch
-    if(pressTimer || voiceSessionLive()) return;
-    // Added immediately, not after a delay \u2014 the CSS transition-delay on
+    if(voiceSessionLive()){
+      // A recording is already running — this is the "press again to
+      // stop" tap. Instant on touch, no hold needed, unlike starting.
+      tryVibrate(40);
+      toggleAiVoiceAssistant();
+      return;
+    }
+    if(pressTimer) return;
+    // Added immediately, not after a delay — the CSS transition-delay on
     // #nav-analytics.charging is what keeps this invisible for the first
-    // second (so a normal quick tap never flashes it), then rises smoothly
-    // from the 1s mark to the 2s mark, giving visible, growing feedback for
-    // the whole hold instead of a sudden pop-in once recording starts.
+    // moment of the hold (so a normal quick tap never flashes it), then
+    // rises smoothly toward the 1s mark, giving visible, growing feedback
+    // for the hold instead of a sudden pop-in once recording starts.
     el.classList.add('charging');
     // Keeps subsequent pointer events targeted at this element even if the
-    // finger drifts slightly during a multi-second hold, so a small wobble
-    // doesn't fire pointerleave and prematurely cut off a live recording.
+    // finger drifts slightly during the 1s hold, so a small wobble doesn't
+    // fire pointerleave and prematurely cancel the hold.
     if(el.setPointerCapture && e.pointerId!=null){
       try{ el.setPointerCapture(e.pointerId); }catch(_capErr){}
     }
@@ -3563,51 +3591,43 @@ function wireVoiceLongPress(elId, navName){
         return;
       }
       el.classList.remove('charging'); // .listening (added inside toggleAiVoiceAssistant's start path) takes over the glow from here
-      // A single, moderate vibration \u2014 not a custom pattern \u2014 so it reads
+      // A single, moderate vibration — not a custom pattern — so it reads
       // as a normal phone tap/click sensation rather than something
-      // app-specific. Same duration used again on stop, below, so start
+      // app-specific. Same duration used again on stop, above, so start
       // and stop feel like a matched pair.
       tryVibrate(40);
       _aiVoiceTriggerElId=elId;
-      toggleAiVoiceAssistant(); // starts listening/recording — runs for as long as the button stays held
+      toggleAiVoiceAssistant(); // starts recording — keeps running after release; tap again to stop
     }, VOICE_LONG_PRESS_MS);
   }
   function endPress(e){
     var wasPending=!!pressTimer; // released before the 1s threshold fired
     clearTimer();
-    el.classList.remove('charging'); // released before recording started \u2014 no vibration, nothing happened yet
+    el.classList.remove('charging'); // released before recording started — no vibration, nothing happened yet
     if(el.releasePointerCapture && e.pointerId!=null){
       try{ el.releasePointerCapture(e.pointerId); }catch(_relErr){}
-    }
-    if(!wasPending && voiceSessionLive()){
-      // The 1s hold already started a recording and it's still running —
-      // release stops it and sends whatever was captured.
-      e.preventDefault();
-      tryVibrate(40); // matches the start vibration \u2014 recording has finished
-      toggleAiVoiceAssistant();
-      return;
     }
     if(wasPending){
       nav(navName, el); // a normal short tap
     }
-    // else: the threshold had fired, but the session already ended on its
-    // own in the meantime (e.g. SpeechRecognition detected the end of
-    // speech while still held) — already sent, nothing left to do here.
+    // else: either recording just started — release does nothing now, a
+    // second tap is what stops it — or this release belongs to the "stop"
+    // tap itself, already fully handled inside startPress above.
   }
   function abortPress(){
-    var wasPending=!!pressTimer;
+    // Only ever cancels a PENDING hold that hasn't reached 1s yet — a live
+    // recording is no longer tied to continuous contact, so an accidental
+    // pointerleave/cancel (finger sliding slightly, OS interrupting the
+    // touch) must never stop a session that's already running. Only an
+    // explicit second tap does that now.
     clearTimer();
     el.classList.remove('charging');
-    if(!wasPending && voiceSessionLive()){
-      tryVibrate(40); // same stop vibration \u2014 a cancelled hold still cleanly ends a live recording
-      toggleAiVoiceAssistant(); // stop a live session cleanly rather than leave it running unattended
-    }
   }
   el.addEventListener('pointerdown', startPress);
   el.addEventListener('pointerup', endPress);
   el.addEventListener('pointercancel', abortPress);
   el.addEventListener('pointerleave', abortPress);
-  // Fallback for browsers/environments without Pointer Events \u2014 keeps
+  // Fallback for browsers/environments without Pointer Events — keeps
   // plain tap navigation working even if long-press detection can't.
   if(!window.PointerEvent){
     el.addEventListener('click', function(){ nav(navName, el); });
@@ -3688,7 +3708,13 @@ async function startAudioRecordingFallback(){
   }
   hideAiVoiceConfirm();
   try{
-    _aiAudioStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    // Mono, 16kHz — the standard sample rate for speech recognition and
+    // more than sufficient for Gemini to transcribe clearly; the browser's
+    // unconstrained default is typically 44.1kHz stereo, which is several
+    // times the data for no real transcription benefit on a speech clip.
+    // Echo cancellation/noise suppression also genuinely help clarity,
+    // which matters for the "could not hear you" check below too.
+    _aiAudioStream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1, sampleRate:16000, echoCancellation:true, noiseSuppression:true}});
   }catch(permErr){
     toast('Microphone permission is blocked — you can type your command instead');
     showAiVoiceTypeMode();
@@ -3707,7 +3733,12 @@ async function startAudioRecordingFallback(){
 
   var mimeType=pickSupportedAudioMimeType();
   try{
-    _aiAudioRecorder=mimeType?new MediaRecorder(_aiAudioStream,{mimeType:mimeType}):new MediaRecorder(_aiAudioStream);
+    // audioBitsPerSecond capped low deliberately — speech stays perfectly
+    // intelligible well below a music-quality bitrate, and this is the
+    // single biggest lever on how much data this fallback path actually
+    // uploads and sends on to Gemini.
+    var _aiRecOpts=mimeType?{mimeType:mimeType, audioBitsPerSecond:24000}:{audioBitsPerSecond:24000};
+    _aiAudioRecorder=new MediaRecorder(_aiAudioStream, _aiRecOpts);
   }catch(mrErr){
     releaseAudioStream();
     showAiVoiceTypeMode();
@@ -5883,6 +5914,110 @@ function renderFU(){
 }
 
 // ── OVERRIDE openAddLead + saveLead + editLeadOpen to handle Country ──
+// ── Lead FAB quick-add menu — Manual Lead / Contact List / Camera.
+// Manual Lead and Contact List call the exact same existing functions
+// (openAddLead, pickContactInto) the old single-tap FAB and the old
+// in-form icon already used — nothing about either was changed, only
+// where they're triggered from. ──
+function toggleLeadFabMenu(){
+  var menu=document.getElementById('lead-fab-menu');
+  if(!menu) return;
+  if(menu.style.display==='flex'){ closeLeadFabMenu(); return; }
+  menu.style.display='flex';
+  var backdrop=document.getElementById('lead-fab-backdrop'); if(backdrop) backdrop.style.display='block';
+  var btn=document.getElementById('lead-fab-btn'); if(btn) btn.style.transform='rotate(45deg)';
+}
+function closeLeadFabMenu(){
+  var menu=document.getElementById('lead-fab-menu'); if(menu) menu.style.display='none';
+  var backdrop=document.getElementById('lead-fab-backdrop'); if(backdrop) backdrop.style.display='none';
+  var btn=document.getElementById('lead-fab-btn'); if(btn) btn.style.transform='';
+}
+
+function openCameraLeadCapture(){
+  var input=document.getElementById('lead-camera-input');
+  if(input) input.click();
+}
+
+// Downscales/compresses a camera photo before it ever leaves the device —
+// a modern phone camera photo is far higher resolution than needed to
+// keep printed business-card text legible, and sending it unresized would
+// mean a much larger, slower, costlier upload for no extraction benefit.
+function resizeImageForLeadCapture(file){
+  return new Promise(function(resolve, reject){
+    var img=new Image();
+    var url=URL.createObjectURL(file);
+    img.onload=function(){
+      URL.revokeObjectURL(url);
+      var maxDim=1280; // comfortably enough to keep printed text readable
+      var w=img.width, h=img.height;
+      if(w>maxDim || h>maxDim){
+        if(w>h){ h=Math.round(h*maxDim/w); w=maxDim; }
+        else{ w=Math.round(w*maxDim/h); h=maxDim; }
+      }
+      var canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      var dataUrl=canvas.toDataURL('image/jpeg', 0.82); // quality kept high enough for legible text, well below source fidelity
+      resolve(dataUrl.split(',')[1]); // strip the "data:image/jpeg;base64," prefix
+    };
+    img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error('Could not load the photo')); };
+    img.src=url;
+  });
+}
+
+// Basic mobile/email match against existing Leads AND Clients — no
+// existing duplicate-check function was found anywhere in the app to
+// reuse, so this is new, small, and scoped specifically to this feature's
+// own safety requirement. Only ever shows a warning — never blocks,
+// merges, or auto-converts anything.
+function findLeadCameraDuplicate(mobile, email){
+  var mob=(mobile||'').replace(/\D/g,'').slice(-10);
+  var em=(email||'').trim().toLowerCase();
+  if(!mob && !em) return null;
+  function matchIn(arr){
+    return arr.find(function(r){
+      var rMob=(r.mobile||'').replace(/\D/g,'').slice(-10);
+      var rEmail=(r.email||'').trim().toLowerCase();
+      return (mob && rMob && rMob===mob) || (em && rEmail && rEmail===em);
+    });
+  }
+  var lm=matchIn(leads);
+  if(lm) return 'This looks like an existing lead: '+toTitle(lm.name);
+  var cm=matchIn(clients);
+  if(cm) return 'This looks like an existing client: '+toTitle(cm.name);
+  return null;
+}
+
+async function handleLeadCameraCapture(inputEl){
+  var file=inputEl.files[0];
+  inputEl.value=''; // reset so picking the same photo again still fires onchange
+  if(!file) return;
+  if(!hasScript()){ toast('Add Apps Script URL first'); return; }
+  toast('📷 Reading contact details…', 4000);
+  try{
+    var resizedBase64=await resizeImageForLeadCapture(file);
+    var _lcSession=getSession();
+    var res=await apiFetch({action:'extractLeadFromImage', imageBase64:resizedBase64, mimeType:'image/jpeg', expectsResponse:true, requestingUserId:_lcSession?_lcSession.userId:''});
+    if(!res || !res.success || !res.lead){
+      toast((res&&res.error)||'Couldn\'t read the contact details. Please retake the photo or add the Lead manually.', 4000);
+      return;
+    }
+    var lead=res.lead;
+    var dupWarning=findLeadCameraDuplicate(lead.mobile, lead.email);
+    if(dupWarning) toast('⚠️ '+dupWarning, 4500);
+    // Opens the exact same existing Add Lead form used everywhere else —
+    // no separate "AI lead" form. Nothing is saved yet; the user still has
+    // to review and tap the existing Save button themselves.
+    openAddLead({name:lead.name||'', mob:lead.mobile||'', email:lead.email||'', rem:lead.remarks||''});
+    if(lead.country){
+      var cEl=document.getElementById('lf-country');
+      if(cEl) cEl.value=lead.country;
+    }
+  }catch(e){
+    toast('Couldn\'t read the contact details. Please retake the photo or add the Lead manually.', 4000);
+  }
+}
+
 function openAddLead(pre){
   editLead=null;
   populateGeoTagSuggestions();
