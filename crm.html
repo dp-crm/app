@@ -733,28 +733,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
   </div>
-
-  <!-- AI "Today's Insights" — a condensed, max-8-point version of today's
-       daily AI insights email, right on the Dashboard, just below Today's
-       Activity. Deliberately reads already-generated data (see
-       getDashboardPracticePulse in Code.gs) rather than making a fresh AI
-       call on every dashboard load — instant, free, and guaranteed to
-       never say something different from what the email already said.
-       Kept OUTSIDE .dash-grid-2col on purpose — that grid is a fixed
-       2-column desktop layout pairing Pipeline Overview with Today's
-       Activity; adding a 3rd item to it would break that pairing, so this
-       stays a separate section directly below it instead, which achieves
-       the same "after Today's Activity" ordering on both mobile and
-       desktop without touching the grid's own layout. -->
-  <div class="sec" id="dash-practice-pulse-wrap" style="display:none">
-    <div style="background:linear-gradient(135deg,var(--s1),var(--s2));border:1px solid var(--accent);border-radius:var(--r);padding:14px 14px 12px;box-shadow:0 6px 20px -8px color-mix(in srgb, var(--accent) 45%, transparent)">
-      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
-        <span style="font-size:14px">🧠</span>
-        <span class="lbl" style="color:var(--accent);margin:0">Today's Insights</span>
-      </div>
-      <div id="dash-practice-pulse-body" style="display:flex;flex-direction:column;gap:6px"></div>
-    </div>
-  </div>
 </div>
 
   
@@ -1063,6 +1041,26 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div class="page" id="pg-analytics">
   <div class="ph">
     <div><h1>AI Insights</h1><div class="sub">Ask your practice anything</div></div>
+  </div>
+  <!-- AI "Today's Insights" — moved here from the Dashboard (it was slow
+       enough to load that it delayed a page most people land on
+       immediately every time — this AI-focused page is a more natural
+       home for it, and loading it here means it only loads when someone
+       actually wants to see AI content). Still a condensed, max-8-point
+       version of today's daily AI insights email, still reading already-
+       generated data (see getDashboardPracticePulse in Code.gs) rather
+       than making a fresh AI call on every page load — instant, free,
+       and guaranteed to never say something different from what the
+       email already said. Positioned right below the headline, above the
+       chat. -->
+  <div class="sec" id="dash-practice-pulse-wrap" style="display:none;padding:0 14px;margin-top:10px">
+    <div style="background:linear-gradient(135deg,var(--s1),var(--s2));border:1px solid var(--accent);border-radius:var(--r);padding:14px 14px 12px;box-shadow:0 6px 20px -8px color-mix(in srgb, var(--accent) 45%, transparent)">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+        <span style="font-size:14px">🧠</span>
+        <span class="lbl" style="color:var(--accent);margin:0">Today's Insights</span>
+      </div>
+      <div id="dash-practice-pulse-body" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
   </div>
   <div id="chat-messages" style="padding:4px 14px 160px">
     <div id="chat-empty-state">
@@ -3058,15 +3056,6 @@ async function deleteTaskNow(){
   });
 }
 
-// Deep-links from the Dashboard's overdue-task card straight into that
-// specific task's detail view — navigates to the Task page (so the
-// background context is correct) and immediately opens the task's popup on
-// top of it, skipping the extra "find and tap it again" step.
-function openOverdueTaskFromDash(taskId){
-  nav('tasks', document.getElementById('nav-tasks'));
-  setTimeout(function(){ openTaskDetail(taskId); }, 60);
-}
-
 function openAddClient(pre){
   editClient=null;
   populateFamilyNameSuggestions();
@@ -3759,19 +3748,13 @@ async function handleAudioRecordingStopped(){
   var voiceLang=getVoiceLanguage();
   var mimeType=(recorder&&recorder.mimeType)||'audio/webm';
   var blob=new Blob(chunks,{type:mimeType});
-  setAiVoiceStatus('🧠 Transcribing…', true);
+  // One call now, not two — see runAiVoiceCommandFromAudio. Status text
+  // stays "Thinking…" throughout (set inside that function) rather than
+  // showing a separate "Transcribing…" step, since there's no longer a
+  // separate step to report.
   try{
     var audioBase64=await fileToBase64(blob);
-    var _tvaSession=getSession();
-    var res=await apiFetch({action:'transcribeVoiceAudio', audioBase64:audioBase64, mimeType:mimeType, languageName:voiceLang.name, expectsResponse:true, requestingUserId:_tvaSession?_tvaSession.userId:''});
-    setAiVoiceStatus('', false);
-    if(res && res.success && res.transcript){
-      var corrected2=applyVoiceCorrections(res.transcript); // silently auto-fixes previously-learned mishearings
-      setAiVoiceStatus('💭 "'+corrected2+'"', true);
-      runAiVoiceCommand(corrected2, voiceLang);
-    } else {
-      toast((res&&res.error)||'Could not transcribe — please try again or type your command');
-    }
+    await runAiVoiceCommandFromAudio(audioBase64, mimeType, voiceLang);
   }catch(e){
     setAiVoiceStatus('', false);
     toast('Could not reach the server: '+e.message);
@@ -4108,6 +4091,35 @@ function advanceVoiceQueueIfPending(){
   }, 400); // brief pause so the just-closed form's own toast isn't stepped on
 }
 
+// Shared by both entry points below — takes an already-received
+// interpretVoiceCommand result (however it was obtained) and does the
+// actual UI work: show the reply, queue any remaining multi-step actions,
+// dispatch the first one. transcriptForDispatch is what gets passed to
+// dispatchVoiceAction/logged as "what was heard" — the original command
+// text for the on-device path, or the AI's own transcription for the
+// audio-fallback path.
+function processVoiceInterpretation(res, transcriptForDispatch){
+  if(!res || !res.success || !res.result || !res.result.actions || !res.result.actions.length){
+    setAiVoiceStatus('⚠️ '+((res&&res.error)||AI_VOICE_FALLBACK_MSG), true);
+    setTimeout(function(){ setAiVoiceStatus('', false); }, 3000);
+    return;
+  }
+  var actions=res.result.actions.slice(0,3); // defensive cap — a real spoken command realistically never needs more than a couple of steps
+  var first=actions[0];
+  var firstReply=first.reply||AI_VOICE_FALLBACK_MSG;
+  setAiVoiceStatus(firstReply, true);
+  setTimeout(function(){ setAiVoiceStatus('', false); }, 2500);
+
+  if(actions.length>1){
+    _voiceActionQueue=actions.slice(1);
+    toast((actions.length)+'-step command — starting with step 1');
+  }
+  dispatchVoiceAction(first, transcriptForDispatch);
+}
+
+// Entry point for the on-device recognition path (transcript already in
+// hand, free, from the browser itself) — one Gemini call, interpretation
+// only.
 async function runAiVoiceCommand(transcript, voiceLang){
   voiceLang=voiceLang||getVoiceLanguage();
   setAiVoiceStatus('🧠 Thinking…', true);
@@ -4116,22 +4128,38 @@ async function runAiVoiceCommand(transcript, voiceLang){
     var candidateNames=buildVoiceCandidateNames();
     var _ivcSession=getSession();
     var res=await apiFetch({action:'interpretVoiceCommand', command:transcript, languageName:voiceLang.name, candidateNames:candidateNames, expectsResponse:true, requestingUserId:_ivcSession?_ivcSession.userId:''});
-    if(!res || !res.success || !res.result || !res.result.actions || !res.result.actions.length){
-      setAiVoiceStatus('⚠️ '+((res&&res.error)||AI_VOICE_FALLBACK_MSG), true);
-      setTimeout(function(){ setAiVoiceStatus('', false); }, 3000);
-      return;
-    }
-    var actions=res.result.actions.slice(0,3); // defensive cap — a real spoken command realistically never needs more than a couple of steps
-    var first=actions[0];
-    var firstReply=first.reply||AI_VOICE_FALLBACK_MSG;
-    setAiVoiceStatus(firstReply, true);
-    setTimeout(function(){ setAiVoiceStatus('', false); }, 2500);
+    processVoiceInterpretation(res, transcript);
+  }catch(e){
+    setAiVoiceStatus('⚠️ Could not reach the server: '+e.message, true);
+    setTimeout(function(){ setAiVoiceStatus('', false); }, 3000);
+  }
+}
 
-    if(actions.length>1){
-      _voiceActionQueue=actions.slice(1);
-      toast((actions.length)+'-step command — starting with step 1');
-    }
-    dispatchVoiceAction(first, transcript);
+// Entry point for the audio-upload fallback path (no on-device
+// recognition available — mainly iPhone/Safari). Used to be two
+// sequential calls (transcribe, then interpret); now one — Gemini
+// transcribes and interprets in the same pass, cutting the wait on this
+// path roughly in half. The learned mishearing-correction map is sent
+// along so the SAME pass can apply it before interpreting, which is what
+// keeps that quality safeguard working now that there's no separate
+// transcript step left to apply it to afterward.
+async function runAiVoiceCommandFromAudio(audioBase64, mimeType, voiceLang){
+  voiceLang=voiceLang||getVoiceLanguage();
+  setAiVoiceStatus('🧠 Thinking…', true);
+  _voiceActionQueue=[];
+  try{
+    var candidateNames=buildVoiceCandidateNames();
+    var knownCorrections=loadVoiceCorrections();
+    var _ivcSession=getSession();
+    var res=await apiFetch({action:'interpretVoiceCommand', audioBase64:audioBase64, mimeType:mimeType, languageName:voiceLang.name, candidateNames:candidateNames, knownCorrections:knownCorrections, expectsResponse:true, requestingUserId:_ivcSession?_ivcSession.userId:''});
+    var transcript=(res && res.result && res.result.transcript) ? res.result.transcript : '';
+    // Corrections were already applied server-side before interpretation;
+    // re-applying here is purely for what gets displayed/stored as "what
+    // was heard" — harmless no-op for anything Gemini already fixed, and
+    // catches anything it missed for the on-screen text specifically.
+    if(transcript) transcript=applyVoiceCorrections(transcript);
+    if(transcript) setAiVoiceStatus('💭 "'+transcript+'"', true);
+    processVoiceInterpretation(res, transcript);
   }catch(e){
     setAiVoiceStatus('⚠️ Could not reach the server: '+e.message, true);
     setTimeout(function(){ setAiVoiceStatus('', false); }, 3000);
@@ -4591,6 +4619,7 @@ function nav(name,btn,slideFrom){
     var sb4=document.getElementById('shared-search-bar'); if(sb4) sb4.style.display='none';
     confirmAndLoadInsights();
     resumeChatIdleAnimations();
+    loadDashboardPracticePulse(); // moved here from Dashboard — this card was slow enough to load that it delayed a page most people land on immediately; the Insights page is a better home for it since it's already an AI-focused screen
   }
   if(name==='clients'){
     var sb2=document.getElementById('shared-search-bar');
@@ -4611,7 +4640,6 @@ function nav(name,btn,slideFrom){
   if(name==='dash'){
     var sb3=document.getElementById('shared-search-bar'); if(sb3) sb3.style.display='none';
     renderDash();setTimeout(addSearchClose,100);
-    loadDashboardPracticePulse();
   }
   if(name==='leads'){
     var sb=document.getElementById('shared-search-bar');
@@ -6336,7 +6364,6 @@ async function bootSequenceV17(){
   try{var q=JSON.parse(localStorage.getItem('wm_push_queue')||'[]');if(q.length){_pushQueue=q;setTimeout(drainPushQueue,5000);}}catch(e){}
 
   renderAll(); // Show ALL pages (leads + clients + dash) immediately from cache
-  loadDashboardPracticePulse(); // Dashboard is the default landing page — renderAll() calls renderDash() directly, bypassing nav()'s own hook for this, so it needs calling here too
   updateFUBadge();
 
   if(!hasScript()){
@@ -10322,20 +10349,20 @@ function renderReminders(){
   return items;
 }
 
-// ── Merged Today's Activity + Planning Nudges — combined into one
-// swipeable capsule feed. Both source functions above still do all the
-// real data-gathering exactly as before (untouched internally); each now
-// just returns its items instead of rendering directly, and this is the
-// only thing that actually renders to the DOM, into the one remaining
-// "Today's Activity" container. Every item — from either source, plus
-// special-day items — becomes one capsule, tappable to open its own
-// existing detail view, swipeable to dismiss for the rest of the day. ──
+// ── Merged Today's Activity + Planning Nudges — combined into one capsule
+// feed. Both source functions above still do all the real data-gathering
+// exactly as before (untouched internally); each now just returns its
+// items instead of rendering directly, and this is the only thing that
+// actually renders to the DOM, into the one remaining "Today's Activity"
+// container. Every item — from either source, plus special-day items —
+// becomes one capsule, tappable to open its own existing detail view.
+// No swipe-to-dismiss here by design — that's reserved for the AI
+// "Today's Insights" card only (see loadDashboardPracticePulse). ──
 function renderDashboardActivityFeed(){
   var el=document.getElementById('dash-todays-activity');
   if(!el) return;
   var activityItems=renderTodaysActivity()||[];
   var reminderItems=renderReminders()||[];
-  var dismissed=getDismissedCapsuleIds();
 
   var combined=[];
   activityItems.forEach(function(item,idx){
@@ -10348,19 +10375,14 @@ function renderDashboardActivityFeed(){
     c._origin='reminder'; c._idx=idx;
     combined.push(c);
   });
-  combined.forEach(function(item){
-    item._dismissId='act_'+simpleStrHash((item.title||'')+'|'+(item.sub||''));
-  });
-  combined=combined.filter(function(item){ return dismissed.indexOf(item._dismissId)===-1; });
 
-  function renderEmptyState(){
+  if(!combined.length){
     el.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--s1);border-radius:var(--r);border:1px solid var(--border)">'
       +'<div style="font-size:18px">🎉</div>'
       +'<div style="font-size:12px;color:var(--t2)">All caught up — nothing due today!</div>'
       +'</div>';
+    return;
   }
-
-  if(!combined.length){ renderEmptyState(); return; }
 
   el.innerHTML=combined.map(function(item){
     var clickFn;
@@ -10368,7 +10390,7 @@ function renderDashboardActivityFeed(){
     else if(item.action) clickFn=item.action;
     else if(item._origin==='activity') clickFn='showTodaysActivityList('+item._idx+')';
     else clickFn='showReminderList('+item._idx+')';
-    return '<div class="dact-capsule" data-dismissid="'+item._dismissId+'" data-clickfn="'+encodeURIComponent(clickFn)+'" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;background:var(--s2);border:1px solid '+item.color+'33;margin-bottom:6px;cursor:pointer;touch-action:pan-y">'
+    return '<div class="dact-capsule" data-clickfn="'+encodeURIComponent(clickFn)+'" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;background:var(--s2);border:1px solid '+item.color+'33;margin-bottom:6px;cursor:pointer">'
       +'<span style="font-size:15px;flex-shrink:0;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb, '+item.color+' 15%, transparent);display:flex;align-items:center;justify-content:center">'+item.icon+'</span>'
       +'<div style="flex:1;min-width:0">'
       +'<div style="font-size:12px;font-weight:700;color:var(--text)">'+item.title+'</div>'
@@ -10378,7 +10400,7 @@ function renderDashboardActivityFeed(){
       +'</div>';
   }).join('');
 
-  wireDashCapsuleSwipe(el, renderEmptyState);
+  wireCapsuleClicksOnly(el);
 }
 
 // Show clickable list popup for a reminder group
@@ -11996,6 +12018,19 @@ function wireDashCapsuleSwipe(container, onEmpty){
     if(fn){ try{ new Function(decodeURIComponent(fn))(); }catch(err){ console.error('dashboard capsule click failed:', err); } }
   });
 }
+// Today's Activity capsules use this instead of wireDashCapsuleSwipe above
+// — tap still opens the relevant detail view exactly the same way, but
+// deliberately no swipe-to-dismiss here: only the AI "Today's Insights"
+// card gets that. A plain click listener, no touch-gesture handling at
+// all, so normal scrolling is completely unaffected.
+function wireCapsuleClicksOnly(container){
+  container.addEventListener('click', function(e){
+    var card=e.target.closest('.dact-capsule');
+    if(!card) return;
+    var fn=card.dataset.clickfn;
+    if(fn){ try{ new Function(decodeURIComponent(fn))(); }catch(err){ console.error('dashboard capsule click failed:', err); } }
+  });
+}
 
 function renderTodaysActivity(){
   var el=document.getElementById('dash-todays-activity');
@@ -12011,8 +12046,10 @@ function renderTodaysActivity(){
   // logged to the console for debugging, and the rest continue normally.
 
   // ── 0b. Overdue/due tasks — merged into Today's Activity rather than a
-  // separate card below it. Tapping opens the Tasks page with this specific
-  // task's detail already showing, via the existing deep-link helper. ──
+  // separate card below it. Tapping navigates straight to the Tasks page
+  // filtered to "Due" (the same tasks this capsule is summarizing —
+  // effectiveTaskStatus uses the identical dueDate<=today comparison),
+  // rather than opening a popup list on top of the Dashboard. ──
   try{
     var todayStrForTasks=todayStr;
     var dueTasks=tasks.filter(function(t){
@@ -12022,7 +12059,7 @@ function renderTodaysActivity(){
       items.push({icon:'✅',color:'var(--orange)',bg:'rgba(230,126,34,.08)',
         title:'You have '+dueTasks.length+' overdue task'+(dueTasks.length>1?'s':'')+' to complete',
         sub:dueTasks.slice(0,3).map(function(t){ return t.name?toTitle(t.name):t.taskDetails.slice(0,30); }).join(' · ')+(dueTasks.length>3?' + '+(dueTasks.length-3)+' more':''),
-        list:dueTasks, listType:'tasks'});
+        action:"nav('tasks',null);setTaskFilter('DUE');"});
     }
   }catch(e){ console.warn('Today\'s Activity — Tasks section failed:', e.message); }
 
@@ -12235,17 +12272,6 @@ function showTodaysActivityList(idx){
         +'<button class="sipv-returned" data-vi="'+vi+'" style="flex:1;font-size:11px;font-weight:700;padding:7px;border-radius:8px;border:1px solid color-mix(in srgb, var(--red) 40%, transparent);background:color-mix(in srgb, var(--red) 10%, transparent);color:var(--red);cursor:pointer">↩️ Returned SIP</button>'
         +'</div></div>';
     }).join('');
-  } else if(item.listType==='tasks'){
-    rows=item.list.map(function(t){
-      var overdueTag = t.dueDate < todayStr
-        ? '<span style="color:var(--red);font-weight:700">Overdue — '+fmt(t.dueDate)+'</span>'
-        : 'Due today';
-      return '<div class="tal-task-row" data-taskid="'+t.taskId+'" style="display:flex;align-items:flex-start;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer">'
-        +'<div style="flex:1;min-width:0">'
-        +'<div style="font-size:13px;font-weight:700;color:var(--text)">'+(t.name?toTitle(t.name):t.taskDetails.slice(0,40))+'</div>'
-        +'<div style="font-size:10px;color:var(--t3);margin-top:3px">'+(t.name?t.taskDetails:'')+' · '+overdueTag+'</div>'
-        +'</div></div>';
-    }).join('');
   } else {
     rows=item.list.map(function(c){
       var wn=(c.mobile||'').replace(/\D/g,'');wn=wn.length===10?'91'+wn:wn;
@@ -12300,8 +12326,6 @@ function showTodaysActivityList(idx){
     if(waBtn){ var _wt=waBtn.dataset.rwaq; if(_wt==='review')_wt='cas'; sendWAQuick(waBtn.dataset.rwanum, _wt, waBtn.dataset.rmob); if(_wt==='greet'&&waBtn.dataset.rmob)promptUpdateLastContacted(waBtn.dataset.rmob,'WhatsApp'); return; }
     var row=e.target.closest('.tal-row');
     if(row){ ov.remove(); openDetail(row.dataset.cmob,'client',row.dataset.cname); }
-    var taskRow=e.target.closest('.tal-task-row');
-    if(taskRow){ ov.remove(); openOverdueTaskFromDash(taskRow.dataset.taskid); }
   });
   }catch(e){
     console.error('showTodaysActivityList failed:', e);
