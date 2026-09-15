@@ -352,6 +352,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
    the raised, floating badge here — the glow above is this button's own
    purpose-built replacement for it. Dash and other nav buttons keep the dot. */
 #nav-analytics.listening::after{display:none}
+/* Voice mic buttons on the Add Lead / Add Task forms — same hold-then-
+   release-then-tap-again gesture as the nav button, but a small inline
+   icon rather than a raised circular badge, so this is a simple
+   background-color rise/pulse instead of the glow-behind-icon treatment
+   above. .charging uses the same 1s-delay-then-rise timing convention for
+   consistency; .listening (added by the existing recording-start code
+   itself, not by this CSS) is a steady solid fill plus a gentle pulse. */
+.fvm-mic{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--border);background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;cursor:pointer;transition:background .15s ease,border-color .15s ease;position:relative}
+.fvm-mic.fvm-charging{background:color-mix(in srgb, #E8543F 35%, var(--s2));border-color:#E8543F;transition:background .85s ease-out .15s,border-color .85s ease-out .15s}
+.fvm-mic.listening{background:#E8543F;border-color:#E8543F;animation:fvmPulse 1.1s ease-in-out infinite}
+@keyframes fvmPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,84,63,.5)}50%{box-shadow:0 0 0 6px rgba(232,84,63,0)}}
 @keyframes navRecDot{0%,100%{opacity:1}50%{opacity:.25}}
 @keyframes aiVoiceFabPulse{0%{box-shadow:0 4px 16px rgba(232,84,63,.4)}50%{box-shadow:0 4px 26px rgba(232,84,63,.85)}100%{box-shadow:0 4px 16px rgba(232,84,63,.4)}}
 .ai-voice-status{position:fixed;bottom:110px;right:max(18px, calc(50vw - var(--shell-w)/2 + 18px));max-width:min(78vw,280px);background:var(--s1);border:1px solid var(--gold);border-radius:14px;padding:10px 14px;font-size:12px;color:var(--text);box-shadow:0 6px 20px rgba(0,0,0,.4);z-index:151;display:none;line-height:1.5}
@@ -1329,7 +1340,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       </div>
     </div>
 
-    <button class="btn btn-gold btn-full" id="lf-save-btn" onclick="saveLead()" style="padding:14px;font-size:15px;border-radius:10px;margin-bottom:8px">Save Lead</button>
+    <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:8px">
+      <button class="btn btn-gold" id="lf-save-btn" onclick="saveLead()" style="flex:1;padding:14px;font-size:15px;border-radius:10px">Save Lead</button>
+      <span id="lf-voice-mic" class="fvm-mic" role="button" aria-label="Hold to dictate lead details" title="Hold to speak, tap again to stop">🎤</span>
+    </div>
   </div>
 </div></div>
 
@@ -2901,7 +2915,8 @@ function taskFormHtml(existing, prefill){
       ? '<button id="task-btn-delete" class="btn btn-ghost" style="flex:1;border-color:var(--red);color:var(--red)" onclick="deleteTaskNow()">🗑 Delete</button>'
         +'<button id="task-btn-finish" class="btn btn-ghost" style="flex:1;border-color:var(--green);color:var(--green)" onclick="finishTaskNow()">✅ Finish</button>'
         +'<button id="task-btn-save" class="btn btn-gold" style="flex:1" onclick="saveTaskNow()">Save</button>'
-      : '<button id="task-btn-save" class="btn btn-gold btn-full" onclick="saveTaskNow()">Save Task</button>')
+      : '<button id="task-btn-save" class="btn btn-gold" style="flex:1" onclick="saveTaskNow()">Save Task</button>'
+        +'<span id="task-voice-mic" class="fvm-mic" role="button" aria-label="Hold to dictate task details" title="Hold to speak, tap again to stop">🎤</span>')
     +'</div></div>';
 }
 
@@ -2919,6 +2934,12 @@ function setTaskForType(ty){
 }
 
 function wireTaskForm(existing){
+  // Wired here (not at boot) because this form's own mic button is
+  // recreated fresh every time this form opens — this same guard-and-wire
+  // pattern already applies to task-name-search/task-ac-list right below.
+  // wireFormVoiceMic no-ops safely if the element isn't present (edit
+  // mode doesn't render this button), so this is safe to call unconditionally.
+  wireFormVoiceMic('task-voice-mic','task');
   var input=document.getElementById('task-name-search');
   var list=document.getElementById('task-ac-list');
   if(!input||!list) return;
@@ -3467,6 +3488,12 @@ var _aiVoiceRecog=null;
 // press on either the Insights nav button (admins) or the Dash nav
 // button (everyone, since Insights is hidden from non-admins).
 var _aiVoiceTriggerElId='nav-analytics';
+// Set only while a form's own mic button is what triggered the current
+// recording — 'lead' or 'task', matching which already-open form the
+// result should fill. Left null for the normal Insights nav-button path,
+// which keeps behaving exactly as before (open a fresh form / dispatch a
+// command) rather than trying to fill anything.
+var _formVoiceTargetType=null;
 
 function setAiVoiceStatus(text, show){
   var el=document.getElementById('ai-voice-status');
@@ -3648,6 +3675,71 @@ function wireVoiceLongPress(elId, navName){
     el.addEventListener('click', function(){ nav(navName, el); });
   }
 }
+
+// ── Voice input for the Add Lead / Add Task forms — reuses the exact same
+// recording+recognition pipeline as the Insights nav button above
+// (startSpeechRecognitionCapture / startAudioRecordingFallback /
+// interpretVoiceCommand via toggleAiVoiceAssistant) rather than a second
+// voice system. Same hold-1s-to-start, tap-again-to-stop gesture. The
+// only genuinely new part is what happens with the result — see
+// fillOpenFormFromVoice — which fills the form that's already open
+// instead of navigating or dispatching a command, so there's no nav()
+// fallback on a short tap here (a quick tap on a form's mic just does
+// nothing, same as letting go before the hold threshold). The elaborate
+// circular glow badge on the nav button doesn't apply to a small inline
+// icon, so this uses simpler charging/listening classes instead — see
+// their CSS, right next to the nav button's own.
+function wireFormVoiceMic(elId, formType){
+  var el=document.getElementById(elId);
+  if(!el) return;
+  var pressTimer=null;
+  el.style.touchAction='none';
+  el.style.webkitUserSelect='none';
+  el.style.userSelect='none';
+  el.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+
+  function clearTimer(){ if(pressTimer){ clearTimeout(pressTimer); pressTimer=null; } }
+  function voiceSessionLive(){ return !!(_aiVoiceRecog || _aiAudioRecorder); }
+
+  function startPress(e){
+    e.preventDefault();
+    if(voiceSessionLive()){
+      tryVibrate(40);
+      toggleAiVoiceAssistant(); // stops — same toggle function, same as the nav button
+      return;
+    }
+    if(pressTimer) return;
+    el.classList.add('fvm-charging');
+    if(el.setPointerCapture && e.pointerId!=null){ try{ el.setPointerCapture(e.pointerId); }catch(_capErr){} }
+    pressTimer=setTimeout(function(){
+      pressTimer=null;
+      if(!getSession()){ el.classList.remove('fvm-charging'); toast('Please log in again'); return; }
+      el.classList.remove('fvm-charging');
+      // No explicit "listening" class added here — startSpeechRecognitionCapture/
+      // startAudioRecordingFallback below already add/remove a plain
+      // .listening class on whatever element _aiVoiceTriggerElId points
+      // to, entirely on their own, for either trigger button. Reused as-is
+      // rather than inventing a second class nothing else would manage.
+      tryVibrate(40);
+      _aiVoiceTriggerElId=elId;
+      _formVoiceTargetType=formType; // read once by processVoiceInterpretation, then cleared
+      toggleAiVoiceAssistant();
+    }, VOICE_LONG_PRESS_MS);
+  }
+  function endPress(e){
+    clearTimer();
+    el.classList.remove('fvm-charging');
+    if(el.releasePointerCapture && e.pointerId!=null){ try{ el.releasePointerCapture(e.pointerId); }catch(_relErr){} }
+    // No nav()-style fallback for a short tap — unlike the main nav
+    // button, a quick tap on a form's mic icon simply does nothing.
+  }
+  function abortPress(){ clearTimer(); el.classList.remove('fvm-charging'); }
+
+  el.addEventListener('pointerdown', startPress);
+  el.addEventListener('pointerup', endPress);
+  el.addEventListener('pointercancel', abortPress);
+  el.addEventListener('pointerleave', abortPress);
+}
 wireVoiceLongPress('nav-analytics','analytics');
 wireVoiceLongPress('sidebar-nav-analytics','analytics');
 // Maker doesn't get the Insights nav button at all (see canAccessInsightsMenu),
@@ -3657,6 +3749,10 @@ wireVoiceLongPress('sidebar-nav-analytics','analytics');
 // assistant; a normal short tap still just navigates to Dash as always.
 wireVoiceLongPress('nav-dash','dash');
 wireVoiceLongPress('sidebar-nav-dash','dash');
+// Add Lead form's own mic — a static, always-present element (the form
+// itself is a static overlay, not recreated per-open), so this only needs
+// wiring once, here at boot, same as the nav buttons above.
+wireFormVoiceMic('lf-voice-mic','lead');
 
 function startSpeechRecognitionCapture(SR){
   var btn=document.getElementById(_aiVoiceTriggerElId);
@@ -4146,12 +4242,30 @@ function advanceVoiceQueueIfPending(){
 // audio-fallback path.
 function processVoiceInterpretation(res, transcriptForDispatch){
   if(!res || !res.success || !res.result || !res.result.actions || !res.result.actions.length){
+    if(_formVoiceTargetType){
+      toast('⚠️ '+((res&&res.error)||AI_VOICE_FALLBACK_MSG));
+      _formVoiceTargetType=null;
+      return;
+    }
     setAiVoiceStatus('⚠️ '+((res&&res.error)||AI_VOICE_FALLBACK_MSG), true);
     setTimeout(function(){ setAiVoiceStatus('', false); }, 3000);
     return;
   }
   var actions=res.result.actions.slice(0,3); // defensive cap — a real spoken command realistically never needs more than a couple of steps
   var first=actions[0];
+
+  // Triggered from a form's own mic button — same recording+interpretation
+  // pipeline as the Insights nav button, but the result fills the form
+  // that's ALREADY open instead of opening a new one or dispatching a
+  // command. Deliberately ignores any further queued actions here (a
+  // multi-step "and remind me to…" doesn't apply when dictating into a
+  // single already-open form).
+  if(_formVoiceTargetType){
+    fillOpenFormFromVoice(first, _formVoiceTargetType);
+    _formVoiceTargetType=null;
+    return;
+  }
+
   var firstReply=first.reply||AI_VOICE_FALLBACK_MSG;
   setAiVoiceStatus(firstReply, true);
   setTimeout(function(){ setAiVoiceStatus('', false); }, 2500);
@@ -4161,6 +4275,43 @@ function processVoiceInterpretation(res, transcriptForDispatch){
     toast((actions.length)+'-step command — starting with step 1');
   }
   dispatchVoiceAction(first, transcriptForDispatch);
+}
+
+// Writes whatever a form-mic dictation extracted into the CURRENTLY OPEN
+// Add Lead / Add Task form — never opens a new form, never touches a
+// field the dictation didn't mention, never overwrites a field the user
+// already typed something into (except the free-text notes/details
+// fields, which append rather than overwrite, since dictating more detail
+// into an existing note is a reasonable thing to want). The user still
+// has to review and tap the form's own existing Save button themselves —
+// nothing here saves anything.
+function fillOpenFormFromVoice(action, formType){
+  if(!action) return;
+  if(formType==='lead'){
+    var lfName=document.getElementById('lf-name');
+    if(action.name && lfName && !lfName.value) lfName.value=action.name;
+    var lfMob=document.getElementById('lf-mob');
+    if(action.mobile && lfMob && !lfMob.value) lfMob.value=action.mobile;
+    var lfEmail=document.getElementById('lf-email');
+    if(action.email && lfEmail && !lfEmail.value) lfEmail.value=action.email;
+    var lfStatus=document.getElementById('lf-status');
+    if(action.status && lfStatus) lfStatus.value=action.status;
+    var lfFollowup=document.getElementById('lf-followup');
+    if(action.nextFollowUp && lfFollowup) lfFollowup.value=action.nextFollowUp;
+    var lfRem=document.getElementById('lf-rem');
+    if(action.remarksAddition && lfRem) lfRem.value=(lfRem.value?lfRem.value+'\n':'')+action.remarksAddition;
+    if(action.taskDetails && lfRem) lfRem.value=(lfRem.value?lfRem.value+'\n':'')+action.taskDetails; // a spoken note that landed as taskDetails is still useful here, not lost
+    toast('🎤 Filled from voice — please review before saving');
+  } else if(formType==='task'){
+    var tdEl=document.getElementById('task-details');
+    var spokenNote=action.taskDetails||action.remarksAddition||'';
+    if(spokenNote && tdEl) tdEl.value=(tdEl.value?tdEl.value+' ':'')+spokenNote;
+    var ddEl=document.getElementById('task-due-date');
+    if(action.dueDate && ddEl) ddEl.value=action.dueDate;
+    var tnEl=document.getElementById('task-name-search');
+    if(action.name && tnEl && !tnEl.value) tnEl.value=toTitle(action.name);
+    toast('🎤 Filled from voice — please review before saving');
+  }
 }
 
 // Entry point for the on-device recognition path (transcript already in
@@ -10548,20 +10699,24 @@ function renderReminders(){
   return items;
 }
 
-// ── Merged Today's Activity + Planning Nudges — combined into one capsule
-// feed. Both source functions above still do all the real data-gathering
-// exactly as before (untouched internally); each now just returns its
-// items instead of rendering directly, and this is the only thing that
-// actually renders to the DOM, into the one remaining "Today's Activity"
-// container. Every item — from either source, plus special-day items —
-// becomes one capsule, tappable to open its own existing detail view.
-// No swipe-to-dismiss here by design — that's reserved for the AI
-// "Today's Insights" card only (see loadDashboardPracticePulse). ──
+// ── Merged Today's Activity + Planning Nudges — combined into one
+// swipeable capsule feed. Both source functions above still do all the
+// real data-gathering exactly as before (untouched internally); each now
+// just returns its items instead of rendering directly, and this is the
+// only thing that actually renders to the DOM, into the one remaining
+// "Today's Activity" container. Every item — from either source, plus
+// special-day items — becomes one capsule, tappable to open its own
+// existing detail view, swipeable to dismiss for the rest of the day —
+// same mechanism as the AI "Today's Insights" card (see
+// loadDashboardPracticePulse): wireDashCapsuleSwipe, same dismiss-key
+// infrastructure, same per-day reset. Deliberately only these two places
+// in the whole app use this swipe gesture. ──
 function renderDashboardActivityFeed(){
   var el=document.getElementById('dash-todays-activity');
   if(!el) return;
   var activityItems=renderTodaysActivity()||[];
   var reminderItems=renderReminders()||[];
+  var dismissed=getDismissedCapsuleIds();
 
   var combined=[];
   activityItems.forEach(function(item,idx){
@@ -10574,14 +10729,19 @@ function renderDashboardActivityFeed(){
     c._origin='reminder'; c._idx=idx;
     combined.push(c);
   });
+  combined.forEach(function(item){
+    item._dismissId='act_'+simpleStrHash((item.title||'')+'|'+(item.sub||''));
+  });
+  combined=combined.filter(function(item){ return dismissed.indexOf(item._dismissId)===-1; });
 
-  if(!combined.length){
+  function renderEmptyState(){
     el.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--s1);border-radius:var(--r);border:1px solid var(--border)">'
       +'<div style="font-size:18px">🎉</div>'
       +'<div style="font-size:12px;color:var(--t2)">All caught up — nothing due today!</div>'
       +'</div>';
-    return;
   }
+
+  if(!combined.length){ renderEmptyState(); return; }
 
   el.innerHTML=combined.map(function(item){
     var clickFn;
@@ -10589,7 +10749,7 @@ function renderDashboardActivityFeed(){
     else if(item.action) clickFn=item.action;
     else if(item._origin==='activity') clickFn='showTodaysActivityList('+item._idx+')';
     else clickFn='showReminderList('+item._idx+')';
-    return '<div class="dact-capsule" data-clickfn="'+encodeURIComponent(clickFn)+'" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;background:var(--s2);border:1px solid '+item.color+'33;margin-bottom:6px;cursor:pointer">'
+    return '<div class="dact-capsule" data-dismissid="'+item._dismissId+'" data-clickfn="'+encodeURIComponent(clickFn)+'" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;background:var(--s2);border:1px solid '+item.color+'33;margin-bottom:6px;cursor:pointer;touch-action:pan-y">'
       +'<span style="font-size:15px;flex-shrink:0;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb, '+item.color+' 15%, transparent);display:flex;align-items:center;justify-content:center">'+item.icon+'</span>'
       +'<div style="flex:1;min-width:0">'
       +'<div style="font-size:12px;font-weight:700;color:var(--text)">'+item.title+'</div>'
@@ -10599,7 +10759,7 @@ function renderDashboardActivityFeed(){
       +'</div>';
   }).join('');
 
-  wireCapsuleClicksOnly(el);
+  wireDashCapsuleSwipe(el, renderEmptyState);
 }
 
 // Show clickable list popup for a reminder group
@@ -10621,12 +10781,14 @@ function showReminderList(idx){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:75vh;display:flex;flex-direction:column">'
     +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:14px;font-weight:800;color:var(--text)">'+item.icon+' '+item.title+'</span>'
-    +'<span id="_remListX" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
+    +'<span id="_remListX" class="reml-close-btn" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="overflow-y:auto;flex:1">'+rows+'</div></div>';
   document.body.appendChild(ov);
-  document.getElementById('_remListX').onclick=function(){ov.remove();};
-  // Click delegation on popup
+  // Close is handled inside the same delegated listener as the WhatsApp
+  // buttons below, rather than a separate direct getElementById().onclick
+  // — consistent with the identical fix applied to showTodaysActivityList.
   ov.addEventListener('click',function(e){
+    if(e.target.closest('.reml-close-btn')){ ov.remove(); return; }
     var b=e.target.closest('.rem-wa-btn');
     if(b){
       sendWAQuick(b.dataset.rwanum,b.dataset.rwaq,b.dataset.rmob);
@@ -10837,15 +10999,15 @@ function showDashList(type){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:78vh;display:flex;flex-direction:column">'
     +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:14px;font-weight:800;color:'+color+'">'+title+' ('+items.length+')</span>'
-    +'<span id="_dListX" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
+    +'<span id="_dListX" class="dl-close-btn" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="overflow-y:auto;flex:1">'+(rows||'<div style="padding:24px;text-align:center;color:var(--t3);font-size:12px">None</div>')+'</div></div>';
   document.body.appendChild(ov);
   ov.id='_dashListOv';
   ov.addEventListener('click',function(e){
+    if(e.target.closest('.dl-close-btn')){ ov.remove(); return; }
     var row=e.target.closest('.dl-row');
     if(row){var m=row.dataset.dlmob,t=row.dataset.dltype;if(m){ov.remove();if(t==='clients')openDetail(m,'client',row.dataset.dlname);else openFuDetail(m,row.dataset.dlname);}}
   });
-  document.getElementById('_dListX').onclick=function(){ov.remove();};
 }
 
 
@@ -12217,19 +12379,6 @@ function wireDashCapsuleSwipe(container, onEmpty){
     if(fn){ try{ new Function(decodeURIComponent(fn))(); }catch(err){ console.error('dashboard capsule click failed:', err); } }
   });
 }
-// Today's Activity capsules use this instead of wireDashCapsuleSwipe above
-// — tap still opens the relevant detail view exactly the same way, but
-// deliberately no swipe-to-dismiss here: only the AI "Today's Insights"
-// card gets that. A plain click listener, no touch-gesture handling at
-// all, so normal scrolling is completely unaffected.
-function wireCapsuleClicksOnly(container){
-  container.addEventListener('click', function(e){
-    var card=e.target.closest('.dact-capsule');
-    if(!card) return;
-    var fn=card.dataset.clickfn;
-    if(fn){ try{ new Function(decodeURIComponent(fn))(); }catch(err){ console.error('dashboard capsule click failed:', err); } }
-  });
-}
 
 function renderTodaysActivity(){
   var el=document.getElementById('dash-todays-activity');
@@ -12519,11 +12668,16 @@ function showTodaysActivityList(idx){
   ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:75vh;display:flex;flex-direction:column">'
     +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
     +'<span style="font-size:14px;font-weight:800;color:var(--text)">'+item.icon+' '+item.title+'</span>'
-    +'<span id="_talClose" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
+    +'<span id="_talClose" class="tal-close-btn" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
     +'<div style="overflow-y:auto;flex:1">'+rows+'</div></div>';
   document.body.appendChild(ov);
-  document.getElementById('_talClose').onclick=function(){ov.remove();};
+  // Close is now handled inside the SAME delegated listener as every other
+  // interactive element in this popup (SIP-verify, WhatsApp, row taps)
+  // below, rather than a separate, direct getElementById().onclick — this
+  // was the one inconsistent wiring in this function, and folding it in
+  // removes a distinct potential point of failure on its own.
   ov.addEventListener('click',function(e){
+    if(e.target.closest('.tal-close-btn')){ ov.remove(); return; }
     // ── SIP verification actions ──
     var confirmBtn=e.target.closest('.sipv-confirm');
     var returnedBtn=e.target.closest('.sipv-returned');
