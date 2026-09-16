@@ -457,11 +457,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
    above unchanged). Square bordered tiles, icon+label combined in one
    box; :active swaps the tile's own background color in as the press
    feedback instead of a scale transform. */
-.cql-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;aspect-ratio:1/1;border-radius:11px;border:1.5px solid var(--cql-color,var(--border2));background:var(--s2);cursor:pointer;transition:background .12s ease,color .12s ease;-webkit-user-select:none;user-select:none;padding:4px;box-sizing:border-box}
-.cql-tile:active{background:var(--cql-color,var(--accent))}
-.cql-tile:active .cql-lbl{color:#000}
-.cql-ico{font-size:23px;line-height:1}
-.cql-lbl{font-size:8.5px;font-weight:700;line-height:1.2;text-align:center;color:var(--t2);transition:color .12s ease}
+/* Icon-only: no tile background, no border, no square box — just the icon
+   itself, noticeably larger for easier identification, with the label
+   underneath. Still a 4-column grid (set on the container). Press feedback
+   is a scale-down on the icon rather than a tile colour swap, since there
+   is no longer a tile to colour. */
+.cql-tile{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;background:none;border:none;cursor:pointer;-webkit-user-select:none;user-select:none;padding:6px 2px;box-sizing:border-box}
+.cql-tile:active .cql-ico{transform:scale(.82)}
+.cql-tile:active .cql-lbl{color:var(--cql-color,var(--accent))}
+.cql-ico{font-size:34px;line-height:1;transition:transform .12s ease;display:block}
+.cql-lbl{font-size:9.5px;font-weight:700;line-height:1.2;text-align:center;color:var(--t2);transition:color .12s ease}
 .cql-green{--cql-color:#25D366}
 .cql-blue{--cql-color:#3498DB}
 .cql-purple{--cql-color:var(--purple)}
@@ -2085,6 +2090,16 @@ function setupAutocomplete(inputId,listId,type){
   var input=document.getElementById(inputId);
   var list=document.getElementById(listId);
   if(!input||!list)return;
+  // Called at the END of openAddLead()/openAddClient(), so it runs EVERY
+  // time either form is opened — but lf-name/cf-name are static elements
+  // that persist for the life of the page. Without this guard each open
+  // stacked another 'input' listener on the same element plus another
+  // permanent document-level 'click' listener, so after N opens every
+  // keystroke ran N identical autocomplete passes and every click on the
+  // page ran N identical dismiss handlers. Wiring once per element fixes
+  // both, and re-calling this is now a harmless no-op.
+  if(input._acWired) return;
+  input._acWired=true;
   input.addEventListener('input',function(){
     var q=(input.value||'').toLowerCase().trim();
     if(q.length<2){list.classList.remove('show');return;}
@@ -2933,6 +2948,12 @@ function setTaskForType(ty){
   if(ty==='OTHERS') window._taskLinkedRecordId='';
 }
 
+// Tracks whether the one document-level dismiss listener below has been
+// attached. Unlike the form's own elements (which really are rebuilt each
+// open, so their listeners must be re-attached), a listener on `document`
+// persists for the life of the page — attaching it per open leaked one
+// more handler every time a task form was opened.
+var _taskFormDocDismissWired=false;
 function wireTaskForm(existing){
   // Wired here (not at boot) because this form's own mic button is
   // recreated fresh every time this form opens — this same guard-and-wire
@@ -2970,7 +2991,18 @@ function wireTaskForm(existing){
       };
     });
   });
-  document.addEventListener('click',function(e){if(!input.contains(e.target)&&!list.contains(e.target))list.classList.remove('show');});
+  if(!_taskFormDocDismissWired){
+    _taskFormDocDismissWired=true;
+    // Resolved fresh on each event rather than closing over the `input`/
+    // `list` from the first open — those elements are rebuilt every time
+    // the form opens, so a captured reference would go stale immediately.
+    document.addEventListener('click',function(e){
+      var tIn=document.getElementById('task-name-search');
+      var tList=document.getElementById('task-ac-list');
+      if(!tIn||!tList) return;
+      if(!tIn.contains(e.target)&&!tList.contains(e.target)) tList.classList.remove('show');
+    });
+  }
 }
 
 async function saveTaskNow(){
@@ -4125,6 +4157,77 @@ function applyVoiceUpdateFields(type, r){
   }
 }
 
+// ── Voice-driven search. Drives the SAME filter state the Leads/Clients
+// screens already use (filterStatus / filterStageClient / the shared search
+// box), rather than building a parallel results view — so what the advisor
+// sees is a normal, fully interactive screen they can keep filtering,
+// sorting and tapping, not a dead-end list. Every filter is reset first, so
+// a new spoken search never silently inherits leftovers from a previous
+// one. ──
+function applyVoiceSearch(s, spokenReply){
+  try{
+    var tgt=String(s.target||'').toUpperCase();
+    var isClients=(tgt==='CLIENTS');
+    var isTasks=(tgt==='TASKS');
+    var freeText=String(s.location||s.text||'').trim();
+
+    if(isTasks){
+      // Tasks have their own filter chips rather than the shared search box.
+      nav('tasks', null);
+      var tf=String(s.status||'').toUpperCase();
+      var allowed=['OPEN','DUE','PENDING REVIEW','FINISHED'];
+      setTimeout(function(){
+        if(allowed.indexOf(tf)!==-1 && typeof setTaskFilter==='function') setTaskFilter(tf);
+        toast(spokenReply || ('Showing '+(tf?tf.toLowerCase()+' ':'')+'tasks'));
+      }, 60);
+      return;
+    }
+
+    if(isClients){
+      filterStageClient = s.stage || 'All';
+      filterLocationClient = 'All'; // location is applied via the search box below, which matches on more fields than the strict country dropdown
+      nav('clients', null);
+    } else {
+      filterStatus = s.status || 'Active';
+      filterGeo = 'All';
+      filterFamily = 'All';
+      nav('leads', null);
+    }
+
+    // The shared search box is the app's own free-text filter — reusing it
+    // means the spoken term is visible and editable afterwards, and the
+    // advisor can clear or refine it by hand without re-speaking.
+    //
+    // Deferred one tick on purpose: nav() adds the page's .active class on
+    // the NEXT animation frame (see its own comment — that deferral is what
+    // makes the page-switch animation start reliably). onSharedSearch()
+    // picks its renderer by checking which page has .active, so calling it
+    // synchronously here would find neither page active and render nothing
+    // at all. Running after nav() has settled also guarantees the render
+    // uses the filter values set above.
+    setTimeout(function(){
+      var sb=document.getElementById('shared-search-bar');
+      var si=document.getElementById('shared-search');
+      if(si){
+        si.value=freeText;
+        if(sb) sb.style.display=freeText?'block':'none';
+        onSharedSearch(); // applies the text filter AND re-renders with the filters set above
+      } else {
+        if(isClients) renderClients(); else renderLeads();
+      }
+    }, 60);
+
+    var bits=[];
+    if(s.status) bits.push(s.status.toLowerCase());
+    if(s.stage) bits.push(s.stage.toLowerCase());
+    if(freeText) bits.push('matching \u201C'+freeText+'\u201D');
+    toast(spokenReply || ('Showing '+(isClients?'clients':'leads')+(bits.length?' \u2014 '+bits.join(', '):'')));
+  }catch(e){
+    console.error('applyVoiceSearch:', e);
+    toast('Could not apply that search \u2014 please try again or filter manually');
+  }
+}
+
 function dispatchVoiceAction(r, transcript){
   transcript=transcript||r.taskDetails||r.name||'';
 
@@ -4208,6 +4311,46 @@ function dispatchVoiceAction(r, transcript){
       toast('No lead or client found matching "'+(r.name||transcript)+'"');
       advanceVoiceQueueIfPending();
     }
+
+  } else if(r.intent==='ADD_CLIENT'){
+    // Same review-then-save rule as ADD_LEAD — the form is pre-filled, the
+    // advisor still saves it themselves. Nothing is written automatically.
+    openAddClient({name:r.name||'', mob:r.mobile||'', email:r.email||''});
+    var cgEl=document.getElementById('cf-gender');
+    if(cgEl && r.gender) cgEl.value=r.gender;
+    toast('Review the details and save');
+
+  } else if(r.intent==='UPDATE_TASK'){
+    // Opens the matching task for review rather than editing it silently —
+    // consistent with every other voice action in this app, which never
+    // commits a change without the advisor seeing it first. "Mark as done"
+    // therefore opens the task with its Finish control right there, instead
+    // of completing it behind their back on a possibly-misheard name.
+    var wantName=String(r.name||'').trim().toLowerCase();
+    var openTasks=(typeof tasks!=='undefined'?tasks:[]).filter(function(t){
+      return String(t.status||'').toUpperCase()!=='FINISHED';
+    });
+    var matches=wantName
+      ? openTasks.filter(function(t){ return String(t.name||'').toLowerCase().indexOf(wantName)!==-1; })
+      : [];
+    if(matches.length===1){
+      openTaskDetail(matches[0].taskId);
+      toast(r.status==='DONE' ? 'Tap Finish to complete this task' : 'Review and save your changes');
+      advanceVoiceQueueIfPending();
+    } else if(matches.length>1){
+      // More than one open task for that person — send them to the Tasks
+      // screen filtered to that name rather than guessing which one.
+      nav('tasks', null);
+      setTimeout(function(){ toast(matches.length+' open tasks for that name — pick the one you meant'); }, 200);
+      advanceVoiceQueueIfPending();
+    } else {
+      toast('No open task found for "'+(r.name||transcript)+'"');
+      advanceVoiceQueueIfPending();
+    }
+
+  } else if(r.intent==='SEARCH_RECORDS'){
+    applyVoiceSearch(r.search||{}, r.reply);
+    advanceVoiceQueueIfPending(); // read-only — nothing to save, safe to advance immediately
 
   } else {
     // Uses the server's actual reply text (which now differs between a
@@ -5099,13 +5242,16 @@ function renderLeads(){
     var totalSip=activeLeadsForTotal.reduce(function(s,l){return s+(parseFloat(l.potentialSip)||0);},0);
     var totalLump=activeLeadsForTotal.reduce(function(s,l){return s+(parseFloat(l.potentialAum)||0);},0);
     var fmtL=function(n){return (Math.round(n*100)/100).toString();};
+    // Both boxes are now tappable — they open the contributing leads,
+    // ranked highest-value first, so the headline number can be drilled
+    // into instead of being a dead figure.
     totalsEl.innerHTML=
-      '<div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;text-align:center">'
+      '<div onclick="showLeadPotentialList(\'aum\')" style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;text-align:center;cursor:pointer">'
       +'<div style="font-size:9px;color:var(--t3);text-transform:uppercase;font-weight:700;letter-spacing:.4px">💰 Potential Lumpsum</div>'
-      +'<div style="font-size:17px;font-weight:900;color:var(--accent);margin-top:3px">₹'+fmtL(totalLump)+'L</div></div>'
-      +'<div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;text-align:center">'
+      +'<div style="font-size:17px;font-weight:900;color:var(--accent);margin-top:3px">₹'+fmtL(totalLump)+'L <span style="font-size:11px;color:var(--t3);font-weight:700">\u203A</span></div></div>'
+      +'<div onclick="showLeadPotentialList(\'sip\')" style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;text-align:center;cursor:pointer">'
       +'<div style="font-size:9px;color:var(--t3);text-transform:uppercase;font-weight:700;letter-spacing:.4px">📈 Potential SIP</div>'
-      +'<div style="font-size:17px;font-weight:900;color:var(--accent);margin-top:3px">₹'+fmtL(totalSip)+'L</div></div>';
+      +'<div style="font-size:17px;font-weight:900;color:var(--accent);margin-top:3px">₹'+fmtL(totalSip)+'L <span style="font-size:11px;color:var(--t3);font-weight:700">\u203A</span></div></div>';
   }
   var statusChips=[
     {key:'Active',label:'Active',n:activeCount},
@@ -5450,15 +5596,28 @@ function deleteActivityEntry(rowId, mob, clickTs){
     // Capture identifiers BEFORE removing locally
     var delTs = target ? target.ts : '';
     var delAct = target ? target.activity : '';
-    // Remove locally (by rowId if present, else by ts+mobile+activity)
+    // Remove locally. The old version only matched on ts+activity when
+    // rowId was absent — but delTs/delAct come from `target`, which is
+    // itself null whenever the lookup failed, so the filter matched
+    // NOTHING and the entry stayed visible until a reload. That was the
+    // "doesn't disappear immediately" bug. clickTs (the timestamp actually
+    // shown on the row the user tapped) is now used as a final fallback,
+    // so there is always a usable identifier.
     activityLog=activityLog.filter(function(e){
       if(rowId && String(e.rowId||'')===rowId) return false;
-      if(!rowId && String(e.mobile||'')===mob && String(e.ts||'')===delTs && String(e.activity||'')===delAct) return false;
+      if(!rowId && delTs && String(e.mobile||'')===mob && String(e.ts||'')===delTs && String(e.activity||'')===delAct) return false;
+      if(!rowId && !delTs && clickTs && String(e.mobile||'')===mob && String(e.ts||'')===clickTs) return false;
       return true;
     });
     saveActivityLog();
-    var el=document.getElementById('fu-hist-'+mob)||document.getElementById('client-hist-'+mob);
-    if(el){el.innerHTML=buildHistoryHtml(mob,_detailOpenType||'lead');el.scrollTop=el.scrollHeight;}
+    // Refresh BOTH possible history containers, not just whichever one
+    // _detailOpenType happened to point at — each is rendered with its own
+    // correct type so an open lead view and an open client view both stay
+    // in sync rather than one silently keeping the deleted row.
+    var fuEl=document.getElementById('fu-hist-'+mob);
+    if(fuEl){fuEl.innerHTML=buildHistoryHtml(mob,'lead');fuEl.scrollTop=fuEl.scrollHeight;}
+    var clEl=document.getElementById('client-hist-'+mob);
+    if(clEl){clEl.innerHTML=buildHistoryHtml(mob,'client');clEl.scrollTop=clEl.scrollHeight;}
     // Delete from sheet by exact Raw ID — _writePending blocks auto-sync during delete
     if(hasScript()){
       _writePending = true;
@@ -6803,6 +6962,11 @@ async function bootSequenceV17(){
 // ── ANALYTICS + FU OVERLAY + SEARCH CLOSE ──
 
 function openFuOverlay(){
+  // Singleton: never allow two overlays to share this id. Even with the
+  // double-wiring fixed above, any other path that opens this twice (a
+  // fast double-tap) would otherwise reproduce the blank-window bug.
+  var existingFu=document.getElementById('fu-overlay');
+  if(existingFu) existingFu.remove();
   var ov=document.createElement('div');
   ov.id='fu-overlay';
   ov.style.cssText='position:fixed;inset:0;z-index:8000;background:var(--bg);overflow-y:auto;display:flex;flex-direction:column';
@@ -6828,13 +6992,29 @@ function openFuOverlay(){
 
   ov.innerHTML='<div style="display:flex;align-items:center;padding:14px 14px;border-bottom:1px solid var(--border);background:var(--s1);position:sticky;top:0;z-index:1">'
     +'<div style="flex:1"><div style="font-size:16px;font-weight:800">Follow-ups Due</div><div id="ov-fu-sub" style="font-size:11px;color:var(--t3);margin-top:2px"></div></div>'
-    +'<button onclick="document.getElementById(\'fu-overlay\').remove()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--text);cursor:pointer">✕ Close</button>'
+    +'<button data-fuclose="1" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--text);cursor:pointer">✕ Close</button>'
     +'</div>'
     +eventsHtml
     +'<div id="fu-overlay-list" style="flex:1"></div>';
   document.body.appendChild(ov);
-  // Render FU list inside overlay
-  renderFuInElement(document.getElementById('fu-overlay-list'), document.getElementById('ov-fu-sub'));
+  // Close is wired to THIS overlay object directly rather than looking the
+  // id up in the document, so it can never act on a different element that
+  // happens to share the id.
+  ov.addEventListener('click', function(e){
+    if(e.target.closest('[data-fuclose]')) ov.remove();
+  });
+  // Both lookups are scoped to THIS overlay (ov.querySelector) instead of
+  // document.getElementById, for the same reason — filling the wrong
+  // overlay's body was what produced the blank window.
+  try{
+    renderFuInElement(ov.querySelector('#fu-overlay-list'), ov.querySelector('#ov-fu-sub'));
+  }catch(err){
+    // A failure building the list must never leave a dead, empty shell with
+    // no way out — say what happened and keep the overlay closable.
+    console.error('Follow-ups list failed to render:', err);
+    var fuListEl=ov.querySelector('#fu-overlay-list');
+    if(fuListEl) fuListEl.innerHTML='<div class="empty"><div class="empty-ico">\u26A0\uFE0F</div><div class="empty-t">Could not load follow-ups</div><div style="font-size:11px;color:var(--t3);margin-top:6px">'+String(err&&err.message||err)+'</div></div>';
+  }
 }
 
 function renderFuInElement(container, subEl){
@@ -7735,6 +7915,14 @@ async function askStructuredInsight(questionId){
 }
 
 function startChatChipCarousel(){
+  // Reset the stop flag. stopChatChipCarousel() sets _chatChipsStopped=true
+  // and nothing ever cleared it, so after the first chat message was sent
+  // (which stops the carousel) the landing-page chips were permanently
+  // frozen for the rest of the session — and the resume path in
+  // resumeChatIdleAnimations() was blocked forever too, since it requires
+  // !_chatChipsStopped. Starting the carousel is by definition a request
+  // for it to run, so clearing it here is the correct place.
+  _chatChipsStopped=false;
   var current=pickChipSubset(4);
   renderChatChips(current, 'chat-chip-grid');
   scheduleNextChipRotation(current.map(function(i){return i.label;}), 'chat-chip-grid');
@@ -7880,6 +8068,115 @@ function scrollChatToBottom(){
 // FIRST, then applies formatting on top of the already-safe result — bold,
 // script tags, anything the model outputs is neutralized before any HTML is
 // ever introduced, so this carries no more XSS risk than plain text did. ──
+// ── Drill-down for the Leads page Potential Lumpsum / Potential SIP boxes.
+// Shows only leads that actually contribute to that total (same active-lead
+// filter the headline figure uses), highest value first. Tapping a row opens
+// that lead's own detail window. ──
+function showLeadPotentialList(kind){
+  var isSip=(kind==='sip');
+  var field=isSip?'potentialSip':'potentialAum';
+  var title=isSip?'\uD83D\uDCC8 Potential SIP':'\uD83D\uDCB0 Potential Lumpsum';
+  var rowsData=leads.filter(function(l){
+    if(['CONVERTED','DROPPED'].includes((l.status||'').toUpperCase())) return false;
+    return (parseFloat(l[field])||0)>0;
+  }).sort(function(a,b){ return (parseFloat(b[field])||0)-(parseFloat(a[field])||0); });
+  var total=rowsData.reduce(function(s,l){ return s+(parseFloat(l[field])||0); },0);
+
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
+  var rows=rowsData.map(function(l){
+    var v=(Math.round((parseFloat(l[field])||0)*100)/100).toString();
+    return '<div class="lpl-row" data-lplmob="'+esc(l.recordId||l.mobile)+'" data-lplname="'+encodeURIComponent(l.name||'')+'" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer">'
+      +'<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:var(--text)">'+esc(toTitle(l.name||''))+'</div>'
+      +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+esc((l.status||'').toUpperCase())+(l.country?' \u00B7 '+esc(l.country):'')+'</div></div>'
+      +'<div style="font-size:13px;font-weight:800;color:var(--accent);flex-shrink:0;margin-left:10px">\u20B9'+v+'L</div></div>';
+  }).join('');
+
+  ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:80vh;display:flex;flex-direction:column">'
+    +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
+    +'<div><div style="font-size:14px;font-weight:800;color:var(--accent)">'+title+'</div>'
+    +'<div style="font-size:10px;color:var(--t3);margin-top:2px">'+rowsData.length+' lead'+(rowsData.length!==1?'s':'')+' \u00B7 \u20B9'+(Math.round(total*100)/100)+'L total</div></div>'
+    +'<span class="lpl-close" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">\u2715</span></div>'
+    +'<div style="overflow-y:auto;flex:1">'+(rows||'<div style="padding:24px;text-align:center;color:var(--t3);font-size:12px">No leads with a value recorded yet</div>')+'</div></div>';
+  document.body.appendChild(ov);
+  // Delegated, and scoped to this overlay object — same pattern used for
+  // every other popup in the app.
+  ov.addEventListener('click',function(e){
+    if(e.target===ov || e.target.closest('.lpl-close')){ ov.remove(); return; }
+    var row=e.target.closest('.lpl-row');
+    if(row){ ov.remove(); openFuDetail(row.dataset.lplmob, decodeURIComponent(row.dataset.lplname||'')); }
+  });
+}
+
+// ── Turns any real lead/client name appearing in AI output into a tappable
+// link that opens that record's own detail window. Operates on the ALREADY
+// rendered+escaped HTML, and only ever inside text segments (never inside a
+// tag or an existing attribute), so it can't corrupt the markup produced by
+// renderMarkdownLite. Longest names are matched first, so "Rahul Sharma"
+// wins over a separate lead merely called "Rahul". ──
+// One delegated listener on the chat container, wired once — opens the
+// lead/client detail window for a linked name. Guarded against double-
+// wiring for the same reason the dashboard capsules were: chat bubbles are
+// appended repeatedly, and re-attaching per bubble would fire the open
+// action multiple times per tap.
+function wireAiRecordLinks(){
+  var container=document.getElementById('chat-messages');
+  if(!container || container._aiLinksWired) return;
+  container._aiLinksWired=true;
+  container.addEventListener('click', function(e){
+    var link=e.target.closest('.ai-rec-link');
+    if(!link) return;
+    var id=link.dataset.airecid;
+    var nm=decodeURIComponent(link.dataset.airecname||'');
+    if(!id) return;
+    if(link.dataset.airectype==='client') openDetail(id,'client',nm);
+    else openFuDetail(id,nm);
+  });
+}
+
+function linkifyRecordNames(html){
+  try{
+    if(!html) return html;
+    var recs=[];
+    (leads||[]).forEach(function(l){ if(l && l.name) recs.push({name:String(l.name).trim(), id:l.recordId||l.mobile, type:'lead'}); });
+    (clients||[]).forEach(function(cl){ if(cl && cl.name) recs.push({name:String(cl.name).trim(), id:cl.recordId||cl.mobile, type:'client'}); });
+    if(!recs.length) return html;
+
+    // De-duplicate by name. If the same name exists as both a lead and a
+    // client, the CLIENT wins — that is the converted, current relationship,
+    // and it matches the precedence used elsewhere in the app.
+    var byName={};
+    recs.forEach(function(r){
+      var k=r.name.toUpperCase();
+      if(!byName[k] || r.type==='client') byName[k]=r;
+    });
+    var uniq=Object.keys(byName).map(function(k){ return byName[k]; })
+      .filter(function(r){ return r.name.length>=3; }) // 1-2 char "names" would match fragments of ordinary words
+      .sort(function(a,b){ return b.name.length-a.name.length; });
+    if(!uniq.length) return html;
+
+    // Split into tags vs text; only text segments are rewritten.
+    var parts=html.split(/(<[^>]+>)/);
+    for(var p=0;p<parts.length;p++){
+      if(parts[p].charAt(0)==='<') continue; // a tag — leave untouched
+      for(var u=0;u<uniq.length;u++){
+        var r=uniq[u];
+        // esc() was already applied upstream, so match the escaped form.
+        var needle=esc(r.name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        var re=new RegExp('(^|[^A-Za-z0-9])('+needle+')(?![A-Za-z0-9])','gi');
+        parts[p]=parts[p].replace(re, function(m, pre, hit){
+          return pre+'<span class="ai-rec-link" data-airecid="'+esc(r.id)+'" data-airectype="'+r.type+'" data-airecname="'+encodeURIComponent(r.name)+'" style="color:var(--blue);font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px">'+hit+'</span>';
+        });
+      }
+    }
+    return parts.join('');
+  }catch(e){
+    // Linking is a convenience — never let it break the reply itself.
+    console.warn('linkifyRecordNames:', e.message);
+    return html;
+  }
+}
+
 function renderMarkdownLite(text){
   var escaped = esc(text);
   escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
@@ -7937,12 +8234,13 @@ function appendChatBubble(role, text){
     // range of what can be asked. Only the LATEST reply's row ever rotates —
     // starting this one automatically stops whichever reply was rotating before.
     var chipRowId='chat-followup-'+Date.now();
-    bubble.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);color:var(--text);border-radius:14px 14px 14px 3px;padding:10px 13px;font-size:13px;max-width:85%;line-height:1.6">'+renderMarkdownLite(text)+'</div>'
+    bubble.innerHTML='<div style="background:var(--s1);border:1px solid var(--border);color:var(--text);border-radius:14px 14px 14px 3px;padding:10px 13px;font-size:13px;max-width:85%;line-height:1.6">'+linkifyRecordNames(renderMarkdownLite(text))+'</div>'
       +'<div id="'+chipRowId+'" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-width:95%;min-height:26px"></div>';
   }
   container.appendChild(bubble);
   setTimeout(scrollChatToBottom, 50);
   if(role==='assistant' && typeof chipRowId!=='undefined'){ startFollowUpChipRotation(chipRowId); }
+  wireAiRecordLinks(); // no-op after the first call — see its own guard
   return bubble;
 }
 
@@ -8214,7 +8512,21 @@ async function sendChatMessage(){
 
   try{
     var _chatSession=getSession();
-    var res=await sheetWrite({action:'practiceChat', message:message, history:window._chatHistory, expectsResponse:true, requestingUserId:_chatSession?_chatSession.userId:''}, 55000);
+    var _chatUid=_chatSession?_chatSession.userId:'';
+    var res=await sheetWrite({action:'practiceChat', message:message, history:window._chatHistory, expectsResponse:true, requestingUserId:_chatUid}, 55000);
+
+    // Apps Script can kill a long-running execution outright and answer with
+    // an HTML error page instead of JSON. That is NOT an exception the
+    // server can catch and report — the handler's own try/catch never runs —
+    // so it surfaced here as a raw "unreadable response". These failures are
+    // overwhelmingly transient (execution-time or UrlFetch quota pressure),
+    // so one silent retry recovers most of them before the user ever sees
+    // anything go wrong.
+    if(!(res && res.success && res.reply) && chatFailureIsRetryable(res)){
+      await new Promise(function(r){ setTimeout(r, 1200); });
+      res=await sheetWrite({action:'practiceChat', message:message, history:window._chatHistory, expectsResponse:true, requestingUserId:_chatUid}, 55000);
+    }
+
     removeTypingIndicator();
     if(sendBtn) sendBtn.disabled=false;
     if(res && res.success && res.reply){
@@ -8222,16 +8534,48 @@ async function sendChatMessage(){
       window._chatHistory.push({role:'user', content:message});
       window._chatHistory.push({role:'assistant', content:res.reply});
     } else {
-      // Covers both an explicit error AND the case where success came back
-      // but no reply text did — previously that second case rendered an
-      // empty bubble with no explanation of what went wrong.
-      appendChatBubble('assistant', '⚠️ '+(res&&res.error||'No reply came back — please try again.'));
+      // Never show the raw transport error. Even a total failure gets a
+      // useful, human reply that keeps the person moving rather than a
+      // dead end full of technical language they can't act on.
+      appendChatBubble('assistant', buildChatFallbackReply(res));
     }
   }catch(e){
     removeTypingIndicator();
     if(sendBtn) sendBtn.disabled=false;
     appendChatBubble('assistant', '⚠️ Could not reach the server: '+e.message);
   }
+}
+
+// A failure worth retrying once: the server answered but with something
+// unparseable, or nothing came back at all. A genuine, reported error (for
+// example "Insights is not available on Maker accounts") is NOT retryable —
+// repeating it would just waste the user's time for the same answer.
+function chatFailureIsRetryable(res){
+  if(!res) return true;
+  var msg=String(res.error||'');
+  if(!msg) return true;
+  return /unreadable|timed out|took too long|quota/i.test(msg);
+}
+
+// The fallback shown when a question genuinely could not be answered.
+// Deliberately never surfaces transport/technical wording — it explains the
+// situation in one plain line, then gives the person somewhere to go, since
+// the most common cause is a single heavy question rather than anything
+// being broken.
+function buildChatFallbackReply(res){
+  var msg=String((res&&res.error)||'');
+  var isAuth=/not available|not authorized|log in/i.test(msg);
+  if(isAuth) return '\u26A0\uFE0F '+msg; // a real permission answer — show it as-is, retrying won't help
+
+  var tips=[
+    'Narrow it to one thing \u2014 e.g. \u201Cleads with no potential AUM\u201D rather than several conditions at once.',
+    'Ask about a shorter window \u2014 \u201Cthis month\u201D instead of everything on record.',
+    'Try one of the ready-made questions in the Insights menu \u2014 those run on a lighter, pre-built query.'
+  ];
+  return 'That one took longer than I could wait for \u2014 usually it means the question covered a lot of ground at once, '
+    +'not that anything is broken.\n\n'
+    +'A couple of things that usually work:\n\u2022 '+tips.join('\n\u2022 ')
+    +'\n\nAsk again and it will often go straight through the second time.';
 }
 
 // ── Contemporary Insight — the one chip that actually searches the live web
@@ -10749,13 +11093,18 @@ function renderDashboardActivityFeed(){
     else if(item.action) clickFn=item.action;
     else if(item._origin==='activity') clickFn='showTodaysActivityList('+item._idx+')';
     else clickFn='showReminderList('+item._idx+')';
-    return '<div class="dact-capsule" data-dismissid="'+item._dismissId+'" data-clickfn="'+encodeURIComponent(clickFn)+'" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;background:var(--s2);border:1px solid '+item.color+'33;margin-bottom:6px;cursor:pointer;touch-action:pan-y">'
-      +'<span style="font-size:15px;flex-shrink:0;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb, '+item.color+' 15%, transparent);display:flex;align-items:center;justify-content:center">'+item.icon+'</span>'
+    // Deliberately taller/wider and higher-contrast than the original
+    // compact row — bigger icon badge, larger text, a visible left accent
+    // bar in the item's own colour, and a shadow so each capsule reads as
+    // a distinct prominent card. touch-action:pan-y is unchanged, so the
+    // swipe-to-dismiss gesture behaves exactly as before.
+    return '<div class="dact-capsule" data-dismissid="'+item._dismissId+'" data-clickfn="'+encodeURIComponent(clickFn)+'" style="display:flex;align-items:center;gap:13px;padding:15px 14px;border-radius:14px;background:var(--s2);border:1px solid '+item.color+'44;border-left:4px solid '+item.color+';margin-bottom:9px;cursor:pointer;touch-action:pan-y;box-shadow:0 2px 10px -4px rgba(0,0,0,.45)">'
+      +'<span style="font-size:19px;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:color-mix(in srgb, '+item.color+' 18%, transparent);display:flex;align-items:center;justify-content:center">'+item.icon+'</span>'
       +'<div style="flex:1;min-width:0">'
-      +'<div style="font-size:12px;font-weight:700;color:var(--text)">'+item.title+'</div>'
-      +'<div style="font-size:10px;color:var(--t3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+item.sub+'</div>'
+      +'<div style="font-size:13.5px;font-weight:800;color:var(--text);line-height:1.3">'+item.title+'</div>'
+      +'<div style="font-size:11px;color:var(--t3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+item.sub+'</div>'
       +'</div>'
-      +'<span style="font-size:14px;color:var(--t3)">›</span>'
+      +'<span style="font-size:16px;color:var(--t3);flex-shrink:0">›</span>'
       +'</div>';
   }).join('');
 
@@ -10882,7 +11231,12 @@ function showSpecialDaysList(){
     +'<div style="overflow-y:auto;flex:1">'+(rows||'<div style="padding:20px;text-align:center;color:var(--t3)">None in next 30 days</div>')+'</div></div>';
   document.body.appendChild(ov);
   ov.id='_spdListOv';
-  document.getElementById('_spdListX').onclick=function(){ov.remove();};
+  // Delegated, like every other popup close in this app — a direct
+  // getElementById().onclick here was the one that silently failed.
+  // Tapping the dimmed backdrop also closes, consistent with other sheets.
+  ov.addEventListener('click',function(e){
+    if(e.target===ov || e.target.closest('#_spdListX')) ov.remove();
+  });
 }
 
 // Add a new special day (from Settings form) — saves to sheet + local cache
@@ -12337,6 +12691,17 @@ function simpleStrHash(s){
 // design, same as the rest of this app's swipe gestures — no swipe
 // affordance on desktop, where these still work as a plain tap-only list.
 function wireDashCapsuleSwipe(container, onEmpty){
+  // Guard against double-wiring. renderDashboardActivityFeed() runs on
+  // dashboard render, calendar refresh, task sync and activity delete —
+  // five call sites — and each run used to add ANOTHER set of listeners to
+  // the same container element. Those stacked up, so a single tap fired
+  // the capsule's action N times. For Follow-ups that meant N stacked
+  // overlays all sharing id="fu-overlay", which broke both the body
+  // (getElementById filled the FIRST overlay, not the visible top one) and
+  // the close button (it removed the FIRST overlay, leaving the visible
+  // one on screen). Wiring once per element fixes the whole class of bug.
+  if(container._dashSwipeWired) return;
+  container._dashSwipeWired=true;
   var startX=0, startY=0, swiping=null, dx=0;
   container.addEventListener('touchstart', function(e){
     var card=e.target.closest('.dact-capsule');
@@ -12405,6 +12770,7 @@ function renderTodaysActivity(){
     }).sort(function(a,b){ return (a.dueDate||'').localeCompare(b.dueDate||''); });
     if(dueTasks.length){
       items.push({icon:'✅',color:'var(--orange)',bg:'rgba(230,126,34,.08)',
+        _pri:20,
         title:'You have '+dueTasks.length+' overdue task'+(dueTasks.length>1?'s':'')+' to complete',
         sub:dueTasks.slice(0,3).map(function(t){ return t.name?toTitle(t.name):t.taskDetails.slice(0,30); }).join(' · ')+(dueTasks.length>3?' + '+(dueTasks.length-3)+' more':''),
         action:"nav('tasks',null);setTaskFilter('DUE');"});
@@ -12433,8 +12799,11 @@ function renderTodaysActivity(){
       var n=stageCounts[stage];
       if(!n) return;
       var label=stage.charAt(0)+stage.slice(1).toLowerCase(); // "KYC PENDING" -> "KYC pending" (title-cases the whole rest, fine for these short all-caps labels)
+      // Reads "3 Clients — KYC pending" rather than a bare "3 Kyc pending",
+      // so the line says what the number actually counts.
       items.push({icon:stageIcons[stage]||'🎯', color:'var(--purple)', bg:'color-mix(in srgb, var(--purple) 8%, transparent)',
-        title:n+' '+label,
+        _pri:30,
+        title:n+' Client'+(n>1?'s':'')+' \u2014 '+label,
         sub:'Tap to view '+(n>1?'these clients':'this client'),
         action:"nav('clients',null);setStageFilterClient('"+stage+"');setClientSort('potentialAum');"});
     });
@@ -12453,7 +12822,7 @@ function renderTodaysActivity(){
     });
     var fuTotal=dueLeads.length+dueClients.length;
     if(fuTotal>0){
-      items.push({icon:'🔔',color:'var(--accent)',bg:'rgba(255,255,255,.08)',
+      items.push({_pri:10, icon:'🔔',color:'var(--accent)',bg:'rgba(255,255,255,.08)',
         title:fuTotal+' follow-up'+(fuTotal>1?'s':'')+' due today',
         sub:'Tap to view — prioritised by value',
         action:'openFuOverlay()'});
@@ -12600,6 +12969,19 @@ function renderTodaysActivity(){
     window._todaysActivityItems=[];
     return [];
   }
+
+  // Display order (requested): Follow-ups first, then overdue tasks, then
+  // client pending-stages, then everything else in the order its own
+  // section produced it. Sections still RUN in their original order —
+  // only the final display order is adjusted here, which avoids moving
+  // large blocks of working data-gathering code around. Stable: items
+  // sharing a priority keep their original relative order.
+  items=items.map(function(it,i){ return {it:it, i:i}; })
+    .sort(function(a,b){
+      var pa=(a.it._pri!=null?a.it._pri:50), pb=(b.it._pri!=null?b.it._pri:50);
+      return pa!==pb ? pa-pb : a.i-b.i;
+    })
+    .map(function(w){ return w.it; });
 
   window._todaysActivityItems=items;
   return items;
