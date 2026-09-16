@@ -981,8 +981,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       </div>
       <div class="acc-body">
         <div class="sg">
-          <div class="si" style="font-size:10px;color:var(--t3)"><span>☁️ Automatic weekly backups run every Sunday 2 AM to Google Drive (once enabled). Keeps last 8 backups.</span></div>
+          <div class="si" style="font-size:10px;color:var(--t3)"><span>☁️ Automatic daily backups run every night to Google Drive, into a folder named after your firm. Keeps the last 7 days.</span></div>
           <div class="syc"><button class="btn btn-gold btn-full" onclick="triggerBackupNow()">☁️ Backup Now to Drive</button></div>
+          <div class="syc"><button class="btn btn-ghost btn-full" style="color:var(--red);border-color:var(--red)" onclick="restoreLatestBackupFlow()">♻️ Restore Latest Backup</button></div>
+          <div class="si" style="font-size:10px" id="restore-backup-status"></div>
           <div class="syc"><button class="btn btn-ghost btn-full" onclick="exportData()">📥 Export JSON Backup</button></div>
           <div class="syc"><button class="btn btn-ghost btn-full" onclick="exportCSV()">📥 Export CSV (Excel)</button></div>
           <div class="syc">
@@ -11562,6 +11564,133 @@ async function triggerBackupNow(){
     toast('❌ Backup failed: '+e.message);
   }
 }
+
+// ── Restore Latest Backup — deliberately the most heavily-confirmed
+// destructive action in the app: it overwrites EVERY tab of the live
+// Google Sheet with the most recent nightly Drive backup. Admin-only
+// (enforced server-side too — this is defense in depth, not the real
+// gate). A type-to-confirm modal is used instead of a plain confirm()
+// dialog because a single misclick on this one must not be possible. ──
+function _relTimeAgo(iso){
+  try{
+    var ms=Date.now()-new Date(iso).getTime();
+    var mins=Math.round(ms/60000);
+    if(mins<1) return 'just now';
+    if(mins<60) return mins+' minute'+(mins===1?'':'s')+' ago';
+    var hrs=Math.round(mins/60);
+    if(hrs<24) return hrs+' hour'+(hrs===1?'':'s')+' ago';
+    var days=Math.round(hrs/24);
+    return days+' day'+(days===1?'':'s')+' ago';
+  }catch(e){ return ''; }
+}
+
+async function restoreLatestBackupFlow(){
+  var session=getSession();
+  if(!session){ toast('Please log in again'); return; }
+  if(!isAdmin()){ toast('Only an Admin can do this'); return; }
+  var statusEl=document.getElementById('restore-backup-status');
+  if(statusEl){ statusEl.textContent='Checking latest backup…'; statusEl.style.color='var(--t3)'; }
+
+  var info;
+  try{
+    info=await sheetWrite({action:'getLatestBackupInfo', requestingUserId:session.userId}, 20000);
+  }catch(e){
+    if(statusEl){ statusEl.textContent='⚠️ Could not reach the server: '+e.message; statusEl.style.color='var(--red)'; }
+    return;
+  }
+  if(!info || !info.success){
+    if(statusEl){ statusEl.textContent='⚠️ '+(info&&info.error||'Could not check backups'); statusEl.style.color='var(--red)'; }
+    return;
+  }
+  if(!info.found){
+    if(statusEl){ statusEl.textContent='No backup found yet in "'+(info.folder||'the backup folder')+'" — nothing to restore.'; statusEl.style.color='var(--red)'; }
+    return;
+  }
+  if(statusEl){ statusEl.textContent=''; }
+  _openRestoreConfirmModal(info, session);
+}
+
+function _openRestoreConfirmModal(info, session){
+  var ov=document.createElement('div');
+  ov.className='transient-overlay';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:var(--s1);border-radius:14px;width:100%;max-width:360px;overflow:hidden;border:1px solid var(--red)">'
+    +'<div style="padding:16px;border-bottom:1px solid var(--border)">'
+      +'<div style="font-size:15px;font-weight:800;color:var(--red)">⚠️ Restore from Backup?</div>'
+    +'</div>'
+    +'<div style="padding:16px;font-size:12.5px;line-height:1.6;color:var(--text)">'
+      +'<div style="margin-bottom:10px">Backup to restore:<br><b>'+esc(info.name)+'</b><br><span style="color:var(--t3)">('+esc(_relTimeAgo(info.dateCreated))+')</span></div>'
+      +'<div style="margin-bottom:12px;color:var(--red);font-weight:600">This replaces the DATA ROWS in every matching tab — Leads, Clients, Tasks, etc. — with this backup. Columns are matched by name: any column added to a tab since this backup was taken is left exactly as it is now (not deleted, not overwritten), it just won\'t have backup data in it. Anything entered after this backup was taken will be lost from the live sheet.</div>'
+      +'<div style="margin-bottom:10px;color:var(--t3);font-size:11px">A safety copy of the CURRENT live data is taken automatically right before restoring, so this can itself be undone if needed.</div>'
+      +'<div style="margin-bottom:6px;font-size:11px;color:var(--t3)">Type <b>RESTORE</b> below to confirm:</div>'
+      +'<input class="fi" id="restore-confirm-input" placeholder="Type RESTORE" style="width:100%;box-sizing:border-box" autocomplete="off" autocapitalize="off">'
+    +'</div>'
+    +'<div style="display:flex;border-top:1px solid var(--border)">'
+      +'<button id="restore-cancel-btn" style="flex:1;padding:14px;border:none;background:none;color:var(--t2);font-weight:700;font-size:13px">Cancel</button>'
+      +'<button id="restore-confirm-btn" disabled style="flex:1;padding:14px;border:none;border-left:1px solid var(--border);background:none;color:var(--t3);font-weight:800;font-size:13px">Restore</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(ov);
+
+  var input=document.getElementById('restore-confirm-input');
+  var confirmBtn=document.getElementById('restore-confirm-btn');
+  input.addEventListener('input', function(){
+    var ok=input.value.trim()==='RESTORE';
+    confirmBtn.disabled=!ok;
+    confirmBtn.style.color=ok?'var(--red)':'var(--t3)';
+  });
+  document.getElementById('restore-cancel-btn').onclick=function(){ ov.remove(); };
+  confirmBtn.onclick=function(){
+    if(input.value.trim()!=='RESTORE') return;
+    ov.remove();
+    _runRestoreLatestBackup(session);
+  };
+}
+
+async function _runRestoreLatestBackup(session){
+  var statusEl=document.getElementById('restore-backup-status');
+  showActivity('saving'); // reuse the existing pill — user-triggered, so it should show progress
+  if(statusEl){ statusEl.textContent='Restoring from backup… this can take a minute, please don\'t close the app.'; statusEl.style.color='var(--t3)'; }
+  try{
+    // Generous timeout — this restores every tab in the sheet, not a single-row write.
+    var res=await sheetWrite({action:'restoreLatestBackup', requestingUserId:session.userId}, 170000);
+    if(res && res.success){
+      flashActivityDone('Restored');
+      var tabCount=(res.restoredTabs?res.restoredTabs.length:0)+(res.createdTabs?res.createdTabs.length:0);
+      var msg='✅ Restored '+tabCount+' tab(s) from '+res.backupUsed+'.';
+      if(res.createdTabs && res.createdTabs.length){ msg+=' Created fresh: '+res.createdTabs.join(', ')+'.'; }
+      // Surface which columns were added since this backup (left blank —
+      // not overwritten) and which backup columns no longer exist live
+      // (skipped) — the whole point of the column-name match, so it's
+      // worth showing rather than leaving invisible.
+      var newColNote='', skippedColNote='';
+      if(res.tabReports){
+        res.tabReports.forEach(function(t){
+          if(t.columnsNotInBackup && t.columnsNotInBackup.length) newColNote+=' '+t.tab+': '+t.columnsNotInBackup.join(', ')+'.';
+          if(t.skippedBackupColumns && t.skippedBackupColumns.length) skippedColNote+=' '+t.tab+': '+t.skippedBackupColumns.join(', ')+'.';
+        });
+      }
+      if(newColNote) msg+=' Columns kept as-is (not in this backup):'+newColNote;
+      if(skippedColNote) msg+=' Backup columns skipped (no longer in live):'+skippedColNote;
+      if(res.failedTabs && res.failedTabs.length){ msg+=' ⚠️ '+res.failedTabs.length+' tab(s) failed — check Apps Script logs.'; }
+      if(statusEl){ statusEl.textContent=msg+' Safety copy of the pre-restore data: '+(res.preRestoreSafetyBackup||'—')+'. Reloading app…'; statusEl.style.color='var(--green)'; }
+      toast('✅ Restore complete — reloading');
+      // Every tab in the live sheet just changed underneath the app, so a
+      // full reload is the only way to guarantee every cached list
+      // (leads, clients, tasks, insights) reflects the restored data
+      // rather than whatever was in memory before the restore.
+      setTimeout(function(){ location.reload(); }, 2200);
+    } else {
+      hideActivity();
+      if(statusEl){ statusEl.textContent='⚠️ '+(res&&res.error||'Restore failed — nothing may have changed, check Apps Script logs.'); statusEl.style.color='var(--red)'; }
+      toast('⚠️ Restore failed — see status below');
+    }
+  }catch(e){
+    hideActivity();
+    if(statusEl){ statusEl.textContent='⚠️ Could not reach the server during restore: '+e.message+'. Check the sheet directly before trying again.'; statusEl.style.color='var(--red)'; }
+  }
+}
+
 
 
 // (Service worker registration and the "Install App" prompt were removed
