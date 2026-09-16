@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="Deep Pocket">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="theme-color" content="#1B1512">
-<title>Deep Pocket CRM v5.24.0</title>
+<title>Deep Pocket CRM V 1.0.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -86,6 +86,27 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .ptr-indicator svg{width:16px;height:16px;color:var(--accent)}
 .ptr-indicator.spinning svg{animation:globalRefreshSpin .7s linear infinite}
 
+/* ── Top-left expandable menu (hamburger) — replaces the row of loose
+   top-bar action buttons. The bar keeps only the menu button (left) and
+   the app icon + firm name (centre); version, refresh, settings and
+   logout all live inside this drop-down panel now. ── */
+.topmenu-btn{width:38px;height:38px;border-radius:50%;border:none;background:none;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.topmenu-btn:active{transform:scale(.94)}
+.topmenu-btn svg{width:34px;height:34px;display:block}
+.topmenu-backdrop{position:fixed;inset:0;z-index:599;background:transparent;display:none}
+.topmenu-backdrop.open{display:block}
+.topmenu-panel{position:fixed;top:calc(54px + env(safe-area-inset-top,0px));left:10px;z-index:601;min-width:214px;background:var(--s1);border:1px solid var(--border);border-radius:14px;box-shadow:0 12px 34px rgba(0,0,0,.5);overflow:hidden;opacity:0;transform:translateY(-8px) scale(.98);transform-origin:top left;pointer-events:none;transition:opacity .16s ease,transform .16s ease}
+.topmenu-panel.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+@media (min-width:1024px){ .topmenu-panel{left:calc(var(--sidebar-w) + 10px)} }
+.topmenu-head{padding:12px 14px 10px;border-bottom:1px solid var(--border)}
+.topmenu-company{font-size:13px;font-weight:800;color:var(--text);white-space:nowrap}
+.topmenu-ver{font-size:10px;font-weight:700;color:var(--t3);margin-top:2px}
+.topmenu-item{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--text);text-align:left;border-bottom:1px solid var(--border)}
+.topmenu-item:last-child{border-bottom:none}
+.topmenu-item:active{background:rgba(255,255,255,.05)}
+.topmenu-item .tm-ico{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.topmenu-item.tm-danger{color:var(--red)}
+
 /* ── Page-switch transition — a quick fade+slide instead of an instant
    swap on a normal tab tap, so navigation feels like a real app
    transition rather than a page reload. A plain tap defaults to a gentle
@@ -122,7 +143,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 /* Task page */
 .task-filter-chip{flex-shrink:0;padding:7px 15px;border-radius:999px;border:1.5px solid var(--border);background:var(--s1);color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
 .task-filter-chip.active{border-color:var(--accent);background:var(--accent2);color:var(--accent)}
-.task-card{background:var(--s1);border-radius:var(--r);padding:13px 14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:flex-start;gap:11px;transition:transform .12s}
+.task-card{background:var(--s1);border-radius:var(--r);padding:13px 14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:flex-start;gap:11px;transition:transform .12s;touch-action:pan-y}
 .task-card:active{transform:scale(.98)}
 .task-card .tc-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--t3);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
 .task-card.status-finished .tc-check{background:var(--green);border-color:var(--green)}
@@ -629,29 +650,50 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   </div>
 </div>
 
-<!-- PERSISTENT TOP BAR — fixed across every page once logged in. Logo, name,
-     and version on the left; refresh and logout on the right. Pages start
-     below this bar, never behind it — see #content's padding-top and the
-     #global-topbar CSS rule for how that's enforced. -->
-<div id="global-topbar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:500;height:calc(58px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:rgba(10,10,10,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;padding-left:14px;padding-right:10px">
-  <div style="display:flex;align-items:center;gap:10px;min-width:0">
-    <div style="width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <span style="font-size:14px;font-weight:900;color:#000">DP</span>
+<!-- PERSISTENT TOP BAR — fixed across every page once logged in. LEFT: the
+     expandable hamburger menu (version, refresh, settings, logout all live
+     inside it). CENTRE: app icon + firm name. A right-side spacer of equal
+     width to the menu button keeps the centre truly centred. -->
+<div id="global-topbar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:500;height:calc(58px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:rgba(10,10,10,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;padding-left:10px;padding-right:10px">
+  <!-- LEFT — hamburger menu button -->
+  <button class="topmenu-btn" id="topmenu-btn" onclick="toggleTopMenu(event)" aria-label="Menu" aria-expanded="false" aria-haspopup="true">
+    <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="256" cy="256" r="256" fill="#1A8CFF"/>
+      <rect x="128" y="150" width="256" height="46" rx="23" fill="#fff"/>
+      <rect x="128" y="233" width="256" height="46" rx="23" fill="#fff"/>
+      <rect x="128" y="316" width="256" height="46" rx="23" fill="#fff"/>
+    </svg>
+  </button>
+  <!-- CENTRE — app icon + firm name, absolutely centred so it's unaffected by the side elements -->
+  <div style="position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:9px;max-width:62%;min-width:0">
+    <div style="width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <span style="font-size:13px;font-weight:900;color:#000">DP</span>
     </div>
-    <span style="font-size:17px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Deep Pocket CRM</span>
-    <span style="font-size:9px;font-weight:700;color:var(--t3);white-space:nowrap;flex-shrink:0" id="topbar-version-tag">V 5.24.0</span>
+    <span style="font-size:16px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Deep Pocket CRM</span>
   </div>
-  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-    <button id="global-refresh-btn" onclick="manualTopBarRefresh()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Refresh">
-      <svg id="global-refresh-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" stroke-width="2.3"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-    </button>
-    <button onclick="nav('settings',null)" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Settings">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" stroke-width="2.3"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    </button>
-    <button id="global-logout-btn" onclick="confirmLogout()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer" aria-label="Log out">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.3"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-    </button>
+  <!-- RIGHT — spacer balancing the hamburger so the centre stays centred -->
+  <div style="width:38px;height:38px;flex-shrink:0" aria-hidden="true"></div>
+</div>
+
+<!-- Top-left menu: backdrop (closes on outside tap) + drop-down panel -->
+<div class="topmenu-backdrop" id="topmenu-backdrop" onclick="closeTopMenu()"></div>
+<div class="topmenu-panel" id="topmenu-panel" role="menu" aria-label="App menu">
+  <div class="topmenu-head">
+    <div class="topmenu-company">Deep Pocket CRM</div>
+    <div class="topmenu-ver" id="topbar-version-tag">V 1.0.0</div>
   </div>
+  <button class="topmenu-item" id="global-refresh-btn" onclick="closeTopMenu();manualTopBarRefresh()" role="menuitem">
+    <span class="tm-ico"><svg id="global-refresh-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" stroke-width="2.3"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></span>
+    <span>Refresh</span>
+  </button>
+  <button class="topmenu-item" onclick="closeTopMenu();nav('settings',null)" role="menuitem">
+    <span class="tm-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" stroke-width="2.3"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
+    <span>Settings</span>
+  </button>
+  <button class="topmenu-item tm-danger" id="global-logout-btn" onclick="closeTopMenu();confirmLogout()" role="menuitem">
+    <span class="tm-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.3"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+    <span>Log out</span>
+  </button>
 </div>
 
 <div id="app">
@@ -1079,7 +1121,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
   </div>
 
-  <div style="text-align:center;padding:20px 0 40px;font-size:10px;color:var(--t3)" id="settings-app-version">Deep Pocket CRM v5.1.1</div>
+  <div style="text-align:center;padding:20px 0 40px;font-size:10px;color:var(--t3)" id="settings-app-version">Deep Pocket CRM V 1.0.0</div>
 </div>
 
 <!-- FOLLOW-UPS -->
@@ -2810,6 +2852,11 @@ function renderTasks(){
   if(subEl) subEl.textContent=dueCount+' due · '+openCount+' open · '+finCount+' finished';
 
   var filtered=withStatus.filter(function(x){ return _taskFilter==='ALL' || x.eff===_taskFilter; });
+  // Session-only "swipe to dismiss": a task swiped off the list stays hidden
+  // until the next full sync/reload (a fresh app) — nothing is deleted, the
+  // task is still in the sheet. Same non-destructive idea as the dashboard
+  // capsules. The dismissed set is cleared on every real sync (see below).
+  if(window._dismissedTaskIds){ filtered=filtered.filter(function(x){ return !window._dismissedTaskIds[x.t.taskId]; }); }
   // Sort: Due first, then Open (soonest due date first), then Finished last
   filtered.sort(function(a,b){
     var order={DUE:0,OPEN:1,FINISHED:2};
@@ -2829,7 +2876,7 @@ function renderTasks(){
     var forTag=(t.taskFor||'OTHERS').toUpperCase();
     var forLabel=forTag==='CLIENT'?'Client':forTag==='LEAD'?'Lead':'Other';
     var dueLabel=t.dueDate?fmt(t.dueDate):'No due date';
-    return '<div class="task-card '+statusCls+'" onclick="openTaskDetail(\''+t.taskId+'\')">'
+    return '<div class="task-card '+statusCls+'" data-taskid="'+t.taskId+'" onclick="openTaskDetail(\''+t.taskId+'\')">'
       +'<div class="tc-check">'+(eff==='FINISHED'?'✓':'')+'</div>'
       +'<div class="tc-body">'
       +'<div class="tc-name">'+(t.name?toTitle(t.name):(t.taskDetails?t.taskDetails.slice(0,40):'Task'))+'</div>'
@@ -3039,8 +3086,8 @@ async function saveTaskNow(){
     showActivity('saving');
     sheetWrite({action:'updateTask', taskId:existingId,
       name:name, taskDetails:details, dueDate:dueDate, taskFor:forType, linkedRecordId:window._taskLinkedRecordId||''}).then(function(res){
-        hideActivity();
-        if(!res || !res.success) toast('⚠️ Task update did not save — '+(res&&res.error||'please try again'));
+        if(res && res.success){ flashActivityDone('Saved'); }
+        else { hideActivity(); toast('⚠️ Task update did not save — '+(res&&res.error||'please try again')); }
       }).catch(function(e){ hideActivity(); toast('⚠️ Task update did not save — '+e.message); });
   } else {
     var _taskCreatorSession=getSession();
@@ -3057,11 +3104,12 @@ async function saveTaskNow(){
     advanceVoiceQueueIfPending();
     showActivity('saving');
     sheetWrite({action:'addTask', createdDate:newTask.createdDate, name:newTask.name, taskDetails:newTask.taskDetails, dueDate:newTask.dueDate, status:newTask.status, taskFor:newTask.taskFor, linkedRecordId:newTask.linkedRecordId, createdBy:newTask.createdBy, createdByRole:newTask.createdByRole}).then(function(res2){
-      hideActivity();
       if(res2 && res2.success){
+        flashActivityDone('Saved');
         newTask.taskId=res2.taskId; // replace the temp ID with the real one
         saveTasks();
       } else {
+        hideActivity();
         toast('⚠️ Task did not save — '+(res2&&res2.error||'please try again'));
       }
     }).catch(function(e){ hideActivity(); toast('⚠️ Task did not save — '+e.message); });
@@ -3280,9 +3328,11 @@ async function saveClient(){
     var updated=clients[idx];
     closeOv('ov-client');
     renderClients();
+    showActivity('saving');
     syncClient(updated,'update').then(function(_syncRes){ // targeted — updates only this row in sheet
-      if(_syncRes && _syncRes.success) toast('✅ Client updated');
-    });
+      if(_syncRes && _syncRes.success){ flashActivityDone('Saved'); toast('✅ Client updated'); }
+      else hideActivity();
+    }).catch(function(){ hideActivity(); });
     if(missingMandatory.length) showMissingFieldsPrompt(missingMandatory);
     // Only prompt to create a folder if one doesn't already exist.
     checkClientFolderExists(updated).then(function(exists){
@@ -3309,6 +3359,7 @@ async function saveClient(){
     saveC();
     closeOv('ov-client');
     renderClients();
+    showActivity('saving');
     syncClient(data,'add').then(function(res){
       // Replace the temporary ID with the real server-assigned Client ID.
       if(res && res.recordId){
@@ -3317,7 +3368,8 @@ async function saveClient(){
         if(dIdx>=0) clients[dIdx].recordId=res.recordId;
         saveC();
       }
-    }); // targeted — appends one row
+      if(res && res.success){ flashActivityDone('Saved'); } else { hideActivity(); }
+    }).catch(function(){ hideActivity(); }); // targeted — appends one row
     toast('✅ Client added');
     if(missingMandatory.length) showMissingFieldsPrompt(missingMandatory);
     promptUploadDocsAfterSave(data); // ask if they want to upload documents now
@@ -3532,6 +3584,33 @@ function setAiVoiceStatus(text, show){
   if(!el) return;
   el.textContent=text||'';
   el.classList.toggle('show', !!show);
+}
+
+// ── Screen generation counter + transient-UI sweeper ──
+// Bumps every time the user changes menu or triggers a sync. Any
+// asynchronous flow (e.g. a slow voice interpretation) can capture the
+// generation it started under and compare later — if it changed, the user
+// has moved on and its result UI must NOT pop up over the new screen.
+var _screenGen=0;
+// Clears every "floating leftover" that isn't part of a page's own content:
+// the voice status/confirm cards, the toast, the activity pill, and any
+// ad-hoc full-screen overlay tagged .transient-overlay. Called whenever a
+// new menu is opened or a pull-to-refresh sync is triggered, so navigation
+// always lands on a clean screen with no stale dialogue boxes hanging over
+// it. Deliberately does NOT touch page content, open record chip windows,
+// or the bottom nav — only genuinely transient, floating UI.
+function clearTransientUI(){
+  _screenGen++;
+  if(typeof closeTopMenu==='function') closeTopMenu();
+  var vs=document.getElementById('ai-voice-status'); if(vs) vs.classList.remove('show');
+  var vc=document.getElementById('ai-voice-confirm'); if(vc) vc.classList.remove('show');
+  var tt=document.getElementById('toast'); if(tt){ tt.classList.remove('show'); clearTimeout(tt._t); }
+  var pill=document.getElementById('activity-pill');
+  if(pill){ pill.classList.remove('show','spin','pulse'); }
+  try{ _activityDepth=0; clearTimeout(_activityHideTimer); }catch(e){}
+  // Remove any dynamically-created full-screen overlays that opted in by
+  // carrying this marker class (delete confirms, ad-hoc dialogs, etc.).
+  document.querySelectorAll('.transient-overlay').forEach(function(o){ if(o&&o.parentNode) o.parentNode.removeChild(o); });
 }
 
 // ── Decodes the browser's SpeechRecognition error codes into an actionable
@@ -4901,6 +4980,11 @@ function nav(name,btn,slideFrom){
   // for an animation nobody can see. Resumed below only if returning to
   // Insights with the chat still in its empty (un-started) state.
   if(name!=='analytics'){ pauseChatIdleAnimations(); }
+  // Fresh screen on every menu change — sweep away any floating leftovers
+  // (stuck voice popups, toasts, ad-hoc overlays) from the previous page so
+  // nothing hangs over the new one. Also bumps the screen generation so a
+  // late-arriving async result knows the user has already moved on.
+  clearTransientUI();
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('active');});
   var pg=document.getElementById('pg-'+name);
@@ -5403,15 +5487,21 @@ async function logActivity(mob, type, activity, notes){
   activityLog.push(entry);
   saveActivityLog();
 
+  // Reflect the new entry in any open history view IMMEDIATELY — before the
+  // network round-trip — so it never fails to show instantly. Tries both the
+  // Record ID and the mobile as the container key (see refreshOpenActivityViews).
+  refreshOpenActivityViews([recordId, actualMobile, mob]);
+
   // Append to ACTIVITY_LOG sheet — row includes rowId (col G), recordId (col H),
   // and who performed it (col I) — used for Checker/Authorizer accountability views.
   if(hasScript()){
+    showActivity('saving');
     var _logSession=getSession();
     var loggedBy=_logSession?_logSession.name:'';
     var row = [ts, name, actualMobile, type.toUpperCase(), activity, notes||'', rowId, recordId, loggedBy];
     var res = await sheetWrite({action:'appendLog', row:row});
-    if(res && res.error){ console.warn('appendLog failed:', res.error); }
-
+    if(res && res.error){ hideActivity(); console.warn('appendLog failed:', res.error); toast('⚠️ Activity may not have saved — '+res.error); }
+    else { flashActivityDone('Saved'); }
   }
 }
 
@@ -5554,7 +5644,7 @@ function buildHistoryHtml(mob, type){
     var lo = txt.toLowerCase();
     var ico = lo.includes('whatsapp')?'💬':lo.includes('meet')?'📅':lo.includes('call')?'📞':lo.includes('visit')?'🏢':lo.includes('proposal')?'📄':lo.includes('brochure')?'📋':lo.includes('follow')?'🗓️':lo.includes('status')?'🔄':lo.includes('created')?'⭐':'📝';
     var rid = String(e.rowId||'').replace(/'/g,"");
-    return '<div style="padding:7px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:8px">'
+    return '<div class="act-log-entry" data-rowid="'+rid+'" data-delmob="'+e.mobile+'" data-delts="'+(e.ts||'')+'" style="padding:7px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:8px;touch-action:pan-y">'
       +'<div style="flex:1">'
       +'<div style="font-size:10px;font-weight:700;color:var(--accent)">'+ico+' '+(e.ts||'')+'</div>'
       +'<div style="font-size:12px;color:var(--text);margin-top:2px">'+txt+'</div>'
@@ -5563,6 +5653,30 @@ function buildHistoryHtml(mob, type){
       +'style="background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--t3);font-size:12px;padding:1px 6px;flex-shrink:0">×</button>'
       +'</div>';
   }).join('');
+}
+
+// Re-render every open activity-history container that matches any of the
+// given keys. The containers are keyed inconsistently across the app — some
+// by Record ID, some by mobile number — which is exactly why a freshly
+// added/deleted entry sometimes failed to appear until a menu switch: the
+// caller re-rendered one key while the open view used the other. Trying
+// every candidate key (Record ID AND mobile, lead AND client) makes the
+// refresh robust regardless of which one the open chip window happens to
+// use. buildHistoryHtml() resolves either key to the same record, so a
+// wrong-but-related key is harmless.
+function refreshOpenActivityViews(keys){
+  if(!keys) return;
+  if(!Array.isArray(keys)) keys=[keys];
+  var seen={};
+  keys.forEach(function(k){
+    k=String(k||'').trim();
+    if(!k || seen[k]) return;
+    seen[k]=1;
+    var fu=document.getElementById('fu-hist-'+k);
+    if(fu){ fu.innerHTML=buildHistoryHtml(k,'lead'); fu.scrollTop=fu.scrollHeight; }
+    var cl=document.getElementById('client-hist-'+k);
+    if(cl){ cl.innerHTML=buildHistoryHtml(k,'client'); cl.scrollTop=cl.scrollHeight; }
+  });
 }
 
 function deleteActivityEntry(rowId, mob, clickTs){
@@ -5581,6 +5695,7 @@ function deleteActivityEntry(rowId, mob, clickTs){
     });
   }
   var ov=document.createElement('div');
+  ov.className='transient-overlay';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:320px;overflow:hidden">'
     +'<div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border)">Delete this log entry?</div>'
@@ -5610,21 +5725,21 @@ function deleteActivityEntry(rowId, mob, clickTs){
       return true;
     });
     saveActivityLog();
-    // Refresh BOTH possible history containers, not just whichever one
-    // _detailOpenType happened to point at — each is rendered with its own
-    // correct type so an open lead view and an open client view both stay
-    // in sync rather than one silently keeping the deleted row.
-    var fuEl=document.getElementById('fu-hist-'+mob);
-    if(fuEl){fuEl.innerHTML=buildHistoryHtml(mob,'lead');fuEl.scrollTop=fuEl.scrollHeight;}
-    var clEl=document.getElementById('client-hist-'+mob);
-    if(clEl){clEl.innerHTML=buildHistoryHtml(mob,'client');clEl.scrollTop=clEl.scrollHeight;}
+    // Robustly refresh whichever history container is open — keyed by Record
+    // ID OR mobile (both are used in different places). Replaces the old
+    // mobile-only refresh that missed a container keyed by Record ID, which
+    // was part of why a delete sometimes only showed after a menu switch.
+    refreshOpenActivityViews([target&&target.recordId, mob, target&&target.mobile]);
     // Delete from sheet by exact Raw ID — _writePending blocks auto-sync during delete
     if(hasScript()){
       _writePending = true;
+      showActivity('deleting');
       sheetWrite({action:'deleteLogById', rowId:rowId, mobile:mob, ts:delTs, activity:delAct})
-        .then(function(){ _writePending = false; });
+        .then(function(){ _writePending = false; flashActivityDone('Deleted'); })
+        .catch(function(){ _writePending = false; hideActivity(); toast('⚠️ Could not delete from sheet — will retry on next sync'); });
+    } else {
+      toast('Entry deleted');
     }
-    toast('Entry deleted');
   };
 }
 
@@ -5655,8 +5770,13 @@ async function updateLeadField(mob, field, value, silent){
   if(!l) return;
   l[field] = value;
   saveL();
-  syncLead(l, 'update'); // update only this lead's row
-  if(!silent) toast('✅ Saved: '+field);
+  if(!silent){
+    showActivity('saving');
+    syncLead(l, 'update').then(function(r){ if(r&&r.success){ flashActivityDone('Saved'); } else { hideActivity(); } }).catch(function(){ hideActivity(); });
+    toast('✅ Saved: '+field);
+  } else {
+    syncLead(l, 'update'); // update only this lead's row (silent — no pill for programmatic edits)
+  }
 }
 
 async function saveLeadPotAum(mob, newVal){
@@ -5896,8 +6016,15 @@ function renderFuDetailInner(mob,nameHint){
 // ── BOOTSEQUENCE v2.7 (load activity log on startup) ──
 
 
-// Version marker
-var APP_VERSION='5.24.0';
+// Version marker — SINGLE SOURCE OF TRUTH for the on-screen app version
+// (top bar tag + Settings footer + health-check reports all read this).
+// VERSIONING SCHEME (odometer style, base-11 on the last two segments):
+//   1.0.0 → 1.0.1 → … → 1.0.10 → then roll to 1.1.0
+//   1.1.0 → 1.1.1 → … → 1.1.10 → then roll to 1.2.0
+//   … → 1.9.10 → 2.0.0, and so on.
+// i.e. each of the last two positions counts 0..10 (eleven steps) before
+// carrying to the next place. Bump this ONE line on every release.
+var APP_VERSION='1.0.0';
 
 
 
@@ -6555,7 +6682,7 @@ async function saveLead(){
             if(nIdx>=0) leads[nIdx].recordId=res.recordId;
             saveL();
           }
-          hideActivity();
+          if(res && res.success){ flashActivityDone('Saved'); } else { hideActivity(); }
         }).catch(function(){ hideActivity(); });
         toast('✅ Lead added');
         logAnalytics(2,1); // Lead Entries
@@ -6697,7 +6824,15 @@ async function syncLead(lead, action){
     _wq.push({payload:payload, ts:Date.now(), attempts:0});
     _saveQ();
     _setSyncDot('pending');
-    toast('⚠️ Saved locally — will sync when connection ready');
+    // Be honest about which situation this is. Truly offline → the original
+    // message. Online but the write didn't confirm (rare now that _doWrite
+    // retries transient failures) → say it's queued and will retry, rather
+    // than implying a connection problem that isn't there.
+    if(navigator && navigator.onLine===false){
+      toast('⚠️ Saved locally — will sync when connection ready');
+    } else {
+      toast('⚠️ Save didn\'t confirm — queued, will retry automatically');
+    }
   } else {
     _setSyncDot('ok');
   }
@@ -6785,35 +6920,50 @@ async function _doWrite(data){
   var url  = cfg_.scriptUrl;
   var body = JSON.stringify(data);
 
-  // Method 1: POST text/plain (avoids CORS preflight, Apps Script reads e.postData.contents)
-  try{
-    var r = await fetch(url, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain'},
-      body: body
-    });
-    var t = await r.text();
+  // Method 1: POST text/plain (avoids CORS preflight, Apps Script reads
+  // e.postData.contents). Retried up to 3 attempts: an Apps Script /exec
+  // endpoint intermittently cold-starts or returns a transient 5xx / dropped
+  // connection on the FIRST hit, and a single flaky attempt was enough to
+  // wrongly surface "Saved locally — will sync" even though the very next
+  // attempt succeeds. These write actions are idempotent server-side
+  // (appendLead upserts by name+mobile, updateLead overwrites the same row),
+  // so re-sending is safe and never double-writes. A backend response that
+  // parses as JSON is authoritative and returned immediately — including a
+  // genuine {success:false} — so a real "no matching row" result still falls
+  // straight through to the caller's own fallback (pushLeads) without wasting
+  // retries on it.
+  var lastErr='';
+  for(var attempt=0; attempt<3; attempt++){
     try{
-      var j = JSON.parse(t);
-      // Return the full JSON so caller can check j.success or j.error
-      return j;
-    }catch(pe){
-      // Response wasn't JSON — if HTTP OK, treat as success
-      return r.ok ? {success:true} : {error:'HTTP '+r.status};
-    }
-  }catch(e){
-    // POST failed — try GET with payload in URL (for small payloads)
-    try{
-      var enc = encodeURIComponent(body);
-      if(enc.length < 6000){
-        var r2 = await fetch(url+'?payload='+enc+'&t='+Date.now());
-        var t2 = await r2.text();
-        try{ return JSON.parse(t2); }
-        catch(pe2){ return r2.ok ? {success:true} : {error:'HTTP '+r2.status}; }
+      var r = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain'},
+        body: body
+      });
+      var t = await r.text();
+      try{
+        return JSON.parse(t); // full JSON so caller can check j.success / j.error
+      }catch(pe){
+        if(r.ok) return {success:true}; // HTTP OK but non-JSON body — treat as success
+        lastErr='HTTP '+r.status;       // a transient HTTP error — retry
       }
-    }catch(e2){}
-    return {error: e.message || 'network error'};
+    }catch(e){
+      lastErr=e.message || 'network error'; // network drop / timeout — retry
+    }
+    if(attempt<2){ await new Promise(function(res){ setTimeout(res, 400*(attempt+1)); }); }
   }
+
+  // Method 2 (last resort): GET with payload in the URL, for small payloads.
+  try{
+    var enc = encodeURIComponent(body);
+    if(enc.length < 6000){
+      var r2 = await fetch(url+'?payload='+enc+'&t='+Date.now());
+      var t2 = await r2.text();
+      try{ return JSON.parse(t2); }
+      catch(pe2){ return r2.ok ? {success:true} : {error:'HTTP '+r2.status}; }
+    }
+  }catch(e2){ lastErr=e2.message || lastErr; }
+  return {error: lastErr || 'network error'};
 }
 
 // ── Sync status dot in top bar ──
@@ -9768,6 +9918,9 @@ function initPullToRefresh(){
 
   contentEl.addEventListener('touchend', function(){
     if(_ptrPulling && _ptrTriggered){
+      // Pull-to-sync doubles as a "reset to a fresh app" gesture — sweep
+      // away any lingering dialogs/popups/overlays before refreshing.
+      clearTransientUI();
       manualTopBarRefresh();
     }
     _ptrPulling=false;
@@ -12745,6 +12898,77 @@ function wireDashCapsuleSwipe(container, onEmpty){
   });
 }
 
+// ── Global swipe-to-dismiss for list items outside the dashboard capsule
+// feed: activity-log entries (.act-log-entry) and Tasks-page cards
+// (.task-card). Wired ONCE on document and delegated, so it keeps working
+// after any innerHTML re-render without re-wiring. A horizontal swipe past
+// the threshold dismisses the item; a vertical drag is left as a normal
+// scroll; a plain tap still fires the item's own action. Touch-only. ──
+var _gsdDx=0;
+function initGlobalSwipeDismiss(){
+  if(document._globalSwipeWired) return;
+  document._globalSwipeWired=true;
+  var startX=0, startY=0, card=null, decided=false, isSwipe=false;
+  document.addEventListener('touchstart', function(e){
+    if(e.touches.length!==1){ card=null; return; }
+    var el=e.target.closest('.act-log-entry, .task-card');
+    if(!el){ card=null; return; }
+    // The ✕ delete button must stay a plain tap, never the start of a swipe.
+    if(e.target.closest('[data-action="del-log"]')){ card=null; return; }
+    card=el; startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+    _gsdDx=0; decided=false; isSwipe=false;
+    card.style.transition='';
+  }, {passive:true});
+  document.addEventListener('touchmove', function(e){
+    if(!card) return;
+    var cx=e.touches[0].clientX-startX, cy=e.touches[0].clientY-startY;
+    if(!decided){
+      if(Math.abs(cx)<6 && Math.abs(cy)<6) return;
+      decided=true; isSwipe=Math.abs(cx)>Math.abs(cy);
+      if(!isSwipe){ card=null; return; } // vertical → let it scroll normally
+    }
+    _gsdDx=cx;
+    card.style.transform='translateX('+_gsdDx+'px)';
+    card.style.opacity=String(Math.max(0.2, 1-Math.abs(_gsdDx)/180));
+  }, {passive:true});
+  document.addEventListener('touchend', function(){
+    if(!card) return;
+    var el=card, moved=_gsdDx; card=null;
+    if(isSwipe && Math.abs(moved)>70){
+      if(el.classList.contains('task-card')){
+        // Non-destructive: hide from the list for this session only.
+        el.style.transition='transform .2s ease, opacity .2s ease';
+        el.style.transform='translateX('+(moved>0?'120%':'-120%')+')';
+        el.style.opacity='0';
+        setTimeout(function(){
+          window._dismissedTaskIds=window._dismissedTaskIds||{};
+          if(el.dataset.taskid) window._dismissedTaskIds[el.dataset.taskid]=1;
+          el.remove();
+          toast('Task hidden from list — still saved; returns on refresh');
+        }, 200);
+      } else {
+        // Activity-log entry: snap back and route through the SAME
+        // confirm-and-delete flow as the ✕ button — a swipe must never
+        // silently destroy a client-interaction record.
+        el.style.transition='transform .18s ease, opacity .18s ease';
+        el.style.transform=''; el.style.opacity='';
+        deleteActivityEntry(el.dataset.rowid||'', el.dataset.delmob||'', el.dataset.delts||'');
+      }
+    } else if(isSwipe){
+      el.style.transition='transform .15s ease, opacity .15s ease';
+      el.style.transform=''; el.style.opacity='';
+    }
+    isSwipe=false;
+  });
+  // Swallow the click that immediately follows a real swipe, so the card's
+  // own onclick (e.g. openTaskDetail) doesn't also fire. Reset only after,
+  // so the very next unrelated tap (which resets _gsdDx on touchstart) is
+  // unaffected.
+  document.addEventListener('click', function(e){
+    if(Math.abs(_gsdDx)>10){ e.stopPropagation(); e.preventDefault(); _gsdDx=0; }
+  }, true);
+}
+
 function renderTodaysActivity(){
   var el=document.getElementById('dash-todays-activity');
   if(!el) return;
@@ -13514,7 +13738,27 @@ if(!document.getElementById('global-refresh-spin-style')){
   _grStyle.textContent='@keyframes globalRefreshSpin{to{transform:rotate(360deg)}}';
   document.head.appendChild(_grStyle);
 }
+// ── Top-left expandable menu (hamburger) ──
+function openTopMenu(){
+  var p=document.getElementById('topmenu-panel'), b=document.getElementById('topmenu-backdrop'), t=document.getElementById('topmenu-btn');
+  if(b) b.classList.add('open');
+  if(p) p.classList.add('open');
+  if(t) t.setAttribute('aria-expanded','true');
+}
+function closeTopMenu(){
+  var p=document.getElementById('topmenu-panel'), b=document.getElementById('topmenu-backdrop'), t=document.getElementById('topmenu-btn');
+  if(b) b.classList.remove('open');
+  if(p) p.classList.remove('open');
+  if(t) t.setAttribute('aria-expanded','false');
+}
+function toggleTopMenu(e){
+  if(e){ e.stopPropagation(); }
+  var p=document.getElementById('topmenu-panel');
+  if(p && p.classList.contains('open')) closeTopMenu(); else openTopMenu();
+}
+
 async function manualTopBarRefresh(){
+  window._dismissedTaskIds={}; // a real sync = fresh app; un-hide any swipe-dismissed tasks
   var btn=document.getElementById('global-refresh-btn');
   var icon=document.getElementById('global-refresh-icon');
   if(btn) btn.disabled=true;
@@ -13553,6 +13797,7 @@ function startAppAfterAuth(){
   load();loadActivityLog();loadTasks();bootSequenceV17();
   applyFontSizeMode(cfg_.fontSizeMode||'small');
   initPullToRefresh();
+  initGlobalSwipeDismiss();
   var topBar=document.getElementById('global-topbar'); if(topBar) topBar.style.display='flex';
   var dashWelcome=document.getElementById('dash-welcome');
   if(dashWelcome){
@@ -13566,7 +13811,7 @@ function startAppAfterAuth(){
   // permanently visible in the top bar on every screen, so repeating it
   // here was pure duplication.
   var setVerEl=document.getElementById('settings-app-version');
-  if(setVerEl) setVerEl.textContent='Deep Pocket CRM v'+APP_VERSION;
+  if(setVerEl) setVerEl.textContent='Deep Pocket CRM V '+APP_VERSION;
   var topVerEl=document.getElementById('topbar-version-tag');
   if(topVerEl) topVerEl.textContent='V '+APP_VERSION;
   loadTopbarFirmName();
