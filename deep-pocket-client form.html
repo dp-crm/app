@@ -116,20 +116,31 @@ textarea{resize:vertical}
 <script>
 // Deep Pocket's own submission-notification backend. Same one used by the
 // artifact version — receives the generated setup prompts and emails them.
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw8Q595jvOsT50zsW_NSWQUUkU7LFepUHZ0Kph6lAHcdZr0Wu1Y2E1AgwsZctk81cJ9_A/exec';
+var SCRIPT_URL = 'PASTE_DEEP_POCKET_SCRIPT_URL_HERE';
 
+// Reference values are the strings/colours actually present in the current
+// Deep Pocket CRM files (crm.html + Code.gs). These are the literal find
+// targets a rebranding pass replaces. Kept in sync with the Customization
+// Audit. NOTE: "Deep Pocket" appears in TWO roles — as the deployed FIRM
+// branding (replace) and as the PRODUCT-OWNER feedback/diagnostic channel
+// (keep). prompt1 spells out which is which.
 var REF = {
-  firmFull: 'Wealth Matrix Finserv LLP', firmBare: 'Wealth Matrix Finserv', firmShort: 'Wealth Matrix',
-  productName: 'Wealth Matrix CRM', ownerName: 'Arjun K T M', ownerShort: 'Arjun',
-  address: '8th Floor, Alappat Heritage, MG Road, Ernakulam', phone: '9745014475', email: 'arjun.wealthmatrix@gmail.com',
-  logoInitials: 'WM', iosTitle: 'Wealth Matrix', sheetId: '1oPQMj6KB39M20RnEoix9PCvSA8RFhVhOV4BG2M4TXlQ',
-  backupFolder: 'Wealth Matrix CRM Backups', docsFolder: 'Wealth Matrix Client Documents',
+  firmFull: 'Deep Pocket Fintech Pvt. Ltd.', firmBare: 'Deep Pocket Fintech', firmShort: 'Deep Pocket',
+  productName: 'Deep Pocket CRM', ownerName: 'Arjun K T M', ownerShort: 'Arjun', ownerTitle: 'Partner',
+  address: '8th Floor, Alappat Heritage, MG Road, Ernakulam',
+  addressLine1: '8th Floor, Alappat Heritage', addressLine2: 'MG Road, Ernakulam', city: 'Ernakulam',
+  phone: '9745014475', website: 'www.wealthmatrix.in',
+  logoInitials: 'DP', iosTitle: 'Deep Pocket', sheetId: '1SxawbtS7s5EiDqGdDlOT5JqJPsuFVzUwX3Bp1qLvdI4',
+  backupFolder: 'Deep Pocket CRM Backups', docsFolder: 'Deep Pocket Client Documents',
   stages: 'KYC PENDING, DOCUMENT PENDING, PROFILE CREATION PENDING, MANDATE PENDING, INVESTMENT PENDING, GRATITUDE CALL PENDING',
   playStoreUrl: 'https://play.google.com/store/apps/details?id=com.wealthmetrics.app&pcampaignid=web_share',
   appStoreUrl: 'https://apps.apple.com/in/app/wealth-matrix/id6748309181', playStoreId: 'com.wealthmetrics.app'
 };
-var DEFAULT_THEME = { bg:'#0A1830', s1:'#0F2140', s2:'#132848', border:'#2E5C8A', accent:'#FFFFFF', text:'#FFFFFF', t2:'#8FB4DC', t3:'#5D7A9E', green:'#4C9A6A', orange:'#C08A3E', red:'#C1553D' };
-var THEME_LABELS = { bg:'Main background', s1:'Cards and boxes', s2:'Alternating rows in lists', border:'Thin dividing lines', accent:'Main buttons and highlights', text:'Main text colour', t2:'Secondary text', t3:'Faint captions', green:'Success messages', orange:'Warnings', red:'Errors and urgent items' };
+// Current Deep Pocket CRM :root palette (warm dark brown + cream + coral).
+// Matches crm.html exactly, including tokens the old form omitted (s3, coral,
+// blue, purple) so every colour that actually exists gets a picker.
+var DEFAULT_THEME = { bg:'#1B1512', s1:'#2A211D', s2:'#332924', s3:'#3C312B', border:'#3A2F2A', accent:'#F2E8DE', coral:'#E8734A', text:'#F2E8DE', t2:'#A99A8F', t3:'#786A60', green:'#4C9A6A', blue:'#4A8FC7', orange:'#C08A3E', red:'#C1553D', purple:'#8A7CA8' };
+var THEME_LABELS = { bg:'Main background', s1:'Cards and panels', s2:'Alternating list rows', s3:'Raised / nested surfaces', border:'Thin dividing lines', accent:'Primary highlight & buttons (cream)', coral:'Selective accent — icons, CTAs, priority tags', text:'Main text colour', t2:'Secondary text', t3:'Faint captions', green:'Success', blue:'Info', orange:'Warnings', red:'Errors & urgent items', purple:'Category accent' };
 var DEFAULT_FEATURES = [
   { key:'pipeline', label:'Lead-to-Client Pipeline', desc:'Status tracking, conversion, sequential Record IDs' },
   { key:'family', label:'Family Relationship Tracking', desc:'Family-name linking across household members' },
@@ -157,7 +168,7 @@ var STORAGE_KEY = 'dp_crm_intake_draft';
 var openSectionNum = 1; // only one section is ever expanded at a time
 var form = {
   identity: { firmName:'', productName:'', ownerName:'', ownerTitle:'', address:'', phone:'', email:'', insightsEmail:'', welcomePhone:'' },
-  brand: { theme: Object.assign({}, DEFAULT_THEME), logoMode:'initials', logoInitials:'', logoUrl:'', typographyMode:'default', displayFont:'', bodyFont:'', iconMode:'auto', iconBase64:'', iconName:'' },
+  brand: { theme: Object.assign({}, DEFAULT_THEME), logoMode:'initials', logoInitials:'', logoUrl:'', typographyMode:'default', displayFont:'', bodyFont:'', iconMode:'auto', iconBase64:'', iconBase512:'', iconName:'' },
   business: { modelType:'MFD', sebiReg:'', arn:'', gstNumber:'', stages:'', products:'' },
   features: DEFAULT_FEATURES.map(function(f){ return { key:f.key, label:f.label, desc:f.desc, mode:'keep', notes:'' }; }),
   comms: { tone:'warm', hasOwnApp:true, playStoreLink:'', appStoreLink:'', websiteLink:'', customWelcome:'' },
@@ -181,46 +192,54 @@ function prompt1(){
   var firm = or(id.firmName, '[FIRM NAME NOT PROVIDED]');
   var prod = or(id.productName, firm + ' CRM');
   var owner = or(id.ownerName, '[OWNER NAME NOT PROVIDED]');
+  var title = or(id.ownerTitle, REF.ownerTitle);
   var s = 'STEP 1 of 5 — IDENTITY REPLACEMENT\n\n'
-    + 'I have an existing, working CRM platform (Deep Pocket CRM, built by Deep Pocket Fintech Pvt Ltd.). The reference files I\'m providing are its first real-world deployment, currently white-labeled for "Wealth Matrix Finserv LLP" — that name, its logo, and its colours are simply the first client\'s own branding, not the underlying product identity. This is a rebranding pass to white-label the same platform for a NEW firm — NOT a rebuild. Apply only the literal replacements below to the files I provide (crm.html, Code.gs, upload.html, gatherinfo.html, review.html, findoc.html, feedback.html, privacy-policy.html, manifest.json). Every feature, function and fix must remain exactly as it is.\n\n'
+    + 'I have an existing, working CRM platform — Deep Pocket CRM, built by Deep Pocket Fintech Pvt. Ltd. The reference files I\'m providing (crm.html + Code.gs, and the client-facing pages: upload.html, gatherinfo.html, review.html, findoc.html, feedback.html, privacy-policy.html) currently carry Deep Pocket\'s OWN house branding — its name, colours and logo. This is a rebranding pass to white-label the same platform for a NEW firm — NOT a rebuild. Apply only the literal replacements below. Every feature, function and fix must remain exactly as it is.\n\n'
     + 'Do not assume each string appears only once — most appear many times across multiple files, including inside WhatsApp message templates, email bodies, page titles and AI system prompts.\n\n'
+    + '\u26A0 CRITICAL — "Deep Pocket" plays TWO roles in these files. KEEP the product-owner ones, REPLACE only the deployed-firm ones:\n'
+    + 'KEEP EXACTLY AS-IS (Deep Pocket is the product vendor here, the same for every deployment — never rebrand these):\n'
+    + '  - The Settings panel "Feedback to Deep Pocket" and its helper text ("This goes to Deep Pocket Fintech, the team that builds this app \u2014 not to your own firm\'s data.").\n'
+    + '  - The PRODUCT_FEEDBACK_URL / DEEPPOCKET_FEEDBACK_URL constant in crm.html, and CENTRAL_FEEDBACK_PROXY_URL in Code.gs.\n'
+    + '  - The diagnostic fallback email "deeppocket1610@gmail.com" in Code.gs.\n'
+    + 'REPLACE everywhere else (this is the deployed firm\'s branding).\n\n'
     + 'FIND \u2192 REPLACE\n'
     + '"' + REF.firmFull + '" \u2192 "' + firm + '"\n'
-    + '"' + REF.firmBare + '" (the bare form, without "LLP" — appears independently ~20 times, including inside the AI chatbot\'s own system prompt) \u2192 "' + firm + '"\n'
-    + '"' + REF.productName + '" (the PRODUCT name, deliberately separate from the firm name) \u2192 "' + prod + '"\n'
+    + '"' + REF.firmBare + '" (bare form, e.g. the welcome message "Welcome to Deep Pocket Fintech" and the prospect template \u2014 but NOT the feedback-panel helper text above) \u2192 "' + firm + '"\n'
+    + '"' + REF.firmShort + '" (bare "Deep Pocket", e.g. the signature "Partner, Deep Pocket" \u2014 but NOT the "Feedback to Deep Pocket" panel) \u2192 "' + or(id.firmName, firm) + '"\n'
+    + '"' + REF.productName + '" (the PRODUCT name \u2014 top bar, sidebar, login & lock screens, <title>, menu label, Settings version footer, meeting-title prefix) \u2192 "' + prod + '"\n'
     + '"' + REF.ownerName + '" \u2192 "' + owner + '"\n'
-    + '"' + REF.ownerShort + '" (bare first name, used in some message signatures) \u2192 "' + owner + '"\n'
-    + '"' + REF.address + '" \u2192 "' + or(id.address, '[OFFICE ADDRESS NOT PROVIDED]') + '"\n'
-    + '"' + REF.phone + '" \u2192 "' + or(id.phone, '[PHONE NOT PROVIDED]') + '"\n'
-    + '"' + REF.email + '" \u2192 "' + or(id.email, '[EMAIL NOT PROVIDED]') + '"\n'
-    + (id.ownerTitle.trim() ? 'Signature/title lines referring to the owner\'s role \u2192 "' + id.ownerTitle.trim() + ', ' + firm + '"\n' : '')
-    + '\nTECHNICAL IDENTITY (not cosmetic — these have real consequences)\n'
-    + '- Code.gs: MailApp.sendEmail(\'' + REF.email + '\', ...) is the WEEKLY AI INSIGHTS recipient. Replace with "' + or(id.insightsEmail, id.email || '[NOT PROVIDED]') + '". If this is missed, the new firm\'s weekly business insights get emailed to the ORIGINAL firm\'s owner. Treat this as the highest-priority replacement in this whole step.\n'
-    + '- crm.html: the new-client welcome WhatsApp template contains "Ph: ' + REF.phone + '" \u2192 "' + or(id.welcomePhone, id.phone || '[NOT PROVIDED]') + '"\n'
-    + '- Code.gs: BACKUP_FOLDER_NAME=\'' + REF.backupFolder + '\' \u2192 \'' + firm + ' Backups\'\n'
-    + '- Code.gs: parent Drive folder \'' + REF.docsFolder + '\' \u2192 \'' + firm + ' Client Documents\'\n'
-    + '- crm.html: the "Send App Install Link" WhatsApp template contains the ORIGINAL firm\'s own investment-app store links. These are NOT this CRM. If left unchanged, the new firm would be sending their own clients a link to a competitor\'s product. Replace both:\n'
-    + '  "' + REF.playStoreUrl + '" \u2192 ' + (cm.hasOwnApp && cm.playStoreLink.trim() ? '"' + cm.playStoreLink.trim() + '"' : '[SEE NOTE BELOW]') + '\n'
-    + '  "' + REF.appStoreUrl + '" \u2192 ' + (cm.hasOwnApp && cm.appStoreLink.trim() ? '"' + cm.appStoreLink.trim() + '"' : '[SEE NOTE BELOW]') + '\n'
+    + '"' + REF.ownerShort + '" (bare first name in message signatures) \u2192 "' + owner + '"\n'
+    + '"' + title + ', ' + REF.firmShort + '" style signature line \u2192 "' + title + ', ' + or(id.firmName, firm) + '"\n'
+    + '"' + REF.addressLine1 + '" \u2192 "' + or(id.address, '[OFFICE ADDRESS NOT PROVIDED]') + '" (address line 1 of the welcome-message signature)\n'
+    + '"' + REF.addressLine2 + '" \u2192 the matching line of the new address (this exact string also appears elsewhere as a one-line address)\n'
+    + 'The bare city "' + REF.city + '" in the prospect template ("Office at ' + REF.city + '.") \u2192 the new firm\'s city.\n'
+    + '"' + REF.phone + '" \u2192 "' + or(id.phone, '[PHONE NOT PROVIDED]') + '" (includes the welcome message\'s "Ph: ' + REF.phone + '")\n'
+    + '"' + REF.website + '" (a LEGACY leftover URL still sitting inside the welcome message: "visit ' + REF.website + '") \u2192 ' + (cm.websiteLink.trim() ? '"' + cm.websiteLink.trim() + '"' : '[FIRM WEBSITE NOT PROVIDED \u2014 if the firm has no site, remove that sentence rather than leaving the old URL]') + '\n'
+    + '\nTECHNICAL IDENTITY (not cosmetic \u2014 these have real consequences)\n'
+    + '- Weekly/daily AI Insights recipient: this is NO LONGER hardcoded. It is set in-app (Settings \u2192 "AI Insights Mail ID", stored as the Setting dailyInsightsRecipient). There is no advisor email literal to replace in the files \u2014 just note it must be set to the new firm\'s chosen recipient after handover (Step 5).\n'
+    + '- crm.html: the "Send App Install Link" WhatsApp template uses the constants APP_LINK_ANDROID / APP_LINK_IOS, which still hold Deep Pocket\'s OWN legacy investment-app store links. These are NOT this CRM. If left unchanged, the new firm would be sending their clients a link to someone else\'s product. Replace both:\n'
+    + '  APP_LINK_ANDROID = "' + REF.playStoreUrl + '" \u2192 ' + (cm.hasOwnApp && cm.playStoreLink.trim() ? '"' + cm.playStoreLink.trim() + '"' : '[SEE NOTE BELOW]') + '\n'
+    + '  APP_LINK_IOS = "' + REF.appStoreUrl + '" \u2192 ' + (cm.hasOwnApp && cm.appStoreLink.trim() ? '"' + cm.appStoreLink.trim() + '"' : '[SEE NOTE BELOW]') + '\n'
     + (!cm.hasOwnApp
-        ? '  NOTE: this firm has NO investment app of their own. Do not substitute anything — instead remove that entire WhatsApp template, and flag that the related "App Installed" field and status badge should also be removed in Step 3.\n'
+        ? '  NOTE: this firm has NO investment app of their own. Do not substitute anything \u2014 instead remove that entire WhatsApp template, and flag that the related "App Installed" field and status badge should also be removed in Step 3.\n'
         : (!cm.playStoreLink.trim() || !cm.appStoreLink.trim())
           ? '  NOTE: this firm HAS an app but one or both links were not provided. Replace any missing one with the placeholder text FIRM_APP_LINK_NEEDED and state plainly which is missing.\n'
           : '')
-    + '- crm.html: <meta name="apple-mobile-web-app-title" content="' + REF.iosTitle + '"> \u2192 a SHORT form of "' + prod + '" (iOS truncates past ~12 characters)\n'
-    + '- manifest.json: "name" \u2192 "' + prod + '", "short_name" \u2192 the same short form as above\n'
+    + '- Code.gs: the Drive backup folder name "' + REF.backupFolder + '" \u2192 "' + firm + ' Backups", and the parent client-documents folder "' + REF.docsFolder + '" \u2192 "' + firm + ' Client Documents".\n'
+    + '- crm.html <head>: <meta name="apple-mobile-web-app-title" content="' + REF.iosTitle + '"> \u2192 a SHORT form of "' + prod + '" (iOS truncates past ~12 characters).\n'
+    + '- crm.html <head>: the logo/PWA setup is INLINE (there is no separate manifest.json). In the small <script> that builds the manifest, update the manifest object: name:"' + REF.productName + '" \u2192 "' + prod + '" and short_name:"' + REF.firmShort + '" \u2192 the same short form as above. (The colours + icon data URIs in that same object are handled in Step 2 \u2014 leave them for now.)\n'
     + '- Code.gs: const SHEET_ID=\'' + REF.sheetId + '\' \u2192 ' + (tc.sheetId.trim() ? '\'' + tc.sheetId.trim() + '\'' : 'leave as a clearly-marked placeholder and state plainly it must be set before the app will work') + '\n\n'
-    + 'VERIFICATION — do this before reporting back, and treat it as part of the task\n'
-    + 'Search every file again for each of these: "Wealth Matrix", "Arjun", "' + REF.phone + '", "arjun.wealthmatrix", "Alappat Heritage", "' + REF.sheetId + '", "' + REF.playStoreId + '", "apps.apple.com/in/app/wealth-matrix".\n'
-    + 'Report the exact count of remaining matches for each. The expected result is zero for all of them. If any remain, fix them and re-run the search before replying.\n\n'
-    + 'Separately, confirm the PRODUCT_FEEDBACK_URL constant in crm.html is still present and unchanged — this one should NOT be zero or replaced.\n\n'
+    + 'VERIFICATION \u2014 do this before reporting back, and treat it as part of the task\n'
+    + 'Search every file again for each of these LEGACY strings, all of which should reach zero after this step: "Arjun", "' + REF.phone + '", "Alappat", "wealthmatrix", "wealth-matrix", "' + REF.playStoreId + '", "' + REF.sheetId + '".\n'
+    + 'Report the exact count of remaining matches for each. If any remain, fix them and re-run the search before replying.\n\n'
+    + 'Then search for "Deep Pocket". This one will NOT be zero \u2014 that is expected. Confirm the ONLY remaining occurrences are the three product-owner items listed in the KEEP block above (feedback panel + its helper text, the feedback URL/sheet constants, and the diagnostic email). If "Deep Pocket" survives anywhere else, that is a missed firm-branding replacement \u2014 fix it.\n\n'
     + 'Then confirm back: every file you changed, and what was replaced in each.\n\n'
     + 'DO NOT proceed to any other changes yet. Wait for the next prompt.';
   return s;
 }
 
 function prompt2(){
-  var br = form.brand;
+  var br = form.brand, id = form.identity;
   var changed = Object.keys(DEFAULT_THEME).filter(function(k){ return br.theme[k] !== DEFAULT_THEME[k]; });
   var s = 'STEP 2 of 5 — VISUAL IDENTITY\n\nApply only what is listed here. Do not change layout, spacing or component structure.\n\nCOLOURS';
   if(!changed.length){
@@ -230,17 +249,43 @@ function prompt2(){
     changed.forEach(function(k){ s += '\n  --' + k + ': ' + DEFAULT_THEME[k] + '  \u2192  --' + k + ': ' + br.theme[k] + '   (' + THEME_LABELS[k] + ')'; });
     s += '\n(Leave every other colour variable untouched.)';
     if(br.theme.bg !== DEFAULT_THEME.bg){
-      s += '\n\nTwo places hold the background colour OUTSIDE the CSS variable system:\n- crm.html: <meta name="theme-color" content="' + DEFAULT_THEME.bg + '"> \u2192 content="' + br.theme.bg + '"\n- manifest.json: "theme_color" and "background_color" \u2192 "' + br.theme.bg + '"';
+      s += '\n\nThe background/theme colour also lives OUTSIDE the :root variables, in crm.html\'s <head>:\n'
+        + '- <meta name="theme-color" content="' + DEFAULT_THEME.bg + '"> \u2192 content="' + br.theme.bg + '"\n'
+        + '- the INLINE manifest object built in the <head> <script> (there is no separate manifest.json): background_color:"' + DEFAULT_THEME.bg + '" and theme_color:"' + DEFAULT_THEME.bg + '" \u2192 "' + br.theme.bg + '"\n'
+        + '- any client-facing page that has its own <meta name="theme-color"> — update it to match.';
     }
   }
-  s += '\n\nLOGO\n';
-  if(br.logoMode === 'image' && br.logoUrl.trim()){
-    s += 'Replace the "' + REF.logoInitials + '" text-initials logo (top bar, desktop sidebar, login screen, lock screen) with a real image:\n<img src="' + br.logoUrl.trim() + '" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" alt="logo">\nKeep each container\'s existing size and shape.';
-  } else if(br.logoMode === 'initials' && br.logoInitials.trim()){
-    s += 'Replace the logo initials "' + REF.logoInitials + '" with "' + br.logoInitials.trim().toUpperCase() + '" — keep it as text with identical styling.';
+
+  // ── LOGO — the current CRM embeds its logo as TWO inline data URIs in
+  // crm.html's <head>: window.DP_LOGO (192px) and window.DP_LOGO_HD (512px).
+  // Those two values feed the favicon, the apple-touch-icon, the inline PWA
+  // manifest icons AND all four in-app logo tiles. Replacing the two values
+  // rebrands every icon at once — there is NO external icon file. ──
+  s += '\n\nLOGO\n'
+    + 'The logo is embedded inline in crm.html\'s <head> as two data URIs:\n'
+    + '  window.DP_LOGO    = "data:image/png;base64,\u2026"   (192\u00d7192 \u2014 favicon, apple-touch-icon, in-app tiles)\n'
+    + '  window.DP_LOGO_HD = "data:image/png;base64,\u2026"   (512\u00d7512 \u2014 PWA install / splash)\n'
+    + 'These two values feed the browser favicon, the iOS home-screen icon, the inline PWA manifest icons, AND the four in-app logo tiles (lock screen, login screen, top bar, desktop sidebar). There is NO separate icon-192.png or manifest.json file to supply — replacing these two values rebrands every icon in one place.\n\n';
+
+  var haveUpload = (br.iconMode === 'upload' && br.iconBase64);
+  var haveUrl = (br.logoMode === 'image' && br.logoUrl.trim());
+  var inits = (br.logoInitials.trim()
+      || (id.firmName.trim() ? id.firmName.trim().split(/\s+/).map(function(w){return w.charAt(0);}).join('').slice(0,2) : '')
+      || REF.logoInitials).toUpperCase();
+
+  if(haveUpload){
+    s += 'This firm uploaded a logo. Replace BOTH data URIs in the <head> with the ready-made square PNGs below (already sized correctly — paste them verbatim):\n\n'
+      + 'window.DP_LOGO="data:image/png;base64,' + br.iconBase64 + '";\n\n'
+      + (br.iconBase512
+          ? 'window.DP_LOGO_HD="data:image/png;base64,' + br.iconBase512 + '";\n'
+          : '(No 512px version was generated — regenerate DP_LOGO_HD as a 512\u00d7512 version of the same logo.)\n')
+      + '\nLeave the favicon, apple-touch-icon, manifest-icon and in-app <img> tiles as they are — they already reference these two variables, so they update automatically.';
+  } else if(haveUrl){
+    s += 'This firm\'s logo is at: ' + br.logoUrl.trim() + '\nGenerate two square PNG data URIs from it — 192\u00d7192 and 512\u00d7512, the logo centred on a solid background (letterboxed, not stretched) — and set window.DP_LOGO and window.DP_LOGO_HD to them. Everything else references these two variables, so it updates automatically.';
   } else {
-    s += '(No logo change requested — leave "' + REF.logoInitials + '" as is.)';
+    s += 'No logo image was provided. Regenerate window.DP_LOGO (192\u00d7192) and window.DP_LOGO_HD (512\u00d7512) as a simple square mark showing the initials "' + inits + '" in the firm\'s accent colour on a contrasting background, and set both data URIs. (Deep Pocket can replace these with the firm\'s real logo later — a drop-in swap of the same two values.)';
   }
+
   s += '\n\nTYPOGRAPHY\n';
   if(br.typographyMode === 'custom' && (br.displayFont.trim() || br.bodyFont.trim())){
     s += 'Replace the Google Fonts <link> in crm.html\'s <head> (currently Fraunces + Inter) and update --font-display / --font-body:\n'
@@ -250,7 +295,7 @@ function prompt2(){
   } else {
     s += '(No typography change — keep the existing Fraunces + Inter pairing.)';
   }
-  s += '\n\nAlso note: crm.html and manifest.json reference icon-192.png, a real image file that cannot be generated from a text prompt. State explicitly that this firm must supply their own 192\u00d7192 PNG logo at that path.\n\nConfirm what you changed, then STOP. Wait for the next prompt.';
+  s += '\n\nConfirm what you changed, then STOP. Wait for the next prompt.';
   return s;
 }
 
@@ -314,24 +359,42 @@ function prompt4(){
 
 function prompt5(){
   var tc = form.technical, bz = form.business;
-  var s = 'STEP 5 of 5 — TECHNICAL SETTINGS & HANDOVER\n\nOPERATIONAL DEFAULTS';
+  var s = 'STEP 5 of 5 — TECHNICAL SETTINGS & HANDOVER\n\n'
+    + 'GEMINI API KEY \u2014 do this first, before anything else in this step\n'
+    + 'This deployment uses a Gemini key I (Deep Pocket) provide, not one the firm sets up themselves. STOP now and ask me for it directly in this chat. Once I reply with the key, open Code.gs and find:\n'
+    + '  var apiKey = PropertiesService.getScriptProperties().getProperty(\'GEMINI_API_KEY\');\n'
+    + 'Change it to fall back to the key I gave you, so the app works immediately on deployment with no Script Properties step needed for this:\n'
+    + '  var apiKey = PropertiesService.getScriptProperties().getProperty(\'GEMINI_API_KEY\') || \'<the key I gave you>\';\n'
+    + 'Do not proceed past this point until I\u2019ve actually given you the key.\n\n'
+    + 'OPERATIONAL DEFAULTS';
   var ops = [];
-  if(tc.calendarId.trim()) ops.push('- Google Calendar / Meet sync: this app syncs appointments to Google Calendar and auto-generates a Google Meet link for client meetings. Locate wherever the calendar ID is configured (likely a CALENDAR_ID constant in Code.gs, or a Script Property of the same name) and set it to \u2192 ' + tc.calendarId.trim() + '. Confirm the Calendar service/scope is enabled for this to work, and flag it to me if you can\u2019t find where this is wired up rather than guessing.');
-  else ops.push('- Google Calendar / Meet sync: no Calendar ID was provided. Leave the CALENDAR_ID placeholder as-is (or default to the deploying account\u2019s own calendar), and tell me plainly this must be set before Calendar/Meet sync will work for this firm.');
+  // Calendar sync is configured entirely in-app (Settings → connect a
+  // calendar), NOT a Script Property or a Code.gs constant — there is no
+  // CALENDAR_ID anywhere in the code to set at deploy time. Earlier
+  // versions of this prompt said otherwise; that was wrong.
+  if(tc.calendarId.trim()) ops.push('- Google Calendar / Meet sync: no code change needed for this \u2014 it\u2019s an in-app step, not a Script Property. After deployment, the firm should go to Settings \u2192 connect a calendar, and add ' + tc.calendarId.trim() + '.');
+  else ops.push('- Google Calendar / Meet sync: no Calendar ID was provided. This is set later, in-app (Settings \u2192 connect a calendar) \u2014 no code change needed here. Mention to me that the firm still needs to do this before Calendar/Meet sync will work.');
   if(tc.followUpDays.trim()) ops.push('- Lead follow-up window: find "cfg_.followUpDays=14" in crm.html \u2192 ' + tc.followUpDays.trim() + '. Also check Code.gs for the matching "daysSince>=14" threshold and keep the two consistent.');
   if(tc.sipReminderDays.trim()) ops.push('- SIP due reminders: in crm.html find "d1days===5||d1days===2" (appears twice) \u2192 use ' + tc.sipReminderDays.trim() + '.');
   if(tc.sipBounceDays.trim()) ops.push('- SIP bounce/verification check: in crm.html find "daysSince!==7" \u2192 ' + tc.sipBounceDays.trim() + '.');
   if(tc.goalLeads.trim()) ops.push('- Default monthly leads goal in Settings: value="30" \u2192 "' + tc.goalLeads.trim() + '".');
   if(tc.goalConversions.trim()) ops.push('- Default monthly conversions goal in Settings: value="5" \u2192 "' + tc.goalConversions.trim() + '".');
   s += ops.length ? '\n' + ops.join('\n') : '\n(No operational changes — keep all current defaults.)';
-  s += '\n\nDO NOT TOUCH\n- The SCRIPT_URL constant in each of the 5 client-facing pages — leave as a placeholder until deployed.\n- The PRODUCT_FEEDBACK_URL constant in crm.html — the same URL across every deployment, never replace it.\n- Anything not explicitly named across these five prompts.\n\n'
-    + 'FINAL HANDOVER — end the reply with a specific checklist covering at minimum:\n'
-    + '1. Create the new Google Sheet; add the Admin tab (Name, Username, User Type, User ID, Password, Timestamp) and seed one Admin row.\n'
-    + '2. Apps Script Script Properties: GEMINI_API_KEY' + (bz.arn.trim() ? ', OUR_ARN_CODE' : '') + (tc.calendarId.trim() ? ', CALENDAR_ID' : '') + '.\n'
-    + '3. Deploy Code.gs as a Web App (Execute as: Me, Access: Anyone) and copy the URL.\n'
-    + '4. Paste that URL into the SCRIPT_URL placeholder in all 5 client-facing pages, then re-upload them.\n'
-    + '5. Supply a 192\u00d7192 PNG logo as icon-192.png.\n'
-    + '6. Run Settings \u2192 System Checking \u2192 Full Health Check and confirm every check passes.\n\n'
+  s += '\n\nDO NOT TOUCH (product-owner constants — identical across every deployment)\n'
+    + '- The SCRIPT_URL constant in each client-facing page — leave as a placeholder until deployed.\n'
+    + '- The PRODUCT_FEEDBACK_URL / DEEPPOCKET_FEEDBACK_URL constant in crm.html, and CENTRAL_FEEDBACK_PROXY_URL in Code.gs — never replace these.\n'
+    + '- The "Feedback to Deep Pocket" Settings panel and its helper text, and the diagnostic email "deeppocket1610@gmail.com" in Code.gs \u2014 these are the vendor channel, not firm branding. The Full Health Check report is intentionally sent to Deep Pocket ONLY, never to the firm \u2014 leave this as-is.\n'
+    + '- Anything not explicitly named across these five prompts.\n\n'
+    + 'FINAL HANDOVER \u2014 end the reply with a specific checklist covering at minimum, clearly marked by who does each step:\n'
+    + '1. [FIRM] Open the Google Sheet they already made their own copy of \u2192 confirm it has an Admin tab (Name, Username, User Type, User ID, Password, Timestamp) with one seeded Admin row (username admin / password admin for first login) \u2014 add it if missing.\n'
+    + '2. [FIRM] Open that Sheet \u2192 Extensions \u2192 Apps Script \u2192 paste in this finished Code.gs (with the Gemini key already embedded per above).\n'
+    + '3. [FIRM] Apps Script Script Properties' + (bz.arn.trim() ? ': add OUR_ARN_CODE = ' + bz.arn.trim() + '.' : ': none needed \u2014 nothing left to set here.') + '\n'
+    + '4. [FIRM] Deploy \u2192 New deployment \u2192 Web app, while logged into THEIR OWN Google account \u2014 Execute as: Me, Access: Anyone. Copy the resulting /exec URL and send it back to Deep Pocket.\n'
+    + '5. [YOU] Paste that URL into the SCRIPT_URL placeholder in every client-facing page (upload.html, gatherinfo.html, review.html, findoc.html, feedback.html, privacy-policy.html), then host the finished files.\n'
+    + '6. [FIRM] crm.html itself does NOT have SCRIPT_URL hardcoded \u2014 the first time they open the hosted app, they paste that same /exec URL into the app\u2019s own login/connection screen. It\u2019s saved in their browser from then on.\n'
+    + '7. The app logo is already embedded inline (the two DP_LOGO / DP_LOGO_HD data URIs updated in Step 2) \u2014 there is NO icon file to add. If the firm sends a better logo later, it is a drop-in swap of those same two values.\n'
+    + '8. [FIRM] In the app: Settings \u2192 "AI Insights Mail ID" \u2192 set the firm\'s chosen recipient for the daily insights email (this is an in-app Setting, dailyInsightsRecipient \u2014 not code). Optionally set the firm name/logo under Settings \u2192 firm branding for the client-facing pages.\n'
+    + '9. [FIRM] Run Settings \u2192 System Checking \u2192 Full Health Check and confirm every check passes.\n\n'
     + 'Also state plainly which self-healing sheet tabs/columns are created automatically, and which genuinely need manual setup.';
   return s;
 }
@@ -375,7 +438,7 @@ function setPath(path, val){
     // Switching to auto discards any previously uploaded image, so a
     // half-finished upload can't be silently submitted when the firm has
     // since chosen to have one designed instead.
-    if(val === 'auto'){ form.brand.iconBase64 = ''; form.brand.iconName = ''; }
+    if(val === 'auto'){ form.brand.iconBase64 = ''; form.brand.iconBase512 = ''; form.brand.iconName = ''; }
     saveDraft();
     openSectionNum = 3;
     render();
@@ -423,7 +486,7 @@ function render(){
         : '<div id="iconArea">'
           + (br.iconBase64
               ? '<div class="icon-preview"><img src="data:image/png;base64,' + br.iconBase64 + '" alt="icon preview">'
-                + '<div class="icon-info"><div class="nm">' + esc(br.iconName || 'Uploaded image') + '</div><div class="sz">Ready \u2014 resized to 192\u00d7192</div></div>'
+                + '<div class="icon-info"><div class="nm">' + esc(br.iconName || 'Uploaded image') + '</div><div class="sz">Ready \u2014 prepared at 192 &amp; 512px</div></div>'
                 + '<div class="icon-x" onclick="clearIcon()">\u2715</div></div>'
               : '<div class="icon-drop" onclick="document.getElementById(\'iconInput\').click()">'
                 + '<div style="font-size:22px;margin-bottom:6px">\uD83D\uDCF1</div>'
@@ -525,10 +588,23 @@ function setFeatureNote(i, val){
   saveDraft();
 }
 
-// ── Icon upload. Resizes whatever the firm uploads to exactly 192x192 PNG
-// in the browser, so they never have to know the requirement existed. The
-// image is letterboxed onto a square canvas rather than stretched, so a
-// non-square logo keeps its proportions instead of being distorted. ──
+// ── Icon upload. Resizes whatever the firm uploads to BOTH 192x192 and
+// 512x512 PNGs in the browser — the current CRM embeds its logo as two inline
+// data URIs (DP_LOGO at 192, DP_LOGO_HD at 512) in crm.html's <head>, and
+// those two feed the favicon, the iOS/PWA icons AND every in-app logo tile.
+// Producing both here means Step 2 can hand over ready-to-paste values with
+// no separate image file to deploy. The image is letterboxed onto a square
+// canvas rather than stretched, so a non-square logo keeps its proportions. ──
+function resizeSquarePng(img, size){
+  var canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  var ctx = canvas.getContext('2d');
+  var scale = Math.min(size / img.width, size / img.height);
+  var w = img.width * scale, h = img.height * scale;
+  ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+  // "data:image/png;base64,XXXX" → keep only the raw base64.
+  return canvas.toDataURL('image/png').split(',')[1];
+}
 function handleIconUpload(input){
   var file = input.files && input.files[0];
   if(!file) return;
@@ -540,20 +616,8 @@ function handleIconUpload(input){
   reader.onload = function(e){
     var img = new Image();
     img.onload = function(){
-      var canvas = document.createElement('canvas');
-      canvas.width = 192; canvas.height = 192;
-      var ctx = canvas.getContext('2d');
-
-      // Fit the image inside the square, preserving aspect ratio, centred.
-      var scale = Math.min(192 / img.width, 192 / img.height);
-      var w = img.width * scale, h = img.height * scale;
-      var x = (192 - w) / 2, y = (192 - h) / 2;
-      ctx.drawImage(img, x, y, w, h);
-
-      // toDataURL returns "data:image/png;base64,XXXX" — strip the prefix so
-      // only the raw base64 is stored and sent.
-      var dataUrl = canvas.toDataURL('image/png');
-      form.brand.iconBase64 = dataUrl.split(',')[1];
+      form.brand.iconBase64  = resizeSquarePng(img, 192);   // DP_LOGO
+      form.brand.iconBase512 = resizeSquarePng(img, 512);   // DP_LOGO_HD
       form.brand.iconName = file.name;
       saveDraft();
       openSectionNum = 3;
@@ -568,6 +632,7 @@ function handleIconUpload(input){
 
 function clearIcon(){
   form.brand.iconBase64 = '';
+  form.brand.iconBase512 = '';
   form.brand.iconName = '';
   saveDraft();
   openSectionNum = 3;
@@ -598,6 +663,7 @@ async function handleSubmit(){
           firmName: form.identity.firmName.trim(),
           iconMode: form.brand.iconMode || 'auto',
           iconBase64: (form.brand.iconMode === 'upload' ? (form.brand.iconBase64 || '') : ''),
+          iconBase512: (form.brand.iconMode === 'upload' ? (form.brand.iconBase512 || '') : ''),
           prompts: [
             { title:'Step 1 — Identity Replacement', text: prompt1() },
             { title:'Step 2 — Visual Identity', text: prompt2() },
