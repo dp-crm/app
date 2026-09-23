@@ -139,14 +139,30 @@ textarea{resize:vertical;line-height:1.5}
 .btn-submit{flex:1;padding:15px;font-size:14.5px;font-weight:800;color:#FFFFFF;background:var(--blue);border:none;border-radius:10px;cursor:pointer}
 .btn-submit:disabled{opacity:.55;cursor:default}
 .btn-ghost{padding:14px 16px;font-size:12.5px;font-weight:700;color:var(--t2);background:#FFFFFF;border:1px solid var(--border);border-radius:10px;cursor:pointer}
+.msg.ok{background:rgba(47,122,79,.10);color:var(--green)}
 .msg{font-size:12.5px;margin:12px 0;padding:11px 12px;border-radius:8px;line-height:1.55}
 .msg.err{background:rgba(178,67,44,.08);color:var(--red);border:1px solid var(--red)}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 
-#thankyou{display:none;min-height:100vh;align-items:center;justify-content:center;padding:24px;text-align:center}
-#thankyou .check{width:56px;height:56px;background:var(--blue);color:#FFFFFF;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:26px}
-#thankyou h2{font-size:20px;font-weight:800;margin:0 0 10px;color:var(--text)}
-#thankyou p{font-size:13.5px;color:var(--t2);line-height:1.7;max-width:400px;margin:0 auto}
+/* After-submit screen */
+#stage2{display:none}
+.s2-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:12px;box-shadow:0 2px 10px rgba(46,92,138,.08)}
+.s2-card h2{font-size:16px;font-weight:800;margin:0 0 6px;color:var(--text)}
+.s2-card p{font-size:12.5px;color:var(--t2);line-height:1.65;margin:0 0 10px}
+.s2-steps{margin:0 0 14px;padding-left:20px;font-size:12.5px;color:var(--t2);line-height:1.7}
+.s2-steps li{margin-bottom:4px}
+.s2-steps b{color:var(--text)}
+.stagebar{display:flex;gap:8px;margin-bottom:14px}
+.stagebar div{flex:1;font-size:11px;font-weight:700;padding:8px 10px;border-radius:8px;background:var(--s2);color:var(--t3)}
+.stagebar div.on{background:var(--blue);color:#FFFFFF}
+.stagebar div.done{background:rgba(47,122,79,.10);color:var(--green)}
+.kv{font-size:12px;color:var(--t2);background:var(--s2);border-radius:8px;padding:9px 11px;margin-bottom:12px;word-break:break-all}
+.kv b{color:var(--text)}
+.checks{list-style:none;padding:0;margin:10px 0 0}
+.checks li{font-size:12.5px;padding:5px 0;color:var(--t2)}
+.checks li.ok{color:var(--green)} .checks li.warn{color:var(--orange)} .checks li.err{color:var(--red)}
+.filelist{list-style:none;padding:0;margin:8px 0 12px}
+.filelist li{font-size:12.5px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;color:var(--text);font-family:ui-monospace,Menlo,Consolas,monospace}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 </style>
 </head>
@@ -177,20 +193,14 @@ textarea{resize:vertical;line-height:1.5}
   </div>
 </div>
 
-<div id="thankyou">
-  <div>
-    <div class="check">✓</div>
-    <h2>Thank you — we have your answers</h2>
-    <p id="tyText">We're building your CRM now and will be in touch soon to get it installed.</p>
-  </div>
-</div>
+<div class="wrap" id="stage2" aria-live="polite"></div>
 
 <input type="file" id="iconInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none" onchange="handleLogoUpload(this)">
 
 <script>
 // Deep Pocket's admin Apps Script (Client_form_Code.gs) /exec URL.
 var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz7o_rOYIIdZo6aYIwPeclAjGunCBk1KZ0ZKdFQCzwI2VdqBJ7L-ruBW7n6IAbvT1ETGQ/exec';
-var FORM_VERSION = 3;
+var FORM_VERSION = 5;
 var STORAGE_KEY = 'dp_crm_intake_v3';
 var OLD_STORAGE_KEY = 'dp_crm_intake_draft';
 
@@ -247,7 +257,7 @@ var iconTimer = null;
 function blankForm(){
   return {
     v: FORM_VERSION,
-    meta: { ref:'', e:'', s:'' },
+    meta: { ref:'', e:'', s:'', stage:'start', sheetFromServer:'' },
     identity: { firmName:'', brandName:'', productName:'', shortName:'', ownerName:'', signOffName:'', ownerTitle:'', address:'', city:'', phone:'', email:'', insightsEmail:'', welcomePhone:'' },
     brand: { preset:'classic', brandHex:'#E8734A', theme:Object.assign({}, DEFAULT_THEME), showAdvanced:false,
              logoMode:'initials', logoInitials:'', logoUrl:'', logoBg:'theme', logoSrc:'', iconMode:'auto', iconBase64:'', icon512Base64:'', iconName:'',
@@ -642,7 +652,7 @@ function render(){
   var sid=sheetIdFrom(tc.sheetId);
   html+=section(8,'\u2699\uFE0F','App settings','Optional — sensible defaults are already set',
     '<div class="callout">Leave anything blank to keep the default shown.</div>'
-    +fieldHtml('Google Sheet link','technical.sheetId',{placeholder:'https://docs.google.com/spreadsheets/d/…', help: sid ? 'Sheet ID found: '+esc(sid) : 'Blank if we are creating the sheet for you.', auto:!!sid})
+    +fieldHtml('Google Sheet link','technical.sheetId',{placeholder:'https://docs.google.com/spreadsheets/d/…', help: form.meta.sheetFromServer && sid===form.meta.sheetFromServer ? '\u2713 Received from your email reply (ID '+esc(sid)+')' : (sid ? 'Sheet ID found: '+esc(sid) : 'The link of the CRM sheet you copied to your Google Drive.'), auto:!!sid})
     +fieldHtml('Google Calendar ID for client meetings','technical.calendarId',{placeholder:'you@gmail.com', help:'Google Calendar \u2192 Settings \u2192 your calendar \u2192 Integrate calendar \u2192 Calendar ID. You\u2019ll confirm it in the app after install.'})
     +'<div class="row2">'+fieldHtml('Days before a lead needs a follow-up','technical.followUpDays',{type:'number', inputmode:'numeric', placeholder:'14'})
     +fieldHtml('SIP reminders — days before','technical.sipReminderDays',{placeholder:'5, 2'})+'</div>'
@@ -717,21 +727,175 @@ async function handleSubmit(){
     clearTimeout(timer);
     var data=await res.json();
     if(!data || !data.success) throw new Error((data&&(data.error||data.message))||'The server did not confirm your answers.');
-    try{ localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(OLD_STORAGE_KEY); }catch(e){}
-    document.getElementById('tyText').textContent='We\u2019re building '+(derived().product||'your CRM')+' now and will contact you at '+trim(form.identity.email)+' when it\u2019s ready to install.'+(data.recordId?' Your reference: '+data.recordId+'.':'');
-    document.getElementById('formWrap').style.display='none';
-    document.getElementById('thankyou').style.display='flex';
-    window.scrollTo(0,0);
+    try{ localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(OLD_STORAGE_KEY); localStorage.removeItem('dp_crm_stage2'); }catch(e){}
+    showDone({ ref:data.recordId||'', firm:derived().legal, product:derived().product, email:trim(form.identity.email), sheetId:sheetIdFrom(form.technical.sheetId)||'' });
   }catch(e){
     btn.disabled=false; btn.textContent='Send my answers';
     showMsg('Your answers were not sent: '+esc(e.name==='AbortError'?'the connection timed out.':e.message)+' They are still saved on this device. Check your connection and press Send again, or <button type="button" class="link-btn" onclick="downloadAnswers()">download your answers</button> and email them to us.');
   }
 }
 
-loadDraft();
-readUrlParams();
-render();
-if(!form.brand.iconBase64 || form.brand.logoMode==='initials') scheduleIcons(0);
+// ════════════════════════════════════════════════════════════
+// AFTER SENDING — Deep Pocket builds the app from here. The next step for
+// the firm is deploying the Code.gs Deep Pocket sends them (by email).
+// ════════════════════════════════════════════════════════════
+function showDone(info){
+  document.getElementById('formWrap').style.display='none';
+  var el=document.getElementById('stage2'); el.style.display='block';
+  el.innerHTML='<div class="hdr"><div class="brandline">Deep Pocket Fintech Pvt. Ltd.</div><div class="mark">DP</div>'
+    +'<h1>Thank you \u2014 we have your answers</h1>'
+    +'<div class="sub">'+esc(info.product||info.firm||'Your CRM')+(info.ref?' \u00b7 Reference '+esc(info.ref):'')+'</div></div>'
+    +'<div class="stagebar"><div class="done">1. Your CRM sheet \u2713</div><div class="done">2. About your firm \u2713</div><div class="on">3. Go live</div></div>'
+    +'<div class="s2-card"><h2>What happens next</h2><ol class="s2-steps">'
+    +'<li>We prepare your backend file, <b>Code.gs</b>, and email it to you'+(info.email?' at <b>'+esc(info.email)+'</b>':'')+' with simple steps.</li>'
+    +'<li>You paste it into your CRM Google Sheet (<b>Extensions \u2192 Apps Script</b>), deploy it as a <b>Web app</b>, and send us the link that ends in <b>/exec</b>.</li>'
+    +'<li>We build and publish your branded app and send you its link.</li></ol>'
+    +(info.sheetId?'<div class="kv">Your Google Sheet: <b>'+esc(info.sheetId)+'</b></div>':'<div class="kv">No Google Sheet link was given \u2014 we will contact you about it.</div>')
+    +'<p class="help">Need to change an answer? Just reply to our email \u2014 no need to fill the form again.</p></div>'
+    +'<div class="actions"><button class="btn-ghost" type="button" onclick="newForm()">Fill in a form for another firm</button></div>';
+  window.scrollTo(0,0);
+}
+function newForm(){
+  document.getElementById('stage2').style.display='none';
+  form=blankForm(); saveDraft(); render(); scheduleIcons(0); showStart('enter'); return;
+  var btn=document.getElementById('submitBtn'); btn.disabled=false; btn.textContent='Send my answers';
+  document.getElementById('formWrap').style.display='block';
+  window.scrollTo(0,0);
+}
+
+
+// ════════════════════════════════════════════════════════════
+// STEP 1 — basic details only. The server emails the firm a one-click
+// "Make a copy" link of the blank master CRM sheet; the firm replies with
+// its sheet link, and then receives the link to this full form (pre-filled).
+// ════════════════════════════════════════════════════════════
+function apiGet(obj){
+  return fetch(SCRIPT_URL+'?payload='+encodeURIComponent(JSON.stringify(obj))+'&t='+Date.now()).then(function(r){ return r.json(); });
+}
+function startHeader(title, sub){
+  return '<div class="hdr"><div class="brandline">Deep Pocket Fintech Pvt. Ltd.</div><div class="mark">DP</div><h1>'+title+'</h1>'
+    +(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'
+    +'<div class="stagebar"><div class="on">1. Your CRM sheet</div><div>2. About your firm</div><div>3. Go live</div></div>';
+}
+function showStart(mode, info){
+  info=info||{};
+  document.getElementById('formWrap').style.display='none';
+  var el=document.getElementById('stage2'), id=form.identity, html;
+  el.style.display='block';
+  if(mode==='sent'){
+    html=startHeader('Check your email \u2709\uFE0F', esc(id.firmName||''))
+      +'<div class="s2-card"><h2>We\u2019ve sent your CRM data sheet</h2><ol class="s2-steps">'
+      +'<li>Open the email from Deep Pocket'+(id.email?' at <b>'+esc(id.email)+'</b>':'')+' (check Spam/Promotions if you don\u2019t see it).</li>'
+      +'<li>Sign in to the Google account where your firm will keep its data, press the button and choose <b>Make a copy</b>. It is saved in your Google Drive as <b>'+esc((id.firmName||'Your firm')+' CRM Data')+'</b>.</li>'
+      +'<li>Send us the link of your copied sheet \u2014 <b>reply to that email</b>, send it on WhatsApp, or paste it below.</li>'
+      +'<li>We\u2019ll then email you the link to the next step \u2014 a short form about your firm.</li></ol>'
+      +'<p class="help">Your data stays in your own Google Drive \u2014 Deep Pocket does not keep your client data.</p></div>'
+      +'<div class="s2-card"><h2>Already made your copy? Paste its link here</h2>'
+      +'<div class="field"><label for="st_sheet">Your CRM sheet link</label>'
+      +'<input id="st_sheet" type="url" inputmode="url" autocapitalize="none" spellcheck="false" placeholder="https://docs.google.com/spreadsheets/d/\u2026">'
+      +'<div class="help">Open the copy from your Google Drive and copy the address from the browser bar.</div></div>'
+      +'<div class="actions" style="margin-top:6px"><button class="btn-submit" type="button" id="sheetBtn" onclick="sendSheetLink()">Continue to step 2</button></div></div>'
+      +'<div id="msgStart"></div>'
+      +'<div class="actions"><button class="btn-ghost" type="button" id="resendBtn" onclick="startSubmit(true)">Send the email again</button>'
+      +'<button class="btn-ghost" type="button" onclick="showStart(\'enter\')">Change my details</button></div>';
+  } else {
+    html=startHeader('Let\u2019s set up your CRM','First, a few basic details. We\u2019ll email you your own CRM data sheet to save in your firm\u2019s Google Drive.')
+      +'<div class="s2-card">'
+      +startField('Firm\u2019s full legal name','firmName','Sunrise Wealth Advisors LLP','organization')
+      +startField('Main advisor\u2019s name','ownerName','Priya Sharma','name')
+      +startField('Email address (we send the sheet here)','email','you@yourfirm.com','email','email')
+      +startField('Phone number','phone','98765 43210','tel','tel')
+      +'<div class="field"><label for="st_sheet1">Already have a CRM sheet from us? Paste its link <span style="font-weight:400;color:var(--muted)">(optional)</span></label>'
+      +'<input id="st_sheet1" type="url" inputmode="url" autocapitalize="none" spellcheck="false" placeholder="https://docs.google.com/spreadsheets/d/\u2026" value="'+esc(form.technical.sheetId||'')+'">'
+      +'<div class="help">Leave blank if you don\u2019t have one \u2014 we\u2019ll email it to you.</div></div>'
+      +'</div><div id="msgStart"></div>'
+      +'<div class="actions"><button class="btn-submit" type="button" id="startBtn" onclick="startSubmit(false)">Email me my CRM sheet</button></div>'
+      +''
+  }
+  el.innerHTML=html;
+  window.scrollTo(0,0);
+}
+function startField(label, key, ph, ac, type){
+  return '<div class="field"><label for="st_'+key+'">'+esc(label)+' <span class="req">*</span></label>'
+    +'<input id="st_'+key+'" type="'+(type||'text')+'" autocomplete="'+ac+'" placeholder="'+esc(ph)+'" value="'+esc(form.identity[key]||'')+'" oninput="setStartField(\''+key+'\',this.value)"></div>';
+}
+function setStartField(k, v){ window.form.identity[k]=v; saveDraft(); }
+function startMsg(t, ok){ var el=document.getElementById('msgStart'); if(el) el.innerHTML=t?'<div class="msg '+(ok?'ok':'err')+'" role="alert">'+t+'</div>':''; }
+async function startSubmit(resend){
+  var id=form.identity, miss=[];
+  if(!trim(id.firmName)) miss.push('firm name'); if(!trim(id.ownerName)) miss.push('advisor\u2019s name');
+  if(!trim(id.email)) miss.push('email'); if(!trim(id.phone)) miss.push('phone');
+  if(miss.length){ startMsg('Please fill in: '+miss.join(', ')+'.'); return; }
+  var bad=fieldError('identity.email')||fieldError('identity.phone'); if(bad){ startMsg(esc(bad)); return; }
+  var shEl=document.getElementById('st_sheet1'), sheetUrl=resend?'':trim(shEl&&shEl.value);
+  if(sheetUrl && !sheetIdFrom(sheetUrl)){ startMsg('That sheet link doesn\u2019t look right \u2014 it should start with https://docs.google.com/spreadsheets/d/ (or leave it blank).'); return; }
+  if(SCRIPT_URL.indexOf('PASTE_')===0){ startMsg('This form is not connected yet. Please contact Deep Pocket.'); return; }
+  var btn=document.getElementById(resend?'resendBtn':'startBtn'); if(btn){ btn.disabled=true; btn.textContent='Sending\u2026'; }
+  try{
+    var res=await fetch(SCRIPT_URL,{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({ action:'startOnboarding', hp:document.getElementById('hpField').value, ref:form.meta.ref, e:form.meta.e, s:form.meta.s,
+        firmName:trim(id.firmName), ownerName:trim(id.ownerName), email:trim(id.email), phone:trim(id.phone), sheetUrl:sheetUrl }) });
+    var data=await res.json();
+    if(!data || !data.success) throw new Error((data&&data.error)||'The server did not confirm.');
+    if(data.link){ form.meta.ref=data.link.ref; form.meta.e=data.link.e; form.meta.s=data.link.s; }
+    if(data.status==='haveSheet'){ receivedSheet(data.sheetId); return; }
+    saveDraft(); showStart('sent');
+    if(resend) startMsg('Sent again \u2713', true);
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent=resend?'Send the email again':'Email me my CRM sheet'; }
+    startMsg('Not sent: '+esc(e.message)+' Please check your connection and try again.');
+  }
+}
+async function sendSheetLink(){
+  var el=document.getElementById('st_sheet'), link=trim(el&&el.value);
+  if(!sheetIdFrom(link)){ startMsg('Please paste the full link of your sheet \u2014 it starts with https://docs.google.com/spreadsheets/d/'); return; }
+  if(!form.meta.ref || !form.meta.s){ startMsg('Please open this page from the link in our email, or send the sheet link to us by email or WhatsApp.'); return; }
+  var btn=document.getElementById('sheetBtn'); btn.disabled=true; btn.textContent='Checking\u2026';
+  try{
+    var res=await fetch(SCRIPT_URL,{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({ action:'submitSheetLink', ref:form.meta.ref, e:form.meta.e, s:form.meta.s, sheetUrl:link }) });
+    var data=await res.json();
+    if(!data || !data.success) throw new Error((data&&data.error)||'The server did not confirm.');
+    receivedSheet(data.sheetId);
+  }catch(e){ btn.disabled=false; btn.textContent='Continue to step 2'; startMsg(esc(e.message)); }
+}
+function receivedSheet(sid){
+  form.meta.sheetFromServer=sid;
+  if(!sheetIdFrom(form.technical.sheetId)) form.technical.sheetId='https://docs.google.com/spreadsheets/d/'+sid+'/edit';
+  goFull();
+}
+function goFull(){
+  saveDraft();
+  document.getElementById('stage2').style.display='none';
+  document.getElementById('formWrap').style.display='block';
+  render(); window.scrollTo(0,0);
+}
+async function boot(){
+  loadDraft();
+  readUrlParams();
+  render();
+  if(!form.brand.iconBase64 || form.brand.logoMode==='initials') scheduleIcons(0);
+  var q=new URLSearchParams(location.search);
+  if(q.get('full')==='1'){ goFull(); return; }  // Deep Pocket staff only: ?full=1 opens the full form directly
+  if(form.meta.ref && form.meta.s){
+    try{
+      var p=await apiGet({ action:'getPrefill', ref:form.meta.ref, e:form.meta.e, s:form.meta.s });
+      if(p && p.success){
+        var id=form.identity;
+        if(!trim(id.firmName) && p.firmName) id.firmName=p.firmName;
+        if(!trim(id.ownerName) && p.ownerName) id.ownerName=p.ownerName;
+        if(!trim(id.phone) && p.phone) id.phone=p.phone;
+        if(!trim(id.email) && p.email) id.email=p.email;
+        saveDraft();
+        if(p.sheetId){ receivedSheet(p.sheetId); return; }
+        if(p.sheetSent){ showStart('sent'); return; }
+      }
+    }catch(e){}
+  }
+  showStart('enter');
+}
+
+boot();
 </script>
 </body>
 </html>
