@@ -2,25 +2,34 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
 <link rel="preconnect" href="https://script.google.com">
-<link rel="dns-prefetch" href="https://script.google.com">
-<title>Upload Documents — Deep Pocket Fintech</title>
+<title>Upload Documents</title>
 <style>
+/* ══ DP CLIENT-PAGE BASE STYLES — identical in every client page. Colours
+   below are only the fallback; the FIRM SETTINGS block overrides them per firm. ══ */
 :root{
-  --bg:#1B1512; --s1:#2A211D; --s2:#332924; --border:#3A2F2A;
-  --accent:#F2E8DE; --accent2:rgba(242,232,222,.10); --coral:#E8734A;
+  --bg:#1B1512; --s1:#2A211D; --s2:#332924; --s3:#3C312B; --border:#3A2F2A; --border2:#4F4038;
+  --accent:#F2E8DE; --accent2:rgba(242,232,222,.10); --on-accent:#1B1512;
+  --coral:#E8734A; --coraldim:rgba(232,115,74,.15);
   --text:#F2E8DE; --t2:#A99A8F; --t3:#786A60;
-  --green:#4C9A6A; --orange:#C08A3E; --red:#C1553D; --r:20px; --r2:8px;
-  --page-w:460px; --grid-cols:1;
+  --green:#4C9A6A; --gdim:rgba(76,154,106,.14); --blue:#4A8FC7; --orange:#C08A3E; --red:#C1553D; --rdim:rgba(193,85,61,.15);
+  --r:20px; --r2:8px;
+  --font-display:'Fraunces',Georgia,serif;
+  --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  --page-w:460px;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
-.wrap{max-width:var(--page-w);margin:0 auto;padding:0 0 40px;transition:max-width .2s}
-.hdr{padding:22px 18px 16px;text-align:center;border-bottom:1px solid var(--border)}
-.hdr .logo{font-size:34px;margin-bottom:6px}
-.hdr .logo img{width:40px;height:40px;border-radius:11px;object-fit:cover;display:block;margin:0 auto}
-.hdr h1{font-size:16px;font-weight:800;margin:0 0 4px}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;min-height:100vh;-webkit-font-smoothing:antialiased}
+a{color:var(--coral)}
+.wrap{max-width:var(--page-w);margin:0 auto;padding:0 0 40px}
+.hdr{padding:calc(22px + env(safe-area-inset-top,0px)) 18px 16px;text-align:center;border-bottom:1px solid var(--border)}
+.hdr .logo{font-size:34px;line-height:1;margin-bottom:8px;min-height:40px;display:flex;align-items:center;justify-content:center}
+.hdr .logo img{width:40px;height:40px;border-radius:11px;object-fit:cover;display:block}
+.hdr h1{font-family:var(--font-display);font-size:19px;font-weight:600;letter-spacing:-.2px;margin:0 0 4px;min-height:1.2em}
 .hdr p{font-size:11px;color:var(--t3);margin:0}
 .state{padding:60px 24px;text-align:center}
 .state .ico{font-size:40px;margin-bottom:14px}
@@ -28,564 +37,691 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .state p{font-size:12px;color:var(--t2);line-height:1.6;margin:0}
 .greet{padding:18px;text-align:center}
 .greet .name{font-size:17px;font-weight:800}
-.greet .sub{font-size:11px;color:var(--t2);margin-top:4px;line-height:1.5}
-.notice{margin:0 14px 14px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.greet .sub{font-size:12px;color:var(--t2);margin-top:6px;line-height:1.55}
+.fi{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:11px 12px;color:var(--text);font-family:inherit;font-size:16px;outline:none;-webkit-appearance:none;appearance:none}
+.fi:focus{border-color:var(--accent)}
+.savebtn{display:block;width:calc(100% - 28px);margin:4px 14px 0;padding:13px;font-family:inherit;font-size:14px;font-weight:700;color:var(--on-accent);background:var(--accent);border:none;border-radius:var(--r2);cursor:pointer}
+.savebtn:disabled{opacity:.5;cursor:default}
+.savemsg{font-size:12px;margin:10px 14px 0;text-align:center;line-height:1.5;min-height:1px}
+.savemsg.ok{color:var(--green)}
+.savemsg.err{color:var(--red)}
+.footer-note{padding:18px 24px 4px;text-align:center;font-size:11px;color:var(--t3);line-height:1.6}
+.footer-note a{color:var(--t2)}
 .consent-box{margin:0 14px 16px;background:var(--s1);border:1px solid var(--accent);border-radius:var(--r);padding:16px}
 .consent-box .t{font-size:13px;font-weight:800;color:var(--accent);margin-bottom:8px;line-height:1.4}
 .consent-box p{font-size:12px;color:var(--t2);line-height:1.7;margin:0 0 12px}
 .consent-check{display:flex;align-items:flex-start;gap:10px;cursor:pointer;-webkit-user-select:none;user-select:none}
-.consent-check input[type=checkbox]{width:20px;height:20px;min-width:20px;margin-top:1px;accent-color:var(--accent);cursor:pointer}
+.consent-check input[type=checkbox]{width:20px;height:20px;min-width:20px;margin-top:1px;accent-color:var(--coral);cursor:pointer}
 .consent-check span{font-size:13px;font-weight:700;color:var(--text);line-height:1.4}
-.notice .t{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:5px;display:flex;align-items:center;gap:6px}
-.notice p{font-size:11px;color:var(--t2);line-height:1.6;margin:0 0 8px}
-.notice p:last-child{margin-bottom:0}
+.gated{opacity:.4;pointer-events:none;transition:opacity .2s}
+.gated.open{opacity:1;pointer-events:auto}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--t3);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:4px}
+.spin.lg{width:22px;height:22px}
+@keyframes sp{to{transform:rotate(360deg)}}
+:focus-visible{outline:2px solid var(--coral);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
+@media (min-width:700px){
+  .hdr{padding:30px 18px 20px}
+  .hdr .logo{font-size:42px;min-height:50px}
+  .hdr .logo img{width:50px;height:50px;border-radius:13px}
+  .hdr h1{font-size:22px}
+  .state{padding:90px 24px}
+}
+:root{--page-w:460px;--grid-cols:1}
+.wrap{transition:max-width .2s}
+.notice{margin:0 14px 14px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.notice .t{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:5px}
+.notice p{font-size:12px;color:var(--t2);line-height:1.6;margin:0}
 .sectionlbl{padding:16px 14px 6px;font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.5px}
 .slots{padding:6px 14px;display:grid;grid-template-columns:repeat(var(--grid-cols),1fr);gap:10px}
 .slot{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px}
 .slot .l{flex:1;min-width:0}
 .slot .l .t{font-size:14px;font-weight:700}
-.slot .l .s{font-size:11px;color:var(--t3);margin-top:3px}
-.slot .btn{display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff !important;background:var(--accent);padding:9px 14px;border-radius:var(--r2);cursor:pointer;flex-shrink:0;text-align:center;border:none;-webkit-appearance:none;appearance:none;line-height:normal;min-width:64px}
+.slot .l .s{font-size:11px;color:var(--t3);margin-top:3px;word-break:break-word}
+.slot .l .s a{color:var(--t3)}
+.slot .btn{display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--on-accent);background:var(--accent);padding:9px 14px;border-radius:var(--r2);cursor:pointer;flex-shrink:0;min-width:72px;position:relative}
+.slot .btn input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.slot .btn:focus-within{outline:2px solid var(--coral);outline-offset:2px}
 .slot.done{border-color:var(--green)}
 .slot.done .s{color:var(--green)}
+.slot.err{border-color:var(--red)}
 .slot.err .s{color:var(--red)}
 .slot.staged{border-color:var(--orange)}
 .slot.staged .s{color:var(--orange)}
-.slot .btn.done{background:var(--s2);color:var(--green);border:1px solid var(--green)}
+.slot.done .btn{background:var(--s2);color:var(--green);border:1px solid var(--green)}
 .form-block{margin:6px 14px 0;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.form-block.bank{grid-column:1/-1;margin:0 0 4px}
+.form-block .hint{font-size:12px;color:var(--t2);margin-bottom:10px;line-height:1.5}
 .fg{margin-bottom:12px}
 .fg:last-child{margin-bottom:0}
 .fl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;display:block}
-.fi{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;color:var(--text);font-family:inherit;font-size:14px;outline:none}
-.fi:focus{border-color:var(--accent)}
 .nomform-grid{display:grid;grid-template-columns:repeat(var(--grid-cols),1fr);gap:0 14px}
-.savebtn{width:100%;padding:12px;font-size:13px;font-weight:700;color:#fff;background:var(--accent);border:none;border-radius:var(--r2);cursor:pointer;margin-top:4px}
-.savebtn:disabled{opacity:.5}
-.savemsg{font-size:11px;margin-top:8px;text-align:center}
-.savemsg.ok{color:var(--green)}
-.savemsg.err{color:var(--red)}
-.footer-note{padding:18px 24px 4px;text-align:center;font-size:10px;color:var(--t3);line-height:1.6}
-input[type=file]{display:none}
-.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--t3);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:4px}
-@keyframes sp{to{transform:rotate(360deg)}}
-
-/* ── Adaptive breakpoints ── */
-@media (min-width:700px){
-  :root{ --page-w:640px; --grid-cols:2; }
-  body{font-size:15px}
-  .hdr{padding:30px 18px 20px}
-  .hdr .logo{font-size:42px}
-  .hdr .logo img{width:50px;height:50px;border-radius:13px}
-  .hdr h1{font-size:19px}
-  .state{padding:90px 24px}
-}
-@media (min-width:1000px){
-  :root{ --page-w:820px; --grid-cols:3; }
-  .wrap{padding-top:24px}
-  .hdr{border-radius:var(--r) var(--r) 0 0}
-}
+.form-block .savebtn,.btnrow .savebtn{width:100%;margin:4px 0 0}
+.form-block .savemsg,.btnrow .savemsg{margin:8px 0 0}
+.btnrow{padding:4px 14px 0}
+@media (min-width:700px){ :root{ --page-w:640px; --grid-cols:2; } }
+@media (min-width:1000px){ :root{ --page-w:820px; --grid-cols:3; } .wrap{padding-top:24px} }
 </style>
-</head>
-<body>
-<div class="wrap">
-  <div class="hdr">
-    <div class="logo" id="hdr-logo">🔒</div>
-    <h1 id="hdr-firmname">Deep Pocket Fintech</h1>
-    <p>Secure document upload</p>
-  </div>
-  <div id="app">
-    <div class="state"><div class="spin" style="width:22px;height:22px"></div><div style="font-size:12px;color:var(--t3);margin-top:12px">Connecting…</div></div>
-  </div>
-</div>
-
-<script src="./config.js"></script>
+<!-- The firm's Apps Script URL lives in ONE file, config.js, shared by all six
+     pages. Loaded with a fresh query each time so no cache can serve an old URL. -->
+<script>document.write('<script src="./config.js?t='+Date.now()+'"><\/script>');</script>
 <script>
-// ── CONFIGURATION ── update this if you ever redeploy Apps Script with a new URL
-
-var DOC_TYPES = [
-  {key:'PAN', label:'PAN'},
-  {key:'Aadhaar', label:'Aadhaar'},
-  {key:'Bank account details', label:'Bank account details (Account statement/Cancelled cheque)'},
-  {key:'Passport', label:'Passport (only for NRIs)'},
-  {key:'Resident ID', label:'Resident ID (only for NRIs)'}
-];
-
-var client = null; // {name, mobile, pan}
-
-function qs(name){
-  var p = new URLSearchParams(window.location.search);
-  return p.get(name) || '';
-}
-
-function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
-
-function fileToBase64(file){
-  return new Promise(function(resolve, reject){
-    var reader = new FileReader();
-    reader.onload = function(){ resolve(reader.result.split(',')[1]); };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+/*DP_CONFIG_START*/
+/* ═══ FIRM SETTINGS — the only firm-specific part of this page. ═══
+   Written by the white-label build from the firm's client form; every
+   client page carries the same block. The Apps Script URL is NOT here —
+   it lives only in config.js. Re-run the build to change this block, or
+   edit by hand identically in all six client pages. */
+window.DP_CONFIG = {
+  "version": 1,
+  "builtAt": "2026-09-23",
+  "storagePrefix": "wm_",
+  "firm": {
+    "legalName": "Deep Pocket Fintech Pvt. Ltd.",
+    "brandName": "Deep Pocket Fintech",
+    "productName": "Deep Pocket CRM",
+    "shortName": "Deep Pocket",
+    "ownerName": "Arjun K T M",
+    "ownerTitle": "",
+    "address": "8th Floor, Alappat Heritage\nMG Road, Ernakulam",
+    "city": "Ernakulam",
+    "phone": "9745014475",
+    "email": "arjun.wealthmatrix@gmail.com",
+    "website": "www.wealthmatrix.in",
+    "modelType": "MFD",
+    "arn": "",
+    "sebiReg": ""
+  },
+  "theme": {
+    "bg": "#1B1512",
+    "s1": "#2A211D",
+    "s2": "#332924",
+    "s3": "#3C312B",
+    "border": "#3A2F2A",
+    "accent": "#F2E8DE",
+    "coral": "#E8734A",
+    "text": "#F2E8DE",
+    "t2": "#A99A8F",
+    "t3": "#786A60",
+    "green": "#4C9A6A",
+    "blue": "#4A8FC7",
+    "orange": "#C08A3E",
+    "red": "#C1553D"
+  },
+  "fonts": {
+    "display": "Fraunces",
+    "body": "Inter"
+  },
+  "logo": "data:image/png;base64,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",
+  "app": {
+    "hasOwnApp": true,
+    "android": "https://play.google.com/store/apps/details?id=com.wealthmetrics.app&pcampaignid=web_share",
+    "ios": "https://apps.apple.com/in/app/wealth-matrix/id6748309181"
+  },
+  "products": [
+    {
+      "code": "INVESTMENT",
+      "label": "Mutual Funds"
+    },
+    {
+      "code": "LIFE INSURANCE",
+      "label": "Term Life Insurance"
+    },
+    {
+      "code": "HEALTH INSURANCE",
+      "label": "Health Insurance"
+    },
+    {
+      "code": "WILL",
+      "label": "WILL"
+    },
+    {
+      "code": "AIF",
+      "label": "AIF"
+    },
+    {
+      "code": "PMS",
+      "label": "PMS"
+    }
+  ],
+  "features": {
+    "documents": true,
+    "gatherinfo": true,
+    "findoc": true,
+    "feedback": true,
+    "reviewreport": true,
+    "appinstalled": true,
+    "casanalysis": true
+  },
+  "privacy": {
+    "grievanceName": "Arjun K T M",
+    "grievanceTitle": "Grievance Officer",
+    "grievanceEmail": "arjun.wealthmatrix@gmail.com",
+    "grievancePhone": "9745014475",
+    "lastUpdated": "2026-09-23",
+    "effectiveFrom": "2026-08-02",
+    "aiProvider": "Google Gemini",
+    "extraDisclosures": ""
+  }
+};
+/*DP_CONFIG_END*/
+</script>
+<script>
+/* ══ DP CLIENT-PAGE BOOTSTRAP v1 — identical in every client page.
+   The Apps Script URL comes from config.js. Every other firm-specific value
+   (name, logo, colours, fonts, storage namespace, products, enabled pages,
+   privacy contact) comes from window.DP_CONFIG in the FIRM SETTINGS block just above, which the
+   white-label build writes from the firm's client form. Nothing
+   firm-specific is written in this block. ══ */
+(function(){
+  var DEF={
+    scriptUrl:'', storagePrefix:'dp_',
+    firm:{legalName:'',brandName:'',productName:'',shortName:'',ownerName:'',ownerTitle:'',address:'',city:'',phone:'',email:'',website:'',modelType:'MFD',arn:'',sebiReg:''},
+    theme:{}, fonts:{display:'Fraunces',body:'Inter'}, logo:'',
+    app:{hasOwnApp:false,android:'',ios:''},
+    products:[{code:'INVESTMENT',label:'Mutual Funds / Investments'},{code:'LIFE INSURANCE',label:'Term Life Insurance'},{code:'HEALTH INSURANCE',label:'Health Insurance'},{code:'WILL',label:'Will Writing'},{code:'AIF',label:'AIF'},{code:'PMS',label:'PMS'}],
+    features:{documents:true,gatherinfo:true,findoc:true,feedback:true,reviewreport:true,appinstalled:true,casanalysis:true},
+    privacy:{grievanceName:'',grievanceTitle:'',grievanceEmail:'',grievancePhone:'',lastUpdated:'',effectiveFrom:'',aiProvider:'Google Gemini',extraDisclosures:''}
+  };
+  var C=window.DP_CONFIG||{};
+  // The Apps Script URL comes from config.js (var SCRIPT_URL), the one file
+  // shared by every client page. Everything else is in the settings block.
+  try{ if(!C.scriptUrl && typeof SCRIPT_URL==='string') C.scriptUrl=SCRIPT_URL; }catch(e){}
+  var D={};
+  Object.keys(DEF).forEach(function(k){
+    var d=DEF[k], c=C[k];
+    if(d && typeof d==='object' && !Array.isArray(d)){ var o={}; Object.keys(d).forEach(function(x){ o[x]=d[x]; }); if(c && typeof c==='object') Object.keys(c).forEach(function(x){ if(c[x]!==undefined && c[x]!==null) o[x]=c[x]; }); D[k]=o; }
+    else D[k]=(c!==undefined && c!==null && !(Array.isArray(d) && !(Array.isArray(c) && c.length))) ? c : d;
   });
-}
+  D.scriptUrl=String(D.scriptUrl||'').trim();
+  D.connected=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(D.scriptUrl);
+  D.legal=D.firm.legalName||D.firm.brandName||'';
+  D.brand=D.firm.brandName||D.firm.legalName||'';
+  window.DP=D;
 
-// Same POST pattern as the main app — text/plain avoids CORS preflight
+  // ── Theme → CSS variables (before first paint; this script runs in <head>) ──
+  var rs=document.documentElement.style, t=D.theme||{};
+  function hex(h){ return /^#[0-9a-f]{6}$/i.test(String(h||'')); }
+  function rgb(h){ var n=parseInt(String(h).slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+  function rgba(h,a){ var c=rgb(h); return 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'; }
+  function lum(h){ var c=rgb(h).map(function(v){ v/=255; return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4); }); return .2126*c[0]+.7152*c[1]+.0722*c[2]; }
+  Object.keys(t).forEach(function(k){ if(hex(t[k])) rs.setProperty('--'+k, t[k]); });
+  if(hex(t.accent)) rs.setProperty('--accent2', rgba(t.accent,.10));
+  if(hex(t.coral)) rs.setProperty('--coraldim', rgba(t.coral,.15));
+  if(hex(t.green)) rs.setProperty('--gdim', rgba(t.green,.14));
+  if(hex(t.red)) rs.setProperty('--rdim', rgba(t.red,.15));
+  var acc=hex(t.accent)?t.accent:'#F2E8DE', bg=hex(t.bg)?t.bg:'#1B1512';
+  // Text on accent-coloured buttons: dark on a light accent, white on a dark one.
+  rs.setProperty('--on-accent', lum(acc)>.45 ? (lum(bg)<.2 ? bg : '#111111') : '#FFFFFF');
+  var mt=document.querySelector('meta[name="theme-color"]');
+  if(!mt){ mt=document.createElement('meta'); mt.name='theme-color'; document.head.appendChild(mt); }
+  mt.content=bg;
+  document.documentElement.style.colorScheme = lum(bg)<.4 ? 'dark' : 'light';
+
+  // ── Fonts — one stylesheet per family, so an unavailable weight in a
+  // custom family can never take the other family down with it. ──
+  var f=D.fonts||{};
+  function fam(name, weights){
+    if(!name) return;
+    var l=document.createElement('link'); l.rel='stylesheet';
+    l.href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(name).replace(/%20/g,'+')+(weights?':wght@'+weights:'')+'&display=swap';
+    document.head.appendChild(l);
+  }
+  var pc=document.createElement('link'); pc.rel='preconnect'; pc.href='https://fonts.gstatic.com'; pc.crossOrigin=''; document.head.appendChild(pc);
+  fam(f.display, f.display==='Fraunces'?'500;600':'');
+  if(f.body!==f.display) fam(f.body, f.body==='Inter'?'400;500;600;700;800':'400;700');
+  if(f.display) rs.setProperty('--font-display', "'"+f.display.replace(/'/g,'')+"',Georgia,serif");
+  if(f.body) rs.setProperty('--font-body', "'"+f.body.replace(/'/g,'')+"',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif");
+})();
+
+// ── Helpers shared by every client page ──
+function qs(name){ return new URLSearchParams(window.location.search).get(name)||''; }
+// Escapes for BOTH text and attribute context (quotes included).
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function skey(n){ return DP.storagePrefix+n; }
+function cacheGet(key, maxAgeMs, withMeta){
+  try{
+    var r=JSON.parse(localStorage.getItem(skey(key))||'null');
+    if(!r || !r.savedAt) return null;
+    if(maxAgeMs && Date.now()-r.savedAt>maxAgeMs){ localStorage.removeItem(skey(key)); return null; }
+    return withMeta ? r : r.v;
+  }catch(e){ return null; }
+}
+function cacheSet(key, v){ try{ localStorage.setItem(skey(key), JSON.stringify({savedAt:Date.now(), v:v})); }catch(e){} }
+function cacheDel(key){ try{ localStorage.removeItem(skey(key)); }catch(e){} }
+var DAY_MS=24*60*60*1000;
+
+var NOT_CONNECTED='This page isn\u2019t connected yet. Please let your advisor know.';
+// POST with text/plain (no CORS preflight), same pattern as crm.html.
 async function apiPost(data, timeoutMs){
-  var controller = (typeof AbortController!=='undefined') ? new AbortController() : null;
-  var timer = null;
-  if(controller && timeoutMs){
-    timer = setTimeout(function(){ controller.abort(); }, timeoutMs);
-  }
+  if(!DP.connected) return {success:false, error:NOT_CONNECTED};
+  var ctl=(typeof AbortController!=='undefined')?new AbortController():null, timer=null;
+  if(ctl) timer=setTimeout(function(){ ctl.abort(); }, timeoutMs||30000);
   try{
-    var r = await fetch(SCRIPT_URL, {
-      method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(data),
-      signal: controller ? controller.signal : undefined
-    });
+    var r=await fetch(DP.scriptUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(data), signal:ctl?ctl.signal:undefined});
     if(timer) clearTimeout(timer);
-    var t = await r.text();
-    try{ return JSON.parse(t); } catch(e){ return r.ok ? {success:true} : {error:'Server returned an error (HTTP '+r.status+')'}; }
+    var txt=await r.text();
+    var j; try{ j=JSON.parse(txt); }catch(e){ return {success:false, error:'The server sent an unexpected reply (HTTP '+r.status+'). Please try again.'}; }
+    // A client page must never tell a client their "session expired" — that
+    // reply means the action is not on the server's public list yet.
+    if(j && j.error==='SESSION_EXPIRED') return {success:false, code:'NOT_PUBLIC', error:'This isn\u2019t switched on at your advisor\u2019s end yet. Please let your advisor know.'};
+    return j;
   }catch(e){
     if(timer) clearTimeout(timer);
-    if(e.name==='AbortError') return {error:'Request timed out — the server took too long to respond'};
-    // A genuine network-level failure (device offline, DNS/connectivity issue,
-    // or — the most likely real-world cause of intermittent reports — the
-    // Apps Script URL in this page no longer matches the live deployment,
-    // e.g. after a "New deployment" was made instead of updating the existing one.
-    return {error:'Could not reach the server — check your internet connection'};
+    if(e && e.name==='AbortError') return {success:false, error:'The server took too long to respond. Please try again.'};
+    return {success:false, error:'Could not reach the server \u2014 check your internet connection.'};
   }
 }
-
-function renderError(title, msg){
-  document.getElementById('app').innerHTML =
-    '<div class="state"><div class="ico">⚠️</div><h2>'+esc(title)+'</h2><p>'+esc(msg)+'</p></div>';
-}
-
-function renderSlots(){
-  var app = document.getElementById('app');
-  var html = '<div class="greet"><div class="name">Hi '+esc(client.name||'there')+'</div>'
-    + '<div class="sub">Please select the documents below, then tap Save to upload them all at once.</div></div>'
-    + '<div class="notice">'
-    +   '<div class="t">📋 Why we need these documents</div>'
-    +   '<p>As per regulatory (KYC) requirements, please upload the documents below to complete your onboarding.</p>'
-    + '</div>'
-
-    + '<div class="sectionlbl">Investor Details</div>'
-    + '<div class="slots" id="slotList">'
-    + DOC_TYPES.map(function(dt){
-        var safeId = dt.key.replace(/\s+/g,'_');
-        var row = '<div class="slot" id="row-'+safeId+'">'
-          + '<div class="l"><div class="t">'+dt.label+'</div><div class="s" id="status-'+safeId+'">Not uploaded</div></div>'
-          + '<label class="btn" id="btn-'+safeId+'">Select'
-          + '<input type="file" accept="image/*,.pdf" data-doctype="'+dt.key+'" onchange="stageFile(this)">'
-          + '</label></div>';
-        if(dt.key==='Bank account details'){
-          row += '<div class="form-block" style="margin-top:-6px;margin-bottom:14px">'
-            +   '<div style="font-size:11px;color:var(--t2);margin-bottom:10px">If you don\u2019t have a bank statement or cancelled cheque, fill in the following bank account details instead.</div>'
-            +   '<div class="nomform-grid">'
-            +     '<div class="fg"><label class="fl">Bank Account Number</label><input class="fi" id="bank-acc" inputmode="numeric" placeholder="Account number" oninput="this.value=this.value.replace(/[^0-9]/g,\'\')"></div>'
-            +     '<div class="fg"><label class="fl">IFSC Code</label><input class="fi" id="bank-ifsc" placeholder="IFSC code" oninput="this.value=this.value.toUpperCase()"></div>'
-            +   '</div>'
-            +   '<button class="savebtn" id="bankSaveBtn" onclick="saveBankDetails()">Save Bank Details</button>'
-            +   '<div class="savemsg" id="bankMsg"></div>'
-            + '</div>';
-        }
-        return row;
-      }).join('')
-    + '</div>'
-    + '<div style="padding:0 14px 4px">'
-    +   '<button class="savebtn" id="saveDocsBtn" onclick="saveAllDocuments()">💾 Save &amp; Upload Documents</button>'
-    +   '<div class="savemsg" id="saveDocsMsg"></div>'
-    + '</div>'
-
-    + '<div class="sectionlbl">Nominee Details</div>'
-    + '<div class="form-block">'
-    +   '<div class="nomform-grid">'
-    +     '<div class="fg"><label class="fl">Nominee Name</label><input class="fi" id="nom-name" placeholder="FULL NAME" oninput="this.value=this.value.toUpperCase()"></div>'
-    +     '<div class="fg"><label class="fl">Nominee Mobile Number</label><input class="fi" id="nom-mobile" type="tel" inputmode="numeric" placeholder="10-digit mobile number" oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,10)"></div>'
-    +   '</div>'
-    +   '<div class="fg"><label class="fl">Nominee Email ID</label><input class="fi" id="nom-email" type="email" placeholder="nominee@example.com"></div>'
-    +   '<div class="fg"><label class="fl">Nominee KYC Document</label>'
-    +     '<div class="slot" id="row-Nominee_KYC" style="margin-top:2px">'
-    +       '<div class="l"><div class="t">Nominee ID Proof (PAN/Aadhaar/Driving License)</div><div class="s" id="status-Nominee_KYC">Not uploaded</div></div>'
-    +       '<label class="btn" id="btn-Nominee_KYC">Select'
-    +       '<input type="file" accept="image/*,.pdf" data-doctype="Nominee KYC" onchange="stageFile(this)">'
-    +       '</label></div>'
-    +   '</div>'
-    +   '<button class="savebtn" id="nomSaveBtn" onclick="saveNominee()">Save Nominee Details</button>'
-    +   '<div class="savemsg" id="nomMsg"></div>'
-    + '</div>'
-    + '<div class="footer-note">🔒 Documents are uploaded directly and securely to your advisor\'s private folder. No account or login needed.</div>';
-  app.innerHTML = html;
-}
-
-// Checks the client's Drive folder for documents already uploaded — even from
-// a previous visit to this same link — and marks those slots as done on load,
-// so it's immediately clear which documents are still missing versus already in.
-async function markExistingUploads(){
-  if(!client || !client.folderId) return; // no folder yet means nothing could be uploaded yet
-  try{
-    var res = await apiPost({
-      action:'listClientDocuments',
-      clientName: client.name, pan: client.pan||'', mobile: client.mobile, folderId: client.folderId
-    }, 15000);
-    if(!res || !res.success || !res.files) return;
-    var uploadedTypes = {};
-    res.files.forEach(function(f){ uploadedTypes[f.docType]=true; });
-    DOC_TYPES.concat([{key:'Nominee KYC'}]).forEach(function(dt){
-      if(!uploadedTypes[dt.key]) return; // not uploaded — leave the slot as "Not uploaded"
-      var safeId = dt.key.replace(/\s+/g,'_');
-      var statusEl = document.getElementById('status-'+safeId);
-      var rowEl = document.getElementById('row-'+safeId);
-      var btnEl = document.getElementById('btn-'+safeId);
-      if(statusEl) statusEl.textContent = '✅ Uploaded';
-      if(rowEl) rowEl.className = 'slot done';
-      if(btnEl){
-        var inputEl = btnEl.querySelector('input[type=file]');
-        btnEl.textContent = 'Replace';
-        btnEl.className = 'btn done';
-        if(inputEl) btnEl.appendChild(inputEl);
-      }
-    });
-  }catch(e){ /* non-fatal — worst case, slots just show "Not uploaded" until re-checked */ }
-}
-
-// ── Staged files — selecting a file no longer uploads immediately. It's held
-// here (already base64-encoded, ready to go) until the Save button is
-// pressed, at which point the folder gets created (if needed) and every
-// staged file uploads in sequence. ──
-var stagedFiles = {}; // docType -> {base64, mimeType, ext, name}
-
-async function stageFile(inputEl){
-  var docType = inputEl.dataset.doctype;
-  var file = inputEl.files[0];
-  if(!file) return;
-  var safeId = docType.replace(/\s+/g,'_');
-  var statusEl = document.getElementById('status-'+safeId);
-  var rowEl = document.getElementById('row-'+safeId);
-  var btnEl = document.getElementById('btn-'+safeId);
-
-  if(file.size > 10*1024*1024){
-    if(statusEl) statusEl.textContent = 'File too large — please keep it under 10MB';
-    if(rowEl) rowEl.className = 'slot err';
-    inputEl.value=''; return;
-  }
-
-  if(statusEl) statusEl.innerHTML = '<span class="spin"></span>Preparing…';
-  try{
-    var base64 = await fileToBase64(file);
-    var ext = file.name.indexOf('.')>=0 ? file.name.split('.').pop() : '';
-    stagedFiles[docType] = { base64:base64, mimeType:file.type, ext:ext, name:file.name };
-    if(statusEl) statusEl.innerHTML = '📎 Ready: '+esc(file.name)+' <a href="#" id="unstage-'+safeId+'" style="color:var(--t3)">(remove)</a>';
-    if(rowEl) rowEl.className = 'slot staged';
-    if(btnEl){ btnEl.textContent = 'Change'; btnEl.appendChild(inputEl); }
-    var unstageLink = document.getElementById('unstage-'+safeId);
-    if(unstageLink){
-      unstageLink.onclick = function(e){
-        e.preventDefault();
-        delete stagedFiles[docType];
-        if(statusEl) statusEl.textContent = 'Not uploaded';
-        if(rowEl) rowEl.className = 'slot';
-        if(btnEl) btnEl.textContent = 'Select';
-      };
-    }
-  }catch(e){
-    if(statusEl) statusEl.textContent = 'Could not read the file — please try again';
-    if(rowEl) rowEl.className = 'slot err';
-  }
-  inputEl.value = '';
-}
-
-// Checks for an existing folder before the first upload of a session — if
-// found, informs the advisor/client so they know documents are being added
-// to an existing record rather than a new one being silently created.
-// Resolves once the user has seen and dismissed the notice (or immediately
-// if no matching folder exists).
-var _folderCheckDone = false;
-function checkFolderBeforeSaving(){
-  return new Promise(function(resolve){
-    if(_folderCheckDone || client.folderId){ resolve(); return; }
-    apiPost({ action:'checkClientFolder', clientName:client.name, pan:client.pan||'', mobile:client.mobile }, 15000)
-      .then(function(res){
-        _folderCheckDone = true;
-        if(res && res.exists){
-          client.folderId = res.folderId;
-          var ov=document.createElement('div');
-          ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-          ov.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:320px;overflow:hidden">'
-            +'<div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border)">📁 Existing folder found</div>'
-            +'<div style="padding:14px 16px;font-size:12px;color:var(--t2);line-height:1.6">A document folder already exists for '+esc(client.name)+'. These files will be added to it.</div>'
-            +'<div style="display:flex;border-top:1px solid var(--border)"><button id="_fc_ok" style="flex:1;padding:12px;border:none;background:none;color:var(--accent);font-weight:700;cursor:pointer">Continue</button></div>'
-            +'</div>';
-          document.body.appendChild(ov);
-          document.getElementById('_fc_ok').onclick=function(){ ov.remove(); resolve(); };
-        } else {
-          resolve();
-        }
-      })
-      .catch(function(){ _folderCheckDone = true; resolve(); }); // non-fatal — proceed, folder gets created on first upload anyway
-  });
-}
-
-// Uploads one staged file, retrying automatically once on failure before
-// giving up and marking that specific slot as failed (the rest continue).
-async function uploadOneStaged(docType, staged){
-  var safeId = docType.replace(/\s+/g,'_');
-  var statusEl = document.getElementById('status-'+safeId);
-  var rowEl = document.getElementById('row-'+safeId);
-  var btnEl = document.getElementById('btn-'+safeId);
-  if(statusEl) statusEl.innerHTML = '<span class="spin"></span>Uploading…';
-  for(var attempt=0; attempt<2; attempt++){
+// GET with one automatic retry — Apps Script is often slow on the first
+// request after a quiet spell (cold start).
+async function apiGet(params, attempts, timeoutMs){
+  if(!DP.connected) throw new Error(NOT_CONNECTED);
+  var q=new URLSearchParams(params); q.set('t', Date.now());
+  var url=DP.scriptUrl+'?'+q.toString(), last;
+  for(var i=0;i<(attempts||2);i++){
+    var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+    var timer=ctl?setTimeout(function(){ ctl.abort(); }, timeoutMs||15000):null;
     try{
-      var res = await apiPost({
-        action:'uploadClientDocument',
-        clientName: client.name, pan: client.pan||'', mobile: client.mobile, folderId: client.folderId||'',
-        docType: docType, fileData: staged.base64, mimeType: staged.mimeType, fileExt: staged.ext
-      }, 25000);
-      if(res && res.success){
-        if(statusEl) statusEl.textContent = '✅ Uploaded';
-        if(rowEl) rowEl.className = 'slot done';
-        if(btnEl) btnEl.textContent = 'Replace';
-        if(res.folderId && res.folderId !== client.folderId){
-          client.folderId = res.folderId;
-          var tagAction = client.recordType==='lead' ? 'tagLeadFolder' : 'tagClientFolder';
-          apiPost({ action: tagAction, mobile: client.mobile, recordId: client.recordId||'', folderId: res.folderId }).catch(function(){});
-        }
-        delete stagedFiles[docType];
-        return true;
-      }
-      if(attempt===0) continue; // one silent retry
-      if(statusEl) statusEl.textContent = 'Failed: '+esc(res&&res.error?res.error:'Unknown error');
-      if(rowEl) rowEl.className = 'slot err';
-      return false;
-    }catch(e){
-      if(attempt===0) continue;
-      if(statusEl) statusEl.textContent = 'Failed: '+esc(e.message||'Could not reach the server');
-      if(rowEl) rowEl.className = 'slot err';
-      return false;
-    }
-  }
-}
-
-async function saveAllDocuments(){
-  var docTypes = Object.keys(stagedFiles).filter(function(k){ return k!=='Nominee KYC'; });
-  var msgEl = document.getElementById('saveDocsMsg');
-  var btn = document.getElementById('saveDocsBtn');
-  if(!docTypes.length){
-    if(msgEl){ msgEl.textContent='Please select at least one document first.'; msgEl.className='savemsg err'; }
-    return;
-  }
-  btn.disabled = true;
-  if(msgEl){ msgEl.textContent='Checking your folder…'; msgEl.className='savemsg'; }
-  await checkFolderBeforeSaving();
-
-  var okCount=0;
-  for(var i=0;i<docTypes.length;i++){
-    if(msgEl){ msgEl.textContent='Uploading '+(i+1)+' of '+docTypes.length+'…'; msgEl.className='savemsg'; }
-    var success = await uploadOneStaged(docTypes[i], stagedFiles[docTypes[i]]);
-    if(success) okCount++;
-  }
-  btn.disabled = false;
-  if(okCount===docTypes.length){
-    if(msgEl){ msgEl.textContent='✅ All documents saved.'; msgEl.className='savemsg ok'; }
-  } else {
-    if(msgEl){ msgEl.textContent=okCount+' of '+docTypes.length+' uploaded — check the failed item(s) above and tap Save again.'; msgEl.className='savemsg err'; }
-  }
-}
-  var name=(document.getElementById('nom-name').value||'').trim();
-  var mobile=(document.getElementById('nom-mobile').value||'').trim();
-  var email=(document.getElementById('nom-email').value||'').trim();
-  var msgEl=document.getElementById('nomMsg');
-  var btn=document.getElementById('nomSaveBtn');
-
-async function saveNominee(){
-  var name=(document.getElementById('nom-name').value||'').trim();
-  var mobile=(document.getElementById('nom-mobile').value||'').trim();
-  var email=(document.getElementById('nom-email').value||'').trim();
-  var msgEl=document.getElementById('nomMsg');
-  var btn=document.getElementById('nomSaveBtn');
-
-  if(!name){ msgEl.textContent='Please enter the nominee name.'; msgEl.className='savemsg err'; return; }
-  if(mobile && mobile.length!==10){ msgEl.textContent='Mobile number must be exactly 10 digits.'; msgEl.className='savemsg err'; return; }
-  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ msgEl.textContent='Please enter a valid email address.'; msgEl.className='savemsg err'; return; }
-
-  btn.disabled=true; msgEl.textContent='Saving…'; msgEl.className='savemsg';
-  if(stagedFiles['Nominee KYC']) await checkFolderBeforeSaving();
-  var res = await apiPost({
-    action:'saveNomineeDetails',
-    clientName: client.name, pan: client.pan||'', mobile: client.mobile, folderId: client.folderId||'',
-    nomineeName: name, nomineeMobile: mobile, nomineeEmail: email
-  }, 20000);
-  if(res && res.success && res.folderId) client.folderId = res.folderId;
-
-  // If a Nominee ID Proof file was staged, upload it now too, in the same save action.
-  var idUploadOk = true;
-  if(stagedFiles['Nominee KYC']){
-    idUploadOk = await uploadOneStaged('Nominee KYC', stagedFiles['Nominee KYC']);
-  }
-  btn.disabled=false;
-  if(res && res.success && idUploadOk){
-    msgEl.textContent='✅ Nominee details saved.'; msgEl.className='savemsg ok';
-  } else if(res && res.success){
-    msgEl.textContent='Nominee details saved, but the ID proof upload failed — check above and try again.'; msgEl.className='savemsg err';
-  } else {
-    msgEl.textContent='Could not save: '+esc(res&&res.error?res.error:'please try again'); msgEl.className='savemsg err';
-  }
-}
-
-async function saveBankDetails(){
-  var accNum=(document.getElementById('bank-acc').value||'').trim();
-  var ifsc=(document.getElementById('bank-ifsc').value||'').trim();
-  var msgEl=document.getElementById('bankMsg');
-  var btn=document.getElementById('bankSaveBtn');
-
-  if(!accNum){ msgEl.textContent='Please enter the account number.'; msgEl.className='savemsg err'; return; }
-  if(!ifsc){ msgEl.textContent='Please enter the IFSC code.'; msgEl.className='savemsg err'; return; }
-  if(!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)){ msgEl.textContent='IFSC code looks incorrect — check and try again.'; msgEl.className='savemsg err'; return; }
-
-  btn.disabled=true; msgEl.textContent='Saving…'; msgEl.className='savemsg';
-  var res = await apiPost({
-    action:'saveBankDetails',
-    clientName: client.name, pan: client.pan||'', mobile: client.mobile, folderId: client.folderId||'',
-    accountNumber: accNum, ifscCode: ifsc
-  }, 20000);
-  btn.disabled=false;
-  if(res && res.success){
-    msgEl.textContent='✅ Bank details saved.'; msgEl.className='savemsg ok';
-    if(res.folderId) client.folderId = res.folderId;
-  } else {
-    msgEl.textContent='Could not save: '+esc(res&&res.error?res.error:'please try again'); msgEl.className='savemsg err';
-  }
-}
-
-async function fetchWithRetry(url, attempts, timeoutMs){
-  var lastErr;
-  for(var i=0;i<attempts;i++){
-    var controller = (typeof AbortController!=='undefined') ? new AbortController() : null;
-    var timer = controller ? setTimeout(function(){ controller.abort(); }, timeoutMs||12000) : null;
-    try{
-      var r = await fetch(url, { signal: controller ? controller.signal : undefined });
+      var r=await fetch(url, {signal:ctl?ctl.signal:undefined});
       if(timer) clearTimeout(timer);
       if(!r.ok) throw new Error('HTTP '+r.status);
       return await r.json();
     }catch(e){
       if(timer) clearTimeout(timer);
-      lastErr = (e && e.name==='AbortError') ? new Error('Request timed out') : e;
-      if(i<attempts-1) await new Promise(function(res){ setTimeout(res, 800); });
+      last=(e && e.name==='AbortError')?new Error('Request timed out'):e;
+      if(i<(attempts||2)-1) await new Promise(function(res){ setTimeout(res, 800); });
     }
   }
-  throw lastErr;
+  throw last;
 }
 
-function cacheKey(token){ return 'wm_upload_cache_'+token; }
-var CACHE_MAX_AGE_MS = 24*60*60*1000; // matches the same 24hr precedent used elsewhere on this page
+function renderError(title, msg, icon){
+  var app=document.getElementById('app');
+  if(app) app.innerHTML='<div class="state"><div class="ico">'+(icon||'\u26A0\uFE0F')+'</div><h2>'+esc(title)+'</h2><p>'+esc(msg)+'</p></div>';
+}
+// Common guards: connection + whether this firm has the page switched on.
+function pageGuard(featureKey){
+  if(!DP.connected){ renderError('Not connected yet', NOT_CONNECTED, '\uD83D\uDD0C'); return false; }
+  if(featureKey && DP.features[featureKey]===false){ renderError('Page not available', 'This page isn\u2019t part of your advisor\u2019s service. Please contact them directly.', '\uD83D\uDEAB'); return false; }
+  return true;
+}
 
-function loadCachedClient(token){
+// ── Branding — firm name + logo from the FIRM SETTINGS block. The runtime
+// lookup (getFirmBranding) only runs when that block has no firm details,
+// so a normal page view costs zero extra server calls for branding. ──
+var _pageTitle=document.title;
+function applyBrand(name, logo, emoji){
+  var h=document.getElementById('hdr-firmname'); if(h) h.textContent=name||'Your advisor';
+  var l=document.getElementById('hdr-logo');
+  if(l){
+    l.textContent='';
+    if(logo && /^(data:image\/|https:\/\/)/i.test(logo)){ var im=document.createElement('img'); im.alt=''; im.src=logo; l.appendChild(im); }
+    else l.textContent=emoji||'';
+  }
+  document.title=_pageTitle+(name?' \u2014 '+name:'');
+}
+function mountBrand(emoji){
+  applyBrand(DP.legal, DP.logo, emoji);
+  if(DP.legal && DP.logo) return;
+  var c=cacheGet('firm_branding');
+  if(c) applyBrand(c.firmName||DP.legal, c.logoDataUrl||DP.logo, emoji);
+  apiPost({action:'getFirmBranding'}, 15000).then(function(res){
+    if(res && res.success && (res.firmName||res.logoDataUrl)){
+      applyBrand(res.firmName||DP.legal, res.logoDataUrl||DP.logo, emoji);
+      if(res.firmName && !DP.legal){ DP.legal=res.firmName; DP.brand=DP.brand||res.firmName; }
+      cacheSet('firm_branding', {firmName:res.firmName||'', logoDataUrl:res.logoDataUrl||''});
+    }
+  });
+}
+function firmFooter(extra){
+  return '<div class="footer-note">'+(DP.legal?esc(DP.legal)+'<br>':'')+(extra?esc(extra)+'<br>':'')
+    +'<a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a></div>';
+}
+
+// ── DPDP consent — one reusable block. The exact wording shown is the exact
+// wording logged (by token, server-side) to the firm's DPDP Consents tab.
+// Remembered on this device per link + wording, so a returning client
+// isn't asked again and no duplicate consent rows are written; a change in
+// wording asks again. ──
+function _hash(s){ var h=0; s=String(s); for(var i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; } return (h>>>0).toString(36); }
+function consentHtml(text){
+  return '<div class="consent-box">'
+    + '<div class="t">Before we begin, please confirm below.</div>'
+    + '<p>'+esc(text)+' See the <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a>.</p>'
+    + '<label class="consent-check"><input type="checkbox" id="consentCheckbox"><span>I have read and agree to the above</span></label>'
+    + '<div class="savemsg" id="consentMsg" role="status"></div>'
+    + '</div>';
+}
+function wireConsent(token, page, text, onChange){
+  var cb=document.getElementById('consentCheckbox'), msg=document.getElementById('consentMsg');
+  var key='consent_'+page+'_'+token+'_'+_hash(text);
+  if(cacheGet(key)){ cb.checked=true; onChange(true); }
+  cb.onchange=async function(){
+    if(!cb.checked){ onChange(false); msg.textContent=''; msg.className='savemsg'; return; }
+    cb.disabled=true; msg.textContent='Saving your consent\u2026'; msg.className='savemsg';
+    var res=await apiPost({action:'logDpdpConsent', token:token, page:page, consentText:text}, 20000);
+    cb.disabled=false;
+    if(res && res.success){
+      cacheSet(key, 1); onChange(true);
+      msg.textContent='\u2705 Thank you \u2014 please go ahead below.'; msg.className='savemsg ok';
+    } else {
+      cb.checked=false; onChange(false);
+      msg.textContent='Could not save your consent: '+((res&&res.error)||'please try again.'); msg.className='savemsg err';
+    }
+  };
+}
+</script>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="logo" id="hdr-logo" aria-hidden="true"></div>
+    <h1 id="hdr-firmname"></h1>
+    <p>Secure document upload</p>
+  </div>
+  <main id="app">
+    <div class="state"><div class="spin lg"></div><div style="font-size:12px;color:var(--t3);margin-top:12px">Connecting…</div></div>
+  </main>
+</div>
+
+<script>
+var DOC_TYPES = [
+  {key:'PAN', label:'PAN'},
+  {key:'Aadhaar', label:'Aadhaar'},
+  {key:'Bank account details', label:'Bank account details (account statement / cancelled cheque)'},
+  {key:'Passport', label:'Passport (only for NRIs)'},
+  {key:'Resident ID', label:'Resident ID (only for NRIs)'}
+];
+var MAX_FILE_BYTES = 10*1024*1024;
+var UPLOAD_TIMEOUT_MS = 90000; // a 10 MB file on a slow mobile link needs well over 25 s
+
+var token = '';
+var client = null;      // {name, mobile, pan, folderId, recordId, recordType}
+var verified = null;    // resolves once the live token check has finished
+var _verifiedResolve;
+var consentGiven = false;
+var stagedFiles = {};   // docType -> {base64, mimeType, ext, name}
+
+function sid(docType){ return docType.replace(/\s+/g,'_'); }
+
+// Every write sends the TOKEN as well as the identity fields. The token is
+// the only thing the server should trust (see the audit notes) — the other
+// fields are kept only so today's Code.gs keeps working unchanged.
+function idPayload(){
+  return { token:token, clientName:client.name, pan:client.pan||'', mobile:client.mobile, folderId:client.folderId||'', recordId:client.recordId||'' };
+}
+
+function slotHtml(key, label){
+  var s=sid(key);
+  return '<div class="slot" id="row-'+s+'">'
+    + '<div class="l"><div class="t">'+esc(label)+'</div><div class="s" id="status-'+s+'" role="status">Not uploaded</div></div>'
+    + '<label class="btn" id="btn-'+s+'"><span class="btn-t">Select</span>'
+    +   '<input type="file" accept="image/*,.pdf" data-doctype="'+esc(key)+'" aria-label="Select '+esc(label)+'">'
+    + '</label></div>';
+}
+function setSlot(docType, cls, statusHtml, btnText){
+  var s=sid(docType);
+  var row=document.getElementById('row-'+s), st=document.getElementById('status-'+s), bt=document.querySelector('#btn-'+s+' .btn-t');
+  if(row && cls!=null) row.className='slot'+(cls?' '+cls:'');
+  if(st && statusHtml!=null) st.innerHTML=statusHtml;
+  if(bt && btnText) bt.textContent=btnText; // only the label text — the <input> inside stays put
+}
+
+function renderSlots(){
+  var consentText='I agree to share my identity documents, bank account details and nominee details with '
+    + (DP.legal||'my advisor')+' for completing KYC and onboarding, as required by regulation. My information will be kept secure and never sold. I can withdraw this consent anytime by contacting my advisor.';
+  var html = '<div class="greet"><div class="name">Hi '+esc(client.name||'there')+'</div>'
+    + '<div class="sub">Select your documents below, then tap Save to upload them all at once.</div></div>'
+    + '<div class="notice"><div class="t">📋 Why we need these documents</div>'
+    +   '<p>As per regulatory (KYC) requirements, please upload the documents below to complete your onboarding.</p></div>'
+    + consentHtml(consentText)
+    + '<div id="gatedArea" class="gated">'
+    + '<div class="sectionlbl">Investor details</div>'
+    + '<div class="slots">'
+    + DOC_TYPES.map(function(dt){
+        var row=slotHtml(dt.key, dt.label);
+        if(dt.key==='Bank account details'){
+          row += '<div class="form-block bank">'
+            +   '<div class="hint">No statement or cancelled cheque? Type your bank account details instead.</div>'
+            +   '<div class="nomform-grid">'
+            +     '<div class="fg"><label class="fl" for="bank-acc">Bank account number</label><input class="fi" id="bank-acc" inputmode="numeric" autocomplete="off" placeholder="Account number"></div>'
+            +     '<div class="fg"><label class="fl" for="bank-ifsc">IFSC code</label><input class="fi" id="bank-ifsc" autocomplete="off" maxlength="11" placeholder="IFSC code"></div>'
+            +   '</div>'
+            +   '<button type="button" class="savebtn" id="bankSaveBtn">Save bank details</button>'
+            +   '<div class="savemsg" id="bankMsg" role="status"></div>'
+            + '</div>';
+        }
+        return row;
+      }).join('')
+    + '</div>'
+    + '<div class="btnrow"><button type="button" class="savebtn" id="saveDocsBtn">💾 Save &amp; upload documents</button><div class="savemsg" id="saveDocsMsg" role="status"></div></div>'
+
+    + '<div class="sectionlbl">Nominee details</div>'
+    + '<div class="form-block">'
+    +   '<div class="nomform-grid">'
+    +     '<div class="fg"><label class="fl" for="nom-name">Nominee name</label><input class="fi" id="nom-name" autocomplete="off" placeholder="FULL NAME"></div>'
+    +     '<div class="fg"><label class="fl" for="nom-mobile">Nominee mobile number</label><input class="fi" id="nom-mobile" type="tel" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10-digit mobile number"></div>'
+    +   '</div>'
+    +   '<div class="fg"><label class="fl" for="nom-email">Nominee email ID</label><input class="fi" id="nom-email" type="email" autocomplete="off" placeholder="nominee@example.com"></div>'
+    +   '<div class="fg"><span class="fl">Nominee KYC document</span>'+slotHtml('Nominee KYC','Nominee ID proof (PAN / Aadhaar / Driving Licence)')+'</div>'
+    +   '<button type="button" class="savebtn" id="nomSaveBtn">Save nominee details</button>'
+    +   '<div class="savemsg" id="nomMsg" role="status"></div>'
+    + '</div>'
+    + '</div>'
+    + '<div class="footer-note">🔒 Documents go directly and securely to your advisor\u2019s private folder. No account or login needed.</div>'
+    + firmFooter();
+  document.getElementById('app').innerHTML = html;
+
+  document.querySelectorAll('input[type=file][data-doctype]').forEach(function(inp){ inp.onchange=function(){ stageFile(inp); }; });
+  document.getElementById('bank-acc').oninput=function(){ this.value=this.value.replace(/[^0-9]/g,'').slice(0,18); };
+  document.getElementById('bank-ifsc').oninput=function(){ this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,''); };
+  document.getElementById('nom-name').oninput=function(){ this.value=this.value.toUpperCase(); };
+  document.getElementById('nom-mobile').oninput=function(){ this.value=this.value.replace(/[^0-9]/g,'').slice(0,10); };
+  document.getElementById('bankSaveBtn').onclick=saveBankDetails;
+  document.getElementById('saveDocsBtn').onclick=saveAllDocuments;
+  document.getElementById('nomSaveBtn').onclick=saveNominee;
+
+  wireConsent(token, 'upload', consentText, function(ok){
+    consentGiven=ok;
+    document.getElementById('gatedArea').classList.toggle('open', ok);
+  });
+}
+
+// Marks documents already in the client's folder (from an earlier visit).
+async function markExistingUploads(){
+  if(!client || !client.folderId) return;
+  var res=await apiPost(Object.assign({action:'listClientDocuments'}, idPayload()), 15000);
+  if(!res || !res.success || !res.files) return;
+  var have={};
+  res.files.forEach(function(f){ have[f.docType]=true; });
+  DOC_TYPES.concat([{key:'Nominee KYC'}]).forEach(function(dt){
+    if(have[dt.key] && !stagedFiles[dt.key]) setSlot(dt.key, 'done', '✅ Uploaded', 'Replace');
+  });
+}
+
+// Large phone photos are shrunk before upload (max 2000 px, JPEG) — a 6 MB
+// camera shot becomes ~500 KB, which is what makes uploads reliable on
+// mobile data. PDFs and small images are sent untouched.
+function compressImage(file){
+  return new Promise(function(resolve){
+    if(!/^image\/(jpeg|png|webp)$/i.test(file.type) || file.size<1.5*1024*1024) return resolve(null);
+    var url=URL.createObjectURL(file), img=new Image();
+    img.onload=function(){
+      try{
+        var max=2000, w=img.naturalWidth, h=img.naturalHeight, s=Math.min(1, max/Math.max(w,h));
+        var c=document.createElement('canvas'); c.width=Math.round(w*s); c.height=Math.round(h*s);
+        var x=c.getContext('2d'); x.fillStyle='#FFFFFF'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,c.width,c.height);
+        c.toBlob(function(b){ URL.revokeObjectURL(url); resolve(b && b.size<file.size ? b : null); }, 'image/jpeg', 0.85);
+      }catch(e){ URL.revokeObjectURL(url); resolve(null); }
+    };
+    img.onerror=function(){ URL.revokeObjectURL(url); resolve(null); };
+    img.src=url;
+  });
+}
+function blobToBase64(b){
+  return new Promise(function(resolve, reject){
+    var r=new FileReader(); r.onload=function(){ resolve(String(r.result).split(',')[1]); }; r.onerror=reject; r.readAsDataURL(b);
+  });
+}
+
+async function stageFile(inputEl){
+  var docType=inputEl.dataset.doctype, file=inputEl.files[0];
+  inputEl.value='';
+  if(!file) return;
+  setSlot(docType, null, '<span class="spin"></span>Preparing…');
   try{
-    var raw = localStorage.getItem(cacheKey(token));
-    if(!raw) return null;
-    var parsed = JSON.parse(raw);
-    if(!parsed || !parsed.savedAt || !parsed.client) return null;
-    if(Date.now()-parsed.savedAt > CACHE_MAX_AGE_MS){ localStorage.removeItem(cacheKey(token)); return null; }
-    return parsed.client;
-  }catch(e){ return null; }
+    var small=await compressImage(file);
+    var blob=small||file;
+    if(blob.size>MAX_FILE_BYTES){ setSlot(docType, 'err', 'File too large — please keep it under 10 MB'); return; }
+    var ext=small ? 'jpg' : (file.name.indexOf('.')>=0 ? file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g,'') : '');
+    stagedFiles[docType]={ base64:await blobToBase64(blob), mimeType:small?'image/jpeg':(file.type||'application/octet-stream'), ext:ext, name:file.name };
+    setSlot(docType, 'staged', '📎 Ready: '+esc(file.name)+' <a href="#" data-unstage="'+esc(docType)+'">(remove)</a>', 'Change');
+    var a=document.querySelector('#status-'+sid(docType)+' a[data-unstage]');
+    if(a) a.onclick=function(e){ e.preventDefault(); delete stagedFiles[docType]; setSlot(docType, '', 'Not uploaded', 'Select'); };
+  }catch(e){
+    setSlot(docType, 'err', 'Could not read the file — please try again');
+  }
 }
-function saveCachedClient(token, c){
-  try{ localStorage.setItem(cacheKey(token), JSON.stringify({savedAt:Date.now(), client:c})); }catch(e){}
+
+// Uploads one staged file, retrying once. Safe to retry: the server
+// replaces any existing file of the same document type.
+async function uploadOneStaged(docType, staged){
+  setSlot(docType, null, '<span class="spin"></span>Uploading…');
+  var res=null;
+  for(var attempt=0; attempt<2; attempt++){
+    res=await apiPost(Object.assign({action:'uploadClientDocument', docType:docType, fileData:staged.base64, mimeType:staged.mimeType, fileExt:staged.ext}, idPayload()), UPLOAD_TIMEOUT_MS);
+    if(res && res.success) break;
+  }
+  if(res && res.success){
+    setSlot(docType, 'done', '✅ Uploaded', 'Replace');
+    if(res.folderId && res.folderId!==client.folderId){
+      client.folderId=res.folderId;
+      var tagAction=client.recordType==='lead' ? 'tagLeadFolder' : 'tagClientFolder';
+      apiPost(Object.assign({action:tagAction}, idPayload()));
+    }
+    delete stagedFiles[docType];
+    return true;
+  }
+  setSlot(docType, 'err', 'Failed: '+esc((res&&res.error)||'unknown error'));
+  return false;
 }
+
+// Tells the client when files are going into a folder that already exists.
+var _folderCheckDone=false;
+async function checkFolderBeforeSaving(){
+  if(_folderCheckDone || client.folderId) return;
+  var res=await apiPost(Object.assign({action:'checkClientFolder'}, idPayload()), 15000);
+  _folderCheckDone=true;
+  if(!(res && res.exists)) return;
+  client.folderId=res.folderId;
+  await new Promise(function(resolve){
+    var ov=document.createElement('div');
+    ov.setAttribute('role','dialog'); ov.setAttribute('aria-modal','true');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:320px;overflow:hidden">'
+      +'<div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border)">📁 Adding to your existing folder</div>'
+      +'<div style="padding:14px 16px;font-size:13px;color:var(--t2);line-height:1.6">Your advisor already has a document folder for '+esc(client.name)+'. These files will be added to it.</div>'
+      +'<div style="display:flex;border-top:1px solid var(--border)"><button type="button" id="_fc_ok" style="flex:1;padding:12px;border:none;background:none;color:var(--accent);font:inherit;font-weight:700;cursor:pointer">Continue</button></div></div>';
+    document.body.appendChild(ov);
+    var b=document.getElementById('_fc_ok'); b.focus();
+    b.onclick=function(){ ov.remove(); resolve(); };
+  });
+}
+
+function setMsg(id, text, cls){ var m=document.getElementById(id); if(m){ m.textContent=text; m.className='savemsg'+(cls?' '+cls:''); } }
+
+async function saveAllDocuments(){
+  var types=Object.keys(stagedFiles).filter(function(k){ return k!=='Nominee KYC'; });
+  var btn=document.getElementById('saveDocsBtn');
+  if(!consentGiven) return setMsg('saveDocsMsg','Please confirm the consent above first.','err');
+  if(!types.length) return setMsg('saveDocsMsg','Please select at least one document first.','err');
+  btn.disabled=true;
+  setMsg('saveDocsMsg','Checking your details…');
+  await verified;
+  if(!client.verified){ btn.disabled=false; return setMsg('saveDocsMsg','Could not confirm this link with the server. Check your connection and try again.','err'); }
+  await checkFolderBeforeSaving();
+  var ok=0;
+  for(var i=0;i<types.length;i++){
+    setMsg('saveDocsMsg','Uploading '+(i+1)+' of '+types.length+'…');
+    if(await uploadOneStaged(types[i], stagedFiles[types[i]])) ok++;
+  }
+  btn.disabled=false;
+  if(ok===types.length) setMsg('saveDocsMsg','✅ All documents saved.','ok');
+  else setMsg('saveDocsMsg', ok+' of '+types.length+' uploaded — check the failed item(s) above and tap Save again.','err');
+}
+
+async function saveNominee(){
+  var name=document.getElementById('nom-name').value.trim();
+  var mobile=document.getElementById('nom-mobile').value.trim();
+  var email=document.getElementById('nom-email').value.trim();
+  var btn=document.getElementById('nomSaveBtn');
+  if(!consentGiven) return setMsg('nomMsg','Please confirm the consent above first.','err');
+  if(!name) return setMsg('nomMsg','Please enter the nominee name.','err');
+  if(mobile && !/^[6-9]\d{9}$/.test(mobile)) return setMsg('nomMsg','Enter a valid 10-digit mobile number.','err');
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setMsg('nomMsg','Please enter a valid email address.','err');
+  btn.disabled=true; setMsg('nomMsg','Saving…');
+  await verified;
+  if(!client.verified){ btn.disabled=false; return setMsg('nomMsg','Could not confirm this link with the server. Check your connection and try again.','err'); }
+  await checkFolderBeforeSaving();
+  var res=await apiPost(Object.assign({action:'saveNomineeDetails', nomineeName:name, nomineeMobile:mobile, nomineeEmail:email}, idPayload()), 20000);
+  if(res && res.success && res.folderId) client.folderId=res.folderId;
+  var idOk=true;
+  if(res && res.success && stagedFiles['Nominee KYC']) idOk=await uploadOneStaged('Nominee KYC', stagedFiles['Nominee KYC']);
+  btn.disabled=false;
+  if(res && res.success && idOk) setMsg('nomMsg','✅ Nominee details saved.','ok');
+  else if(res && res.success) setMsg('nomMsg','Nominee details saved, but the ID proof upload failed — check above and try again.','err');
+  else setMsg('nomMsg','Could not save: '+((res&&res.error)||'please try again.'),'err');
+}
+
+async function saveBankDetails(){
+  var acc=document.getElementById('bank-acc').value.trim();
+  var ifsc=document.getElementById('bank-ifsc').value.trim();
+  var btn=document.getElementById('bankSaveBtn');
+  if(!consentGiven) return setMsg('bankMsg','Please confirm the consent above first.','err');
+  if(!/^\d{9,18}$/.test(acc)) return setMsg('bankMsg','Account number should be 9 to 18 digits.','err');
+  if(!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) return setMsg('bankMsg','IFSC code looks incorrect — it has 11 characters, e.g. SBIN0001234.','err');
+  btn.disabled=true; setMsg('bankMsg','Saving…');
+  await verified;
+  if(!client.verified){ btn.disabled=false; return setMsg('bankMsg','Could not confirm this link with the server. Check your connection and try again.','err'); }
+  var res=await apiPost(Object.assign({action:'saveBankDetails', accountNumber:acc, ifscCode:ifsc}, idPayload()), 20000);
+  btn.disabled=false;
+  if(res && res.success){ if(res.folderId) client.folderId=res.folderId; setMsg('bankMsg','✅ Bank details saved.','ok'); }
+  else setMsg('bankMsg','Could not save: '+((res&&res.error)||'please try again.'),'err');
+}
+
+// Cached on this device for 24 h: name + record type only — never PAN.
+function cacheKey(){ return 'upload_client_'+token; }
 
 async function init(){
-  var token = qs('id');
-  if(!token){
-    renderError('Invalid link', 'This upload link is missing information. Please ask your advisor to resend it.');
-    return;
-  }
+  mountBrand('🔒');
+  if(!pageGuard('documents')) return;
+  token=qs('id');
+  if(!token){ renderError('Invalid link','This upload link is missing information. Please ask your advisor to resend it.'); return; }
+  verified=new Promise(function(r){ _verifiedResolve=r; });
 
-  // Instant render from cache — genuinely useful on a repeat visit (e.g.
-  // coming back to add more documents), matching crm.html's own "show
-  // cached first, verify in background" pattern rather than always
-  // spinning through a fresh network round-trip before anything appears.
-  // Wrapped defensively: a rendering hiccup here (malformed cached data,
-  // a DOM edge case) must never silently abort the rest of init() and
-  // leave the page stuck on its initial spinner forever — the real
-  // network fetch below still needs to run either way.
-  var cached = loadCachedClient(token);
+  var cached=cacheGet(cacheKey(), DAY_MS);
   try{
-    if(cached){
-      client = cached;
-      renderSlots();
-      markExistingUploads();
-    }
-  }catch(cacheErr){ console.warn('Cache render failed, continuing to live fetch:', cacheErr.message); }
+    if(cached){ client=Object.assign({}, cached, {verified:false}); renderSlots(); }
+  }catch(e){ console.warn('Cached render failed, continuing:', e.message); }
 
   try{
-    // Retries once automatically — Apps Script can be slow or briefly fail on
-    // the very first request after a period of inactivity (a "cold start").
-    // Retrying transparently here avoids showing a false "connection problem"
-    // for something that resolves itself half a second later.
-    var j = await fetchWithRetry(SCRIPT_URL + '?action=resolveUploadToken&token=' + encodeURIComponent(token) + '&t=' + Date.now(), 2);
+    var j=await apiGet({action:'resolveUploadToken', token:token}, 2);
     if(j && j.found){
-      client = { name:j.name, mobile:j.mobile, pan:j.pan, folderId:j.folderId||'', recordId:j.recordId||'', recordType:j.recordType||'client' };
-      saveCachedClient(token, client);
-      renderSlots();
+      client={ name:j.name, mobile:j.mobile, pan:j.pan||'', folderId:j.folderId||'', recordId:j.recordId||'', recordType:j.recordType||'client', verified:true };
+      cacheSet(cacheKey(), {name:client.name, mobile:client.mobile, folderId:client.folderId, recordId:client.recordId, recordType:client.recordType});
+      if(!cached) renderSlots();
       markExistingUploads();
-    } else if(!cached){
-      // Only shown if nothing was cached — a cached render already visible
-      // stays up rather than being replaced by an error on a transient miss.
-      renderError('Link not found', 'This link is invalid or has expired. Please contact your advisor for a new one.');
-    } else if(j && j.found===false){
-      // The cache showed content, but the server has now explicitly said
-      // this token is no longer valid (revoked/expired) — a stale local
-      // cache must not keep a client looking at data they shouldn't. This
-      // replaces the already-shown content with the real error.
-      localStorage.removeItem(cacheKey(token));
-      renderError('Link not found', 'This link is invalid or has expired. Please contact your advisor for a new one.');
+    } else if(!cached || (j && !j.error && j.found===false)){
+      cacheDel(cacheKey());
+      renderError('Link not found','This link is invalid or has expired. Please contact your advisor for a new one.');
     }
   }catch(e){
-    if(!cached){
-      renderError('Connection problem', 'Could not reach the server. Please check your internet connection and reopen this link.');
-    }
-    // If something was cached, a background refresh failure is silent —
-    // the client already sees their (possibly slightly stale) form and can
-    // still act on it; there's no reason to interrupt them with an error
-    // for a background check that simply couldn't complete this time.
+    if(!cached) renderError('Connection problem','Could not reach the server. Please check your internet connection and reopen this link.');
   }
-}
-
-// ── Firm Branding — pulls the firm name + logo set by the admin in the
-// CRM (Settings > Firm Branding) so this page shows the right firm's
-// identity instead of the fixed default. Cached in localStorage so the
-// header never flashes back to the placeholder on a later visit; falls
-// back to the built-in emoji/name if nothing has been set yet.
-function applyFirmBranding(name, logoDataUrl){
-  if(name){
-    var nameEl=document.getElementById('hdr-firmname');
-    if(nameEl) nameEl.textContent=name;
-  }
-  // Always explicitly set the logo slot, both ways — a generic uploaded
-  // logo shows when present, but if the firm never uploaded one (or
-  // removed one they'd previously set), this actively falls back to a
-  // real generic placeholder instead of silently leaving whatever was
-  // last cached in the browser.
-  var logoEl=document.getElementById('hdr-logo');
-  if(logoEl){
-    logoEl.innerHTML = logoDataUrl ? '<img src="'+logoDataUrl+'" alt="">' : '🔒';
-  }
-}
-async function loadFirmBranding(){
-  try{
-    var cached=JSON.parse(localStorage.getItem('wm_firm_branding')||'null');
-    if(cached) applyFirmBranding(cached.firmName, cached.logoDataUrl);
-  }catch(e){}
-  try{
-    var res=await apiPost({action:'getFirmBranding'});
-    if(res && res.success && (res.firmName||res.logoDataUrl)){
-      applyFirmBranding(res.firmName, res.logoDataUrl);
-      try{ localStorage.setItem('wm_firm_branding', JSON.stringify({firmName:res.firmName,logoDataUrl:res.logoDataUrl})); }catch(e){}
-    }
-  }catch(e){ /* non-fatal — page still works with the default branding */ }
+  _verifiedResolve();
 }
 
 init();
-loadFirmBranding();
 </script>
 </body>
 </html>
