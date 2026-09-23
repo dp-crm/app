@@ -207,9 +207,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .pill-dropped{background:rgba(85,85,85,.15);color:var(--dropped)}
 .sbox{width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--r2);padding:9px 12px;color:var(--text);font-family:inherit;font-size:14px;outline:none;-webkit-appearance:none}
 .sbox:focus{border-color:var(--accent)}
-.chips{display:flex;gap:6px;padding:0 12px 9px;overflow-x:auto;scrollbar-width:none}
-.chips::-webkit-scrollbar{display:none}
-.chip{flex-shrink:0;padding:7px 15px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--s1);color:var(--t2);cursor:pointer;white-space:nowrap}
+/* Lead status chips (Active/Prospect/Contacted/.../All): laid out on a grid
+   so every chip is always visible at once (no side-scrolling — the strip
+   used to overflow off-screen with 7 chips), sized equally, and evenly
+   spaced with consistent gaps in both directions, wrapping to a second row
+   on narrow phones rather than being clipped. */
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:7px;padding:0 12px 9px}
+.chip{padding:8px 10px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--s1);color:var(--t2);cursor:pointer;white-space:nowrap;text-align:center}
 
 /* ── Skeleton loading rows — visible the instant the page HTML parses,
    before any JavaScript has run. Naturally replaced the moment
@@ -6133,7 +6137,7 @@ function renderFuDetailInner(mob,nameHint){
 //   … → 1.9.10 → 2.0.0, and so on.
 // i.e. each of the last two positions counts 0..10 (eleven steps) before
 // carrying to the next place. Bump this ONE line on every release.
-var APP_VERSION='1.0.0';
+var APP_VERSION='1.1.0';
 
 
 
@@ -7076,6 +7080,10 @@ async function syncLead(lead, action){
 
   _writePending = false;
 
+  // A genuinely expired session should prompt re-login rather than queue
+  // forever and keep re-showing "didn't confirm" on every retry.
+  if(!ok && finalRes && finalRes.error==='SESSION_EXPIRED'){ handleSessionExpired(); return; }
+
   if(!ok){
     // Queue for retry on next app open
     var payload = action==='add'
@@ -7119,6 +7127,7 @@ async function flushWriteQueue(){
       continue;
     }
     var _r=await _doWrite(item.payload);
+    if(_r && _r.error==='SESSION_EXPIRED'){ handleSessionExpired(); remaining.push(item); continue; }
     var ok=!!(_r&&_r.success);            // FIX: _doWrite returns an object, not a boolean.
                                           // Safe to retry now that the backend is idempotent (v2.8).
     if(ok){ anySucceeded=true; }
@@ -7180,6 +7189,14 @@ async function reconcileLeadsAndClientsFromSheet(){
 async function _doWrite(data){
   if(!hasScript()) return {error:'no script url'};
   var url  = cfg_.scriptUrl;
+  // Every one of these actions (appendLead, updateLead, deleteLead,
+  // pushLeads, pushClients, ...) needs a login session on the server side.
+  // Without this, every save was silently rejected as SESSION_EXPIRED,
+  // fell back to pushLeads (also rejected), and always ended in "Save
+  // didn't confirm — queued, will retry automatically" — never actually
+  // saving. Mirrors the same attach-if-missing pattern _sheetWriteInner uses.
+  var _dwSession=getSession();
+  if(_dwSession && _dwSession.sessionToken && !data.session) data=Object.assign({}, data, {session:_dwSession.sessionToken});
   var body = JSON.stringify(data);
 
   // Method 1: POST text/plain (avoids CORS preflight, Apps Script reads
@@ -7569,7 +7586,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.37.0';
+var EXPECTED_BACKEND_VERSION = '2.38.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -8138,7 +8155,8 @@ async function saveDailyFinIntelSettings(){
       enabled:enabled, recipientEmail:recipient
     }, 15000);
     if(res && res.success){
-      toast('✅ Saved');
+      toast(res.warning ? '⚠️ Saved, but see the warning below' : '✅ Saved');
+      if(res.warning && statusEl){ statusEl.textContent=res.warning; statusEl.style.color='var(--orange)'; }
       loadDailyFinIntelSettings();
       _finIntelLoadedForDate=''; // enabling/disabling changes what the Dashboard card should show — force a re-check on next visit rather than trusting today's earlier (possibly hidden) load
     } else {
