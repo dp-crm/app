@@ -6137,7 +6137,7 @@ function renderFuDetailInner(mob,nameHint){
 //   … → 1.9.10 → 2.0.0, and so on.
 // i.e. each of the last two positions counts 0..10 (eleven steps) before
 // carrying to the next place. Bump this ONE line on every release.
-var APP_VERSION='1.1.0';
+var APP_VERSION='1.2.0';
 
 
 
@@ -7586,7 +7586,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.39.0';
+var EXPECTED_BACKEND_VERSION = '2.40.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -14750,6 +14750,31 @@ function startAppAfterAuth(){
 // login screen even on a device that already had a saved connection —
 // this is what was actually causing "not able to login" reports.
 try{ cfg_=JSON.parse(localStorage.getItem('wm_cfg')||'{}'); }catch(e){ cfg_={}; }
+
+// ── Pick up a changed Apps Script URL from config.js automatically ──
+// The saved URL above is used immediately — nothing here blocks login or
+// boot. In the background, config.js (the same file the six client pages
+// read) is fetched once; if it names a different, validly-shaped /exec
+// URL, that becomes the app's URL from this point on, saved to this
+// device so it doesn't need to be pasted in by hand again. A slow,
+// missing, or unreachable config.js changes nothing — the app just keeps
+// using whatever URL it already had.
+(function(){
+  try{
+    fetch('./config.js?t='+Date.now(), {cache:'no-store'})
+      .then(function(r){ return r.ok ? r.text() : ''; })
+      .then(function(t){
+        var m=t && t.match(/SCRIPT_URL\s*=\s*['"]([^'"]*)['"]/);
+        var u=m && m[1] && m[1].trim();
+        if(u && /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u) && u!==cfg_.scriptUrl){
+          var prev=cfg_.scriptUrl;
+          cfg_.scriptUrl=u; saveCfg();
+          if(prev) toast('🔄 Backend URL updated from config.js');
+        }
+      })
+      .catch(function(){}); // offline / config.js missing — keep using the saved URL
+  }catch(e){}
+})();
 
 if(getSession()){
   startAppAfterAuth();
