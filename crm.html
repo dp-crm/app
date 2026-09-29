@@ -219,8 +219,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
    in a row — including a lone one on the last row — stretch to fill the
    full row width, and the bigger padding/font make them easier to read
    and tap. */
+/* flex-basis:0 + equal flex-grow means every chip shares its row's width
+   EQUALLY, computed from the row, not from each chip's own text — the
+   previous 100px basis let white-space:nowrap force a wide label like "IN
+   PROGRESS" to claim more room than "ALL" sitting right next to it, so
+   the row never actually looked evenly aligned. max-width also stops a
+   lone chip on a short last row from stretching to the full screen width;
+   ellipsis is the graceful fallback if a label still can't fit. */
 .chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 10px}
-.chip{flex:1 1 100px;min-width:88px;padding:11px 12px;border-radius:999px;font-size:13.5px;font-weight:700;border:1px solid var(--border);background:var(--s1);color:var(--t2);cursor:pointer;white-space:nowrap;text-align:center}
+.chip{flex:1 1 0;min-width:72px;max-width:150px;padding:11px 10px;border-radius:999px;font-size:13px;font-weight:700;border:1px solid var(--border);background:var(--s1);color:var(--t2);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
 
 /* ── Skeleton loading rows — visible the instant the page HTML parses,
    before any JavaScript has run. Naturally replaced the moment
@@ -1303,7 +1310,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=file])
   </div>
   <div id="chat-input-bar" style="position:fixed;bottom:88px;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:calc(var(--shell-w) - 24px);background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:7px;display:none;gap:7px;z-index:99;box-shadow:0 6px 20px rgba(0,0,0,.4)">
     <input id="chat-input" placeholder="Ask anything…" autocomplete="off" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px 12px;color:var(--text);font-size:13px" onkeydown="if(event.key==='Enter')sendChatMessage()" onfocus="stopChatPlaceholderCycle()">
-    <button class="mic" id="chat-mic-btn" onclick="toggleChatVoiceInput()" aria-label="Dictate message" style="width:42px;height:42px;border-radius:10px">
+    <button class="mic" id="chat-mic-btn" aria-label="Hold to dictate, tap again to stop" title="Hold to speak, tap again to stop" style="width:42px;height:42px;border-radius:10px">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
     </button>
     <button id="chat-send-btn" onclick="sendChatMessage()" style="width:42px;height:42px;border-radius:10px;background:var(--accent);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0">
@@ -4003,6 +4010,29 @@ wireVoiceLongPress('sidebar-nav-dash','dash');
 // itself is a static overlay, not recreated per-open), so this only needs
 // wiring once, here at boot, same as the nav buttons above.
 wireFormVoiceMic('lf-voice-mic','lead');
+wireChatVoiceMic();
+
+// ── Guarantees voice-dictated text is English before it's used anywhere
+// downstream, regardless of what language (or mix) was actually spoken.
+// The browser's own SpeechRecognition (Tier 1 — used when available,
+// since it's instant and free) cannot translate at all: with a non-
+// English recognition language selected it hands back that language's
+// own script verbatim, and it handles genuine mid-sentence code-switching
+// (very common in Indian speech) poorly. Skipped entirely when English is
+// the selected recognition language, since Tier 1 already returns English
+// text in that case and this would just be a needless extra round trip
+// on every single dictation. The Tier-2 path (record \u2192 Gemini) needs
+// no equivalent call — its own prompt now asks for English output
+// directly, in one step. ──
+async function ensureEnglishVoiceText(text, voiceLang){
+  if(!text || !text.trim()) return text;
+  if(String(voiceLang&&voiceLang.code||'en').toLowerCase().indexOf('en')===0) return text;
+  try{
+    var _evtSession=getSession();
+    var res=await sheetWrite({action:'translateVoiceText', text:text, requestingUserId:_evtSession?_evtSession.userId:''}, 15000);
+    return (res && res.success && res.text) ? res.text : text;
+  }catch(e){ return text; } // never block dictation on a translation hiccup — use what was heard
+}
 
 function startSpeechRecognitionCapture(SR){
   var btn=document.getElementById(_aiVoiceTriggerElId);
@@ -4014,11 +4044,13 @@ function startSpeechRecognitionCapture(SR){
   if(btn) btn.classList.add('listening');
   setAiVoiceStatus('🎤 Listening… say a command', true);
 
-  _aiVoiceRecog.onresult=function(e){
+  _aiVoiceRecog.onresult=async function(e){
     var transcript=e.results[0][0].transcript;
     var corrected=applyVoiceCorrections(transcript); // silently auto-fixes previously-learned mishearings — no UI needed for this part
-    setAiVoiceStatus('💭 "'+corrected+'"', true); // brief, non-blocking — processing starts immediately below, doesn't wait for this
-    runAiVoiceCommand(corrected, voiceLang);
+    setAiVoiceStatus('💭 "'+corrected+'"', true); // brief, non-blocking — the translation step below (if any) runs right after
+    var english=await ensureEnglishVoiceText(corrected, voiceLang);
+    if(english!==corrected) setAiVoiceStatus('💭 "'+english+'"', true);
+    runAiVoiceCommand(english, voiceLang);
   };
   _aiVoiceRecog.onerror=function(e){
     if(btn) btn.classList.remove('listening');
@@ -6223,7 +6255,7 @@ function renderFuDetailInner(mob,nameHint){
 //   … → 1.9.10 → 2.0.0, and so on.
 // i.e. each of the last two positions counts 0..10 (eleven steps) before
 // carrying to the next place. Bump this ONE line on every release.
-var APP_VERSION='1.6.1';
+var APP_VERSION='1.6.4';
 
 
 
@@ -6293,7 +6325,19 @@ async function loadDashboardPracticePulse(){
     var res=await sheetWrite({action:'getDashboardPracticePulse', expectsResponse:true, requestingUserId:_dppSession?_dppSession.userId:''}, 20000);
     var wrap=document.getElementById('dash-practice-pulse-wrap');
     var body=document.getElementById('dash-practice-pulse-body');
-    if(!res || !res.success || !res.available || !res.points || !res.points.length){
+    // "Nothing generated yet today" (res.success===true, available:false)
+    // and "something actually failed" (res.success===false, or the request
+    // never came back at all) used to hide the card identically — so a
+    // real problem here looked exactly like a normal quiet day, with
+    // nothing on screen to say otherwise. A genuine failure now shows a
+    // small, calm line instead of vanishing; only the "nothing yet" case
+    // still hides silently, since that one really is normal.
+    if(!res || res.success===false){
+      if(wrap){ wrap.style.display=''; }
+      if(body) body.innerHTML='<div style="font-size:11px;color:var(--t3);padding:8px 2px">Today\u2019s AI insights didn\u2019t load ('+((res&&res.error)||'no response from the server')+'). Check Settings \u2192 AI \u2192 Daily Insights, or try Insights in the menu.</div>';
+      return;
+    }
+    if(!res.available || !res.points || !res.points.length){
       if(wrap) wrap.style.display='none';
       return;
     }
@@ -7666,7 +7710,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.45.0';
+var EXPECTED_BACKEND_VERSION = '2.48.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -9023,13 +9067,52 @@ function removeSearchingIndicator(){
 // in Settings > App Settings. The existing Send button and sendChatMessage()
 // flow are completely unchanged — this only ever populates the text field. ──
 var _chatVoiceRecog=null;
-function toggleChatVoiceInput(){
+// Press-and-hold to start, a plain tap while recording to stop and send
+// for transcription — same gesture as the lead/task form voice mics
+// (wireFormVoiceMic), wired here directly rather than through
+// toggleAiVoiceAssistant since this mic dictates into the chat box, not a
+// structured voice COMMAND against a lead/task form.
+function wireChatVoiceMic(){
+  var el=document.getElementById('chat-mic-btn');
+  if(!el) return;
+  var pressTimer=null;
+  el.style.touchAction='none'; el.style.webkitUserSelect='none'; el.style.userSelect='none';
+  el.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  function clearTimer(){ if(pressTimer){ clearTimeout(pressTimer); pressTimer=null; } }
+  function recordingLive(){ return !!(_chatVoiceRecog || _chatAudioRecorder); }
+  function startPress(e){
+    e.preventDefault();
+    if(recordingLive()){
+      tryVibrate(40);
+      if(_chatVoiceRecog) _chatVoiceRecog.stop();
+      else if(_chatAudioRecorder) stopChatAudioFallback();
+      return;
+    }
+    if(pressTimer) return;
+    el.classList.add('fvm-charging');
+    if(el.setPointerCapture && e.pointerId!=null){ try{ el.setPointerCapture(e.pointerId); }catch(_capErr){} }
+    pressTimer=setTimeout(function(){
+      pressTimer=null;
+      el.classList.remove('fvm-charging');
+      tryVibrate(40);
+      startChatVoiceCapture();
+    }, VOICE_LONG_PRESS_MS);
+  }
+  function endPress(e){
+    clearTimer(); el.classList.remove('fvm-charging');
+    if(el.releasePointerCapture && e.pointerId!=null){ try{ el.releasePointerCapture(e.pointerId); }catch(_relErr){} }
+  }
+  function abortPress(){ clearTimer(); el.classList.remove('fvm-charging'); }
+  el.addEventListener('pointerdown', startPress);
+  el.addEventListener('pointerup', endPress);
+  el.addEventListener('pointercancel', abortPress);
+  el.addEventListener('pointerleave', abortPress);
+}
+
+function startChatVoiceCapture(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   var btn=document.getElementById('chat-mic-btn');
   var input=document.getElementById('chat-input');
-  if(_chatVoiceRecog){ _chatVoiceRecog.stop(); return; }
-  if(_chatAudioRecorder){ stopChatAudioFallback(); return; }
-
   if(!SR){ startChatAudioFallback(); return; }
 
   var voiceLang=getVoiceLanguage();
@@ -9040,10 +9123,12 @@ function toggleChatVoiceInput(){
   _chatVoiceRecog.continuous=true;
   if(btn) btn.classList.add('on');
 
+  var _chatVoiceLastSpoken='';
   _chatVoiceRecog.onresult=function(e){
     var spoken='';
     for(var i=0;i<e.results.length;i++){ spoken+=e.results[i][0].transcript; }
-    if(input) input.value=baseText+spoken;
+    _chatVoiceLastSpoken=spoken;
+    if(input) input.value=baseText+spoken; // live preview as they speak — translated once they stop, below
   };
   _chatVoiceRecog.onerror=function(e){
     if(btn) btn.classList.remove('on');
@@ -9061,9 +9146,18 @@ function toggleChatVoiceInput(){
     var msg=describeSpeechRecognitionError(errCode);
     if(msg) toast(msg);
   };
-  _chatVoiceRecog.onend=function(){
+  _chatVoiceRecog.onend=async function(){
     if(btn) btn.classList.remove('on');
     _chatVoiceRecog=null;
+    // Translated ONCE here, on the complete utterance — onresult above
+    // fires on every partial phrase while speaking, so translating there
+    // would mean a server round trip per phrase instead of one per
+    // recording, and would flicker the input as earlier, still-forming
+    // words got retranslated on their own.
+    if(_chatVoiceLastSpoken && input){
+      var english=await ensureEnglishVoiceText(_chatVoiceLastSpoken, voiceLang);
+      input.value=baseText+english;
+    }
   };
   _chatVoiceRecog.start();
 }
