@@ -467,6 +467,16 @@ input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=file])
 .sync-dot.err{background:var(--red)}
 .sync-dot.warn{background:var(--orange)}
 .sync-dot.idle{background:var(--t3)}
+.sync-badge{width:38px;height:38px;flex-shrink:0;border-radius:50%;border:1.5px solid var(--border);background:var(--s1);color:var(--green);font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+.sync-badge .sb-n{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:var(--orange);color:#000;font-size:10px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 3px}
+.sync-badge .sb-n:not(:empty){display:flex}
+.sync-badge[data-state=saving]{color:var(--blue);border-color:var(--blue)}
+.sync-badge[data-state=saving] .sb-ico{display:inline-block;animation:sbspin 1s linear infinite}
+.sync-badge[data-state=pending]{color:var(--orange);border-color:var(--orange)}
+.sync-badge[data-state=offline],.sync-badge[data-state=off]{color:var(--t3)}
+.sync-badge[data-state=failed],.sync-badge[data-state=login]{color:var(--red);border-color:var(--red)}
+.sync-badge[data-state=failed] .sb-n,.sync-badge[data-state=login] .sb-n{background:var(--red);color:#fff}
+@keyframes sbspin{to{transform:rotate(360deg)}}
 /* Note log */
 .note-item{padding:8px 0;border-bottom:1px solid var(--border)}
 .note-item:last-child{border-bottom:none}
@@ -734,8 +744,8 @@ input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=file])
     </div>
     <span style="font-size:16px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="topbar-firm-name">Deep Pocket CRM</span>
   </div>
-  <!-- RIGHT — spacer balancing the hamburger so the centre stays centred -->
-  <div style="width:38px;height:38px;flex-shrink:0" aria-hidden="true"></div>
+  <!-- RIGHT — live save/sync status: tap for details. Also balances the hamburger so the centre stays centred -->
+  <button id="sync-badge" class="sync-badge" data-state="saved" onclick="openSyncPanel()" aria-label="Sync status: All changes saved" title="All changes saved"><span class="sb-ico">✓</span><span class="sb-n"></span></button>
 </div>
 
 <!-- Top-left menu: backdrop (closes on outside tap) + drop-down panel -->
@@ -1933,8 +1943,8 @@ function load(){
   leads=filterRecordsForRole(leads);
   clients=filterRecordsForRole(clients);
 }
-function saveL(){localStorage.setItem('wm_leads',JSON.stringify(leads));}
-function saveC(){localStorage.setItem('wm_clients',JSON.stringify(clients));}
+function saveL(){safeSetItem('wm_leads',JSON.stringify(leads));}
+function saveC(){safeSetItem('wm_clients',JSON.stringify(clients));}
 function saveCfg(){localStorage.setItem('wm_cfg',JSON.stringify(cfg_));}
 function cfg(k,v){cfg_[k]=v;saveCfg();}
 
@@ -2410,13 +2420,25 @@ async function pullLeadActivity(mob, recType){
           rowId:String(r[6]||'').trim(), recordId:String(r[7]||'').trim()
         };
       }).filter(function(e){ return !!e.activity; });
-      // Replace this lead's local entries with fresh sheet data — same matching rule
+      // Replace this lead's local entries with fresh sheet data — same matching rule.
+      // EXCEPT notes still waiting to sync: opening a lead's detail window runs this
+      // every time, and it used to hide a note the phone hadn't delivered yet (it
+      // reappeared only after a later retry succeeded). Pending notes are kept.
+      var _prevAct2 = activityLog, _have2 = {};
+      fresh.forEach(function(e){ if(e.rowId) _have2[e.rowId]=1; });
       activityLog = activityLog.filter(function(e){
         if(e.recordId && targetRecordId) return e.recordId!==targetRecordId;
         if(!e.recordId) return !mobMatch(e.mobile, targetMobile);
         return true;
       });
       activityLog = activityLog.concat(fresh);
+      (_wq||[]).forEach(function(it){
+        var p=it&&it.payload;
+        if(p && p.action==='appendLog' && p.row){
+          var id=String(p.row[6]||'');
+          if(id && !_have2[id]){ _prevAct2.some(function(e){ if(e.rowId===id){ activityLog.push(e); return true; } return false; }); }
+        }
+      });
       saveActivityLog();
     }
   } catch(e){ console.warn('pullLeadActivity:', e.message); }
@@ -2535,6 +2557,7 @@ function toggleClientBulk(){
   renderClients();
 }
 
+function clientKey(c){ return c.recordId||c.mobile; }
 function toggleClientSelect(mob){
   if(selectedClients.has(mob)) selectedClients.delete(mob);
   else selectedClients.add(mob);
@@ -2547,7 +2570,7 @@ function clientSelectAll(){
   var q=(document.getElementById('shared-search')?document.getElementById('shared-search').value||'':'').toLowerCase();
   var arr=clients.filter(function(c){return !q||c.name.toLowerCase().includes(q);});
   if(selectedClients.size===arr.length){ selectedClients.clear(); }
-  else { arr.forEach(function(c){selectedClients.add(c.mobile);}); }
+  else { arr.forEach(function(c){selectedClients.add(clientKey(c));}); }
   var cnt=document.getElementById('client-sel-count');
   if(cnt) cnt.textContent=selectedClients.size+' selected';
   renderClients();
@@ -2560,7 +2583,7 @@ async function deleteSelectedClients(){
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
   ov.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:320px;overflow:hidden">'
     +'<div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border)">Delete '+n+' client'+(n>1?'s':'')+'?</div>'
-    +'<div style="padding:10px 16px;font-size:11px;color:var(--t2)">Removes them from the app and CLIENTS sheet permanently.</div>'
+    +'<div style="padding:10px 16px;font-size:11px;color:var(--t2)">Removes them from the app and the CLIENTS sheet, and moves their Drive folders to the trash.</div>'
     +'<div style="display:flex;border-top:1px solid var(--border)">'
     +'<button id="_csn" style="flex:1;padding:12px;border:none;background:none;color:var(--t2);cursor:pointer;border-right:1px solid var(--border)">Cancel</button>'
     +'<button id="_csy" style="flex:1;padding:12px;border:none;background:none;color:var(--accent);font-weight:700;cursor:pointer">Delete</button>'
@@ -2569,16 +2592,20 @@ async function deleteSelectedClients(){
   document.getElementById('_csn').onclick=function(){ov.remove();};
   document.getElementById('_csy').onclick=async function(){
     ov.remove();
-    clients=clients.filter(function(c){return !selectedClients.has(c.mobile);});
+    // Selection is by unique key (Client ID, else mobile) — two clients can legitimately share one
+    // mobile number, and deleting one must never take the other with it.
+    var gone=clients.filter(function(c){return selectedClients.has(clientKey(c));});
+    clients=clients.filter(function(c){return !selectedClients.has(clientKey(c));});
     saveC();
     selectedClients.clear();clientBulkMode=false;
     var bar=document.getElementById('client-bulk-bar');if(bar)bar.style.display='none';
     var btn=document.getElementById('client-select-btn');if(btn)btn.textContent='Select';
     renderClients();
     if(hasScript()){
-      var res=await sheetWrite({action:'pushClients',rows:clientsRows()});
-      if(res&&res.error) toast('⚠️ Deleted locally, sheet failed',4000);
-      else toast(n+' client'+(n>1?'s':'')+' deleted');
+      var ops=gone.map(function(c){return {action:'deleteClient', mobile:c.mobile, name:c.name||'', recordId:c.recordId||''};});
+      var r=await durableBatch(ops);
+      if(r.ok) toast(n+' client'+(n>1?'s':'')+' deleted');
+      else toast('\u26A0\uFE0F Deleted here \u2014 '+r.queued+' still syncing to the sheet automatically', 4500);
     }else{ toast(n+' deleted'); }
   };
 }
@@ -2690,9 +2717,9 @@ function renderClients(){
     var ac=avatarColors[i%avatarColors.length];
     var bg=cardBg[i%2];
     var stageCol=stageColor(c.stage);
-    var sel=selectedClients.has(c.mobile);
+    var sel=selectedClients.has(clientKey(c));
     var cId=c.recordId||c.mobile;
-    var clickFn=clientBulkMode?'toggleClientSelect(\''+c.mobile+'\')':'openDetail(\''+cId+'\',\'client\',\''+encodeURIComponent(c.name||'')+'\')';
+    var clickFn=clientBulkMode?'toggleClientSelect(\''+clientKey(c)+'\')':'openDetail(\''+cId+'\',\'client\',\''+encodeURIComponent(c.name||'')+'\')';
     var initials=ini(c.name);
     var sinceDate=c.convertedDate?fmt(c.convertedDate):'';
     var prods=(c.products||'').trim();
@@ -2896,17 +2923,19 @@ function openDetail(mob,type,nameHint){
       var newStatus=btn.dataset.status;
       var cl=clients.find(function(x){return x.recordId===mob2||x.mobile===mob2;});
       if(cl){
-        // Move back to leads
+        // Move back to leads. The lead is added FIRST, then the client row removed — if anything is
+        // interrupted the person exists in both places (harmless) rather than in neither.
         var lead={name:cl.name,mobile:cl.mobile,email:cl.email||'',country:cl.country||'',
           age:cl.age||'',gender:cl.gender||'',status:newStatus,source:'',referral:'',
           products:cl.products||'',potentialSip:'',contactMode:'',nextFollowUp:'',
-          remarks:'',
+          remarks:'',folderId:cl.folderId||'',
           notes:[],createdDate:cl.convertedDate||today(),modifiedDate:''};
         logActivity(cl.mobile,'lead','Reclassified from CLIENT → '+newStatus,'');
-        // Remove from clients, add to leads
         var reclRecId=cl.recordId;
-        clients=clients.filter(function(x){return !((x.recordId&&reclRecId)?x.recordId===reclRecId:x.mobile===mob2);});saveC();pushClients();
-        leads.push(lead);saveL();syncLead(lead,'add');
+        var delOp={action:'deleteClient', mobile:cl.mobile, name:cl.name||'', recordId:cl.recordId||'', keepFolder:true};
+        clients=clients.filter(function(x){return !((x.recordId&&reclRecId)?x.recordId===reclRecId:x.mobile===mob2);});saveC();
+        leads.push(lead);saveL();
+        (async function(){ await syncLead(lead,'add'); await durableWrite(delOp); })();
         logActivity(cl.mobile,'lead','Reclassified: Client → '+newStatus,''); // ACTIVITY_LOG is still mobile-keyed
         closeOv('ov-detail');renderAll();
         toast(toTitle(cl.name)+' moved to '+newStatus);
@@ -3230,11 +3259,11 @@ async function saveTaskNow(){
     window._editingTaskId=null;
     toast('✅ Task updated');
     showActivity('saving');
-    sheetWrite({action:'updateTask', taskId:existingId,
-      name:name, taskDetails:details, dueDate:dueDate, taskFor:forType, linkedRecordId:window._taskLinkedRecordId||''}).then(function(res){
-        if(res && res.success){ flashActivityDone('Saved'); }
-        else { hideActivity(); toast('⚠️ Task update did not save — '+(res&&res.error||'please try again')); }
-      }).catch(function(e){ hideActivity(); toast('⚠️ Task update did not save — '+e.message); });
+    durableWrite({action:'updateTask', taskId:existingId,
+      name:name, taskDetails:details, dueDate:dueDate, taskFor:forType, linkedRecordId:window._taskLinkedRecordId||''}).then(function(r){
+      if(r.ok){ flashActivityDone('Saved'); }
+      else { hideActivity(); toast('⚠️ Task edit kept on this phone — it will sync automatically'); }
+    });
   } else {
     var _taskCreatorSession=getSession();
     // Guaranteed-unique TEMPORARY ID, same pattern already used for new
@@ -3249,16 +3278,12 @@ async function saveTaskNow(){
     toast('✅ Task saved');
     advanceVoiceQueueIfPending();
     showActivity('saving');
-    sheetWrite({action:'addTask', createdDate:newTask.createdDate, name:newTask.name, taskDetails:newTask.taskDetails, dueDate:newTask.dueDate, status:newTask.status, taskFor:newTask.taskFor, linkedRecordId:newTask.linkedRecordId, createdBy:newTask.createdBy, createdByRole:newTask.createdByRole}).then(function(res2){
-      if(res2 && res2.success){
-        flashActivityDone('Saved');
-        newTask.taskId=res2.taskId; // replace the temp ID with the real one
-        saveTasks();
-      } else {
-        hideActivity();
-        toast('⚠️ Task did not save — '+(res2&&res2.error||'please try again'));
-      }
-    }).catch(function(e){ hideActivity(); toast('⚠️ Task did not save — '+e.message); });
+    var _addP=Object.assign({idemKey:newIdemKey()}, {action:'addTask', createdDate:newTask.createdDate, name:newTask.name, taskDetails:newTask.taskDetails, dueDate:newTask.dueDate, status:newTask.status, taskFor:newTask.taskFor, linkedRecordId:newTask.linkedRecordId, createdBy:newTask.createdBy, createdByRole:newTask.createdByRole});
+    newTask._idem=_addP.idemKey;
+    durableWrite(_addP).then(function(r){
+      if(r.ok){ flashActivityDone('Saved'); newTask.taskId=r.res.taskId; saveTasks(); }
+      else { hideActivity(); saveTasks(); toast('⚠️ Task kept on this phone — it will sync to the sheet automatically'); }
+    });
   }
 }
 
@@ -3660,7 +3685,7 @@ function deleteLead(mob){
     if(_dMap2[_delSt]) logAnalytics(_dMap2[_delSt],-1);
     syncLead({mobile:delMob, name:l?l.name:'', recordId:delRecId}, 'delete').finally(function(){ hideActivity(); }); // delete only this row from sheet, matched by Record ID
     // Also delete this lead's activity log rows from sheet — ACTIVITY_LOG is still mobile-keyed
-    if(hasScript()) sheetWrite({action:'deleteLog', mobile:delMob});
+    if(hasScript()) durableWrite({action:'deleteLog', mobile:delMob});
     closeOv('ov-detail');
     var fd=document.getElementById('ov-fu-detail');if(fd)fd.classList.remove('open');
     renderAll();
@@ -3683,12 +3708,35 @@ async function deleteClient(mob){
 // ═══════════════════════════════════════════════
 // BULK
 // ═══════════════════════════════════════════════
-function toggleBulk(){bulkMode=!bulkMode;selectedLeads.clear();var btb=document.getElementById('bulk-toggle-btn');if(btb)btb.textContent=bulkMode?'✕':'☑️';document.getElementById('bulk-bar').classList.toggle('show',bulkMode);renderLeads();}
-function toggleSelect(mob){if(selectedLeads.has(mob))selectedLeads.delete(mob);else selectedLeads.add(mob);document.getElementById('bulk-count').textContent=selectedLeads.size+' selected';document.getElementById('bulk-bar').classList.toggle('show',selectedLeads.size>0||bulkMode);renderLeads();}
-function clearBulk(){bulkMode=false;selectedLeads.clear();var btb2=document.getElementById('bulk-toggle-btn');if(btb2)btb2.textContent='☑️';document.getElementById('bulk-bar').classList.remove('show');renderLeads();}
+function bulkKey(l){ return l.recordId||l.mobile; }
+function _bulkEl(id){ return document.getElementById(id) || {classList:{add:function(){},remove:function(){},toggle:function(){}}, textContent:''}; }
+function toggleBulk(){bulkMode=!bulkMode;selectedLeads.clear();var btb=document.getElementById('bulk-toggle-btn');if(btb)btb.textContent=bulkMode?'✕':'☑️';_bulkEl('bulk-bar').classList.toggle('show',bulkMode);renderLeads();}
+function toggleSelect(mob){if(selectedLeads.has(mob))selectedLeads.delete(mob);else selectedLeads.add(mob);_bulkEl('bulk-count').textContent=selectedLeads.size+' selected';_bulkEl('bulk-bar').classList.toggle('show',selectedLeads.size>0||bulkMode);renderLeads();}
+function clearBulk(){bulkMode=false;selectedLeads.clear();var btb2=document.getElementById('bulk-toggle-btn');if(btb2)btb2.textContent='☑️';_bulkEl('bulk-bar').classList.remove('show');renderLeads();}
 function bulkChangeStatus(){if(selectedLeads.size===0){toast('Select leads first');return;}document.getElementById('ov-bulk').classList.add('open');}
-function applyBulkStatus(status){var _byKey=Object.create(null);leads.forEach(function(x){if(x.recordId)_byKey[x.recordId]=x;if(x.mobile&&!(x.mobile in _byKey))_byKey[x.mobile]=x;});selectedLeads.forEach(function(mob){var l=_byKey[mob];if(l){var prev=l.status;l.status=status;if(status==='CONVERTED'&&prev!=='CONVERTED')autoConvert(l);}});saveL();pushLeads();closeOv('ov-bulk');clearBulk();renderLeads();renderDash();}
-async function bulkDelete(){if(selectedLeads.size===0)return;if(!confirm('Delete '+selectedLeads.size+' leads?'))return;showActivity('deleting');leads=leads.filter(function(l){return !selectedLeads.has(l.mobile);});saveL();clearBulk();renderLeads();renderDash();pushLeads().finally(function(){ flashActivityDone('Deleted'); });}
+function applyBulkStatus(status){
+  var _byKey=Object.create(null);
+  leads.forEach(function(x){ if(x.recordId)_byKey[x.recordId]=x; if(x.mobile&&!(x.mobile in _byKey))_byKey[x.mobile]=x; });
+  var ops=[];
+  selectedLeads.forEach(function(k){
+    var l=_byKey[k];
+    if(l){ var prev=l.status; l.status=status; if(status==='CONVERTED'&&prev!=='CONVERTED')autoConvert(l);
+      ops.push({action:'updateLead', mobile:l.mobile, recordId:l.recordId||'', row:leadRow(l)}); }
+  });
+  saveL(); if(hasScript()&&ops.length) durableBatch(ops);
+  closeOv('ov-bulk');clearBulk();renderLeads();renderDash();
+}
+async function bulkDelete(){
+  if(selectedLeads.size===0)return;
+  if(!confirm('Delete '+selectedLeads.size+' leads?'))return;
+  showActivity('deleting');
+  var keys=new Set(selectedLeads);
+  var gone=leads.filter(function(l){return keys.has(bulkKey(l));});
+  leads=leads.filter(function(l){return !keys.has(bulkKey(l));});
+  saveL();clearBulk();renderLeads();renderDash();
+  if(hasScript()) await durableBatch(gone.map(function(l){return {action:'deleteLead', mobile:l.mobile, name:l.name||'', recordId:l.recordId||''};}));
+  flashActivityDone('Deleted');
+}
 
 // ═══════════════════════════════════════════════
 // CALENDAR
@@ -4255,7 +4303,7 @@ function loadVoiceCorrections(){
   try{ return JSON.parse(localStorage.getItem('wm_voice_corrections')||'{}'); }catch(e){ return {}; }
 }
 function saveVoiceCorrections(map){
-  try{ localStorage.setItem('wm_voice_corrections', JSON.stringify(map)); }catch(e){}
+  try{ safeSetItem('wm_voice_corrections', JSON.stringify(map)); }catch(e){}
 }
 function applyVoiceCorrections(text){
   var map=loadVoiceCorrections();
@@ -4765,15 +4813,6 @@ function saveTemplate(status,val){if(!cfg_.msgs)cfg_.msgs=Object.assign({},DEFMS
 // SYNC
 // ═══════════════════════════════════════════════
 function hasScript(){return !!(cfg_.scriptUrl&&cfg_.scriptUrl.includes('script.google.com'));}
-function showSyncPush(state){
-  // Update top sync bar to show push status
-  var dot=document.getElementById('top-sync-dot');
-  var txt=document.getElementById('top-sync-txt');
-  if(!dot||!txt)return;
-  if(state==='leads'||state==='clients'){dot.className='sync-dot warn';txt.textContent='Saving to sheet…';}
-  else if(state==='ok'){dot.className='sync-dot ok';txt.textContent='Saved to sheet ✓';setTimeout(function(){if(txt)txt.textContent='Synced';},3000);}
-  else if(state==='err'){dot.className='sync-dot err';txt.textContent='❌ Sheet save failed';}
-}
 
 function setSyncBanner(state){/* no-op: sync banner UI removed from dash */}
 function setTopSync(state,msg){/* no-op: sync banner UI removed from dash */}
@@ -4830,7 +4869,6 @@ async function _sheetWriteInner(data, timeoutMs){
       // {success:true} with no payload made the chat render an empty bubble
       // with no error, which is exactly the "no reply from the AI" symptom.
       // Requests that need a real response must surface a real error instead.
-      if(resp.ok && !data.expectsResponse) return {success:true, noResponse:true};
       return {success:false, error:'The server returned an unreadable response (this usually means it timed out or hit a quota limit). Please try again in a moment.'};
     }
   }catch(e){
@@ -4848,7 +4886,8 @@ async function _sheetWriteInner(data, timeoutMs){
       // Last resort: no-cors (write happens, can't read response)
       try{
         await fetch(url + '?payload=' + encodeURIComponent(JSON.stringify(data)) + '&t=' + Date.now(), {mode:'no-cors'});
-        return {success:true, noResponse:true};
+        // The request went out but its reply can't be read, so this is NOT a confirmed save.
+        return {success:false, unconfirmed:true, transient:true, noResponse:true, error:'Could not confirm the save reached the server'};
       }catch(e3){ return {error: e3.message}; }
     }
   }
@@ -4918,7 +4957,7 @@ async function pushRowsChunked(action, rows){
 async function importFromSheet(){
   if(!hasScript()){toast('Add Apps Script URL first');return;}
   var tabEl=document.getElementById('s-import-tab');var tab=tabEl?tabEl.value.trim()||'MASTER LIST':'MASTER LIST';toast('Importing…',4000);
-  try{var d=await scriptGet(tab);if(!d.rows||d.rows.length<2){showSyncMsg('No data in tab: '+tab,false);return;}var hdr=d.rows[0].map(function(h){return (h||'').toString().toLowerCase().trim();});var nameI=hdr.findIndex(function(h){return h.includes('name');});var mobI=hdr.findIndex(function(h){return h.includes('mobile')||h.includes('phone');});if(nameI<0||mobI<0){showSyncMsg('No Name/Mobile columns found',false);return;}var added=0,skipped=0;d.rows.slice(1).forEach(function(r){var mob=String(r[mobI]||'').trim();var name=caps(String(r[nameI]||''));if(!mob||!name){skipped++;return;}if(leads.find(function(l){return l.recordId===mob||l.mobile===mob;})){skipped++;return;}leads.push({name:name,mobile:mob,email:'',country:'',status:'PROSPECT',source:'',referral:'',products:'',age:'',gender:'',remarks:'',notes:[],createdDate:today(),modifiedDate:today()});added++;});saveL();pushLeads();renderLeads();renderDash();showSyncMsg('Imported '+added+' leads. Skipped '+skipped+'.',true);}catch(e){showSyncMsg('Import failed: '+e.message,false);}
+  try{var d=await scriptGet(tab);if(!d.rows||d.rows.length<2){showSyncMsg('No data in tab: '+tab,false);return;}var hdr=d.rows[0].map(function(h){return (h||'').toString().toLowerCase().trim();});var nameI=hdr.findIndex(function(h){return h.includes('name');});var mobI=hdr.findIndex(function(h){return h.includes('mobile')||h.includes('phone');});if(nameI<0||mobI<0){showSyncMsg('No Name/Mobile columns found',false);return;}var added=0,skipped=0,_imported=[];d.rows.slice(1).forEach(function(r){var mob=String(r[mobI]||'').trim();var name=caps(String(r[nameI]||''));if(!mob||!name){skipped++;return;}if(leads.find(function(l){return l.recordId===mob||l.mobile===mob;})){skipped++;return;}var _nl={name:name,mobile:mob,email:'',country:'',status:'PROSPECT',source:'',referral:'',products:'',age:'',gender:'',remarks:'',notes:[],createdDate:today(),modifiedDate:today()};leads.push(_nl);_imported.push(_nl);added++;});saveL();if(_imported.length){var _ib=await durableBatch(_imported.map(function(l){return {action:'appendLead',row:leadRow(l)};}));if(_ib.ok)await reconcileLeadsAndClientsFromSheet();}renderLeads();renderDash();showSyncMsg('Imported '+added+' leads. Skipped '+skipped+'.',true);}catch(e){showSyncMsg('Import failed: '+e.message,false);}
 }
 
 
@@ -4940,42 +4979,28 @@ async function createAnalyticsSheet(){
 }
 
 async function forcePushAll(){
-  // Force rewrite ALL leads and clients to sheet from local cache
-  if(!hasScript()){toast('Add Apps Script URL first');return;}
+  // Replaces EVERY lead and client in the sheet with THIS phone's copy. Nothing in normal use needs
+  // this any more (all saves are targeted row writes), so it is an Admin-only, confirmed, last-resort tool.
+  if(!hasScript()){ toast('Add Apps Script URL first'); return; }
+  if(!isAdmin()){ toast('Only an Admin can do a full push'); return; }
+  if(!confirm('Force push REPLACES every lead and client in the Google Sheet with the copy on THIS phone.\n\nIf anyone else (or another device) has added or changed anything since this phone last synced, their work will be overwritten.\n\nOnly continue if you are sure this phone has the latest data. Continue?')) return;
   var prEl=document.getElementById('push-result');
-  if(prEl)prEl.textContent='Pushing…';
-  _setSyncDot('syncing');
-  try{
-    // Push LEADS (chunked: header + first 50, then append rest)
-    var lrows=leadsRows();
-    var lhdr=lrows[0]; var ldata=lrows.slice(1);
-    var first=[lhdr].concat(ldata.slice(0,50));
-    var r1=await apiFetch({action:'pushLeads',rows:first});
-    if(ldata.length>50){
-      for(var li=50;li<ldata.length;li+=50){
-        await apiFetch({action:'appendLeads',rows:ldata.slice(li,li+50)});
-      }
-    }
-    if(prEl)prEl.textContent='Leads pushed ✅  Pushing clients…';
-
-    // Push CLIENTS (chunked same way)
-    var crows=clientsRows();
-    var chdr=crows[0]; var cdata=crows.slice(1);
-    var cfirst=[chdr].concat(cdata.slice(0,50));
-    await apiFetch({action:'pushClients',rows:cfirst});
-    if(cdata.length>50){
-      for(var ci=50;ci<cdata.length;ci+=50){
-        await apiFetch({action:'appendClients',rows:cdata.slice(ci,ci+50)});
-      }
-    }
-    if(prEl)prEl.textContent='✅ All pushed — '+leads.length+' leads, '+clients.length+' clients';
-    _setSyncDot('ok');
-    toast('✅ All data pushed to sheet');
-  }catch(e){
-    if(prEl)prEl.textContent='❌ Push failed: '+e.message;
-    _setSyncDot('err');
-    toast('❌ Push failed: '+e.message);
+  if(prEl) prEl.textContent='Pushing\u2026';
+  var uid=(getSession()||{}).userId||'';
+  var r1=await _doWrite({action:'pushLeads', rows:leadsRows(), fullOverwrite:true, requestingUserId:uid});
+  if(!(r1 && r1.success===true)){
+    var m1=(r1&&r1.error)||'no confirmation from the server';
+    if(prEl) prEl.textContent='\u274C Leads were NOT pushed: '+m1; toast('\u274C Push failed \u2014 the sheet was not changed', 5000); return;
   }
+  if(prEl) prEl.textContent='Leads pushed \u2705  Pushing clients\u2026';
+  var r2=await _doWrite({action:'pushClients', rows:clientsRows(), fullOverwrite:true, requestingUserId:uid});
+  if(!(r2 && r2.success===true)){
+    var m2=(r2&&r2.error)||'no confirmation from the server';
+    if(prEl) prEl.textContent='\u26A0\uFE0F Leads pushed, but clients were NOT: '+m2; toast('\u26A0\uFE0F Clients were not pushed', 5000); return;
+  }
+  _markSaved();
+  if(prEl) prEl.textContent='\u2705 All pushed \u2014 '+leads.length+' leads, '+clients.length+' clients';
+  toast('\u2705 All data pushed to the sheet');
 }
 
 async function testScriptConnection(){
@@ -5115,7 +5140,7 @@ function showNoClientFolderPopup(c){
       // Persist the folder ID to the sheet — this is what makes future uploads
       // (via the client's upload link) land in THIS folder instead of the app
       // searching again or a client accidentally getting a second folder.
-      await sheetWrite({action:'tagClientFolder', recordId:c.recordId||'', mobile:c.mobile, folderId:res.folderId});
+      await durableWrite({action:'tagClientFolder', recordId:c.recordId||'', mobile:c.mobile, folderId:res.folderId});
       c.folderId=res.folderId; // update the in-memory record immediately too
       saveC();
       msgEl.textContent='✅ Folder created and linked to '+toTitle(c.name)+'.'; msgEl.style.color='var(--green)';
@@ -5638,11 +5663,11 @@ function renderLeads(){
   if(subEl)subEl.textContent=arr.length+' '+(filterStatus==='Active'?'active leads':filterStatus==='All'?'leads':filterStatus.toLowerCase()+' leads')+(clientResults.length?', '+clientResults.length+' clients':'');
   var html=arr.length?arr.map(function(l){
     var d=daysAgo(l.modifiedDate||l.createdDate);var fd=parseInt(cfg_.followUpDays)||14;var hot=['PROSPECT','CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase())&&d>=fd;
-    var sel=selectedLeads.has(l.mobile);var lastRem=lastRemarkSummary(l.remarks);
+    var sel=selectedLeads.has(bulkKey(l));var lastRem=lastRemarkSummary(l.remarks);
     var badge=heatBadge(l);var aumTag=l.potentialSip?'<span style="font-size:9px;color:var(--accent);background:var(--accent2);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:1px 6px;margin-left:4px">'+aumDisplay(l.potentialSip)+'</span>':'';
     var potAumTag=l.potentialAum?'<span style="font-size:9px;color:var(--green);background:color-mix(in srgb, var(--green) 10%, transparent);border:1px solid color-mix(in srgb, var(--green) 30%, transparent);border-radius:999px;padding:1px 6px;margin-left:4px">\uD83D\uDCB0'+aumDisplay(l.potentialAum)+'</span>':'';
     var lId=l.recordId||l.mobile;
-    return '<div class="li'+(sel?' selected':'')+'" onclick="'+(bulkMode?'toggleSelect(\''+l.mobile+'\')':'openDetail(\''+lId+'\',\'lead\',\''+encodeURIComponent(l.name||'')+'\')')+'">'
+    return '<div class="li'+(sel?' selected':'')+'" onclick="'+(bulkMode?'toggleSelect(\''+bulkKey(l)+'\')':'openDetail(\''+lId+'\',\'lead\',\''+encodeURIComponent(l.name||'')+'\')')+'">'
       +(bulkMode?'<div style="width:20px;height:20px;border-radius:50%;border:2px solid var(--accent);background:'+(sel?'var(--accent)':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:8px">'+(sel?'<svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M20 6L9 17l-5-5"/></svg>':'')+'</div>':'')
       +'<div class="av">'+ini(l.name)+'</div>'
       +'<div class="li-info"><div class="li-name" style="display:flex;align-items:center;flex-wrap:wrap;gap:3px">'+toTitle(l.name)+(l.familyName?'<span style="font-size:9px;color:var(--t2);background:var(--s2);border:1px solid var(--border);border-radius:999px;padding:1px 6px;font-weight:600">👪 '+l.familyName+'</span>':'')+(l.userId?'<span style="font-size:9px;color:var(--t2);background:var(--s2);border:1px solid var(--border);border-radius:999px;padding:1px 6px;font-weight:600">👤 '+esc(l.userId)+'</span>':'')+(l.folderId?'<span style="font-size:9px;color:var(--green);font-weight:700">📁 Docs uploaded</span>':'')+' <span style="font-size:11px">'+leadHeat(leadScore(l)).emoji+'</span>'+badge+aumTag+potAumTag+'</div>'
@@ -5681,7 +5706,7 @@ function loadActivityLog(){
   catch(e){ activityLog = []; }
 }
 function saveActivityLog(){
-  try{ localStorage.setItem('wm_activity', JSON.stringify(activityLog)); }
+  try{ safeSetItem('wm_activity', JSON.stringify(activityLog)); }
   catch(e){ console.warn('saveActivityLog:', e); }
 }
 
@@ -5724,9 +5749,10 @@ async function logActivity(mob, type, activity, notes){
     var _logSession=getSession();
     var loggedBy=_logSession?_logSession.name:'';
     var row = [ts, name, actualMobile, type.toUpperCase(), activity, notes||'', rowId, recordId, loggedBy];
-    var res = await sheetWrite({action:'appendLog', row:row});
-    if(res && res.error){ hideActivity(); console.warn('appendLog failed:', res.error); toast('⚠️ Activity may not have saved — '+res.error); }
-    else { flashActivityDone('Saved'); }
+    // appendLog is repeat-safe on the server (deduped by Raw ID), so it can be queued and retried freely.
+    var _lr = await durableWrite({action:'appendLog', row:row});
+    if(_lr.ok){ flashActivityDone('Saved'); }
+    else { hideActivity(); toast('⚠️ Note kept on this phone — it will sync to the sheet automatically'); }
   }
 }
 
@@ -5791,6 +5817,7 @@ async function pullActivityLog(){
     if(d && d.error==='SESSION_EXPIRED'){ handleSessionExpired(); return; }
     if(d && d.rows && d.rows.length > 1){
       // Columns: A=Timestamp B=Name C=Mobile D=Type E=Activity F=Notes G=RowId H=RecordId
+      var _prevAct = activityLog;
       activityLog = d.rows.slice(1).map(function(r){
         return {
           ts:String(r[0]||'').trim(), name:String(r[1]||'').trim(),
@@ -5799,6 +5826,16 @@ async function pullActivityLog(){
           rowId:String(r[6]||'').trim(), recordId:String(r[7]||'').trim()
         };
       }).filter(function(e){ return e.mobile && e.activity; });
+      // Keep notes that are still waiting to reach the sheet (they aren't in it yet), and hide entries
+      // whose delete is still waiting — otherwise a refresh silently makes them vanish / reappear.
+      var _have={}; activityLog.forEach(function(e){ if(e.rowId) _have[e.rowId]=1; });
+      var _pendDel={};
+      (_wq||[]).forEach(function(it){
+        var p=it&&it.payload||{};
+        if(p.action==='appendLog' && p.row){ var id=String(p.row[6]||''); if(id && !_have[id]){ var keep=null; _prevAct.some(function(e){ if(e.rowId===id){ keep=e; return true; } return false; }); if(keep){ activityLog.push(keep); _have[id]=1; } } }
+        if(p.action==='deleteLogById' && p.rowId) _pendDel[p.rowId]=1;
+      });
+      if(Object.keys(_pendDel).length) activityLog=activityLog.filter(function(e){ return !_pendDel[e.rowId]; });
       saveActivityLog();
     }
   } catch(e){ console.warn('pullActivityLog:', e.message); }
@@ -5835,7 +5872,7 @@ async function pullFromSheet(manual){
     var cd=await _pClients; // already fetching in parallel since boot start
     var sheetClients=parseClientsFromRows(cd&&cd.rows);
     if(sheetClients){
-      clients=filterRecordsForRole(sheetClients); // replace (handles deletions from sheet)
+      clients=filterRecordsForRole(overlayPendingClients_(sheetClients, clients)); // replace (handles deletions from sheet)
       saveC();
     }
     // Pull Activity Log — run alongside the other background pulls (they're
@@ -5965,9 +6002,8 @@ function deleteActivityEntry(rowId, mob, clickTs){
     if(hasScript()){
       _writePending = true;
       showActivity('deleting');
-      sheetWrite({action:'deleteLogById', rowId:rowId, mobile:mob, ts:delTs, activity:delAct})
-        .then(function(){ _writePending = false; flashActivityDone('Deleted'); })
-        .catch(function(){ _writePending = false; hideActivity(); toast('⚠️ Could not delete from sheet — will retry on next sync'); });
+      durableWrite({action:'deleteLogById', rowId:rowId, mobile:mob, ts:delTs, activity:delAct})
+        .then(function(r){ _writePending = false; if(r.ok) flashActivityDone('Deleted'); else { hideActivity(); toast('⚠️ Delete will finish syncing automatically'); } });
     } else {
       toast('Entry deleted');
     }
@@ -6255,7 +6291,7 @@ function renderFuDetailInner(mob,nameHint){
 //   … → 1.9.10 → 2.0.0, and so on.
 // i.e. each of the last two positions counts 0..10 (eleven steps) before
 // carrying to the next place. Bump this ONE line on every release.
-var APP_VERSION='1.6.5';
+var APP_VERSION='1.7.1';
 
 
 
@@ -6273,7 +6309,7 @@ var _pushRunning=false;
 
 function queuePush(action,rows){
   _pushQueue.push({action:action,rows:rows,ts:Date.now()});
-  localStorage.setItem('wm_push_queue',JSON.stringify(_pushQueue));
+  safeSetItem('wm_push_queue',JSON.stringify(_pushQueue));
   drainPushQueue();
 }
 
@@ -6285,7 +6321,7 @@ async function drainPushQueue(){
     var payload=encodeURIComponent(JSON.stringify({action:item.action,rows:item.rows}));
     await fetch(cfg_.scriptUrl+'?payload='+payload+'&t='+Date.now(),{method:'GET',mode:'no-cors'});
     _pushQueue.shift();
-    localStorage.setItem('wm_push_queue',JSON.stringify(_pushQueue));
+    safeSetItem('wm_push_queue',JSON.stringify(_pushQueue));
     if(_pushQueue.length>0){
       setTimeout(drainPushQueue,800);
     } else {
@@ -7112,20 +7148,307 @@ async function saveLead(){
 // Every write is small, fast, confirmed with retry queue.
 // ═══════════════════════════════════════════════════════════════
 
-// ── Write queue (survives page reload) ──
-var _wq = [];
-function _loadQ(){ try{ _wq=JSON.parse(localStorage.getItem('wm_wq')||'[]'); }catch(e){ _wq=[]; } }
-function _saveQ(){ try{ localStorage.setItem('wm_wq', JSON.stringify(_wq)); }catch(e){} }
+// ═══════════════════════════════════════════════════════════════
+// DURABLE WRITE LAYER (v1.7) — everything that must reach the Google Sheet.
+//  1. "Saved" is reported ONLY when the server confirmed it (JSON success:true).
+//     An error page, a dropped reply and a timeout all count as NOT confirmed.
+//  2. An unconfirmed change is kept in a queue that survives a reload and is
+//     retried automatically (reconnect / back to the app / every 45s) with
+//     back-off — never sent by two retries at once.
+//  3. Nothing here ever rewrites a whole sheet from this device's copy: every
+//     save, delete, bulk change and reclassify is a targeted, idempotent row op.
+//  4. A full phone storage can never throw in the middle of a save.
+//  5. The top-bar badge always shows the truth about all of the above.
+// ═══════════════════════════════════════════════════════════════
+var DP_WRITE_TIMEOUT_MS = 40000;
+var _inflight = 0, _lastSavedAt = 0, _loginNeeded = false;
+var _storageDegraded = false, _storageWarned = false;
+var _wq = [], _wqFailed = [], _qLoaded = false, _fLoaded = false, _flushPromise = null;
 
-// ── Permanently-failed writes (5 retries exhausted) — previously these
-// were just silently discarded with zero notification, which meant an
-// edit could be quietly lost forever with nothing on screen ever telling
-// you it happened. Now they're kept here instead, so there's always a
-// visible, persistent trail of exactly what failed to save. ──
-var _wqFailed = [];
-function _loadFailedQ(){ try{ _wqFailed=JSON.parse(localStorage.getItem('wm_wq_failed')||'[]'); }catch(e){ _wqFailed=[]; } }
-function _saveFailedQ(){ try{ localStorage.setItem('wm_wq_failed', JSON.stringify(_wqFailed)); }catch(e){} }
+function newIdemKey(){ return 'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,10); }
+
+// ── Storage that can never throw. On a full disk, regenerable caches (they are
+// all re-pulled from the sheet) are dropped one at a time to make room, so the
+// write queue and the leads/clients cache keep priority. ──
+var _STORAGE_SHEDDABLE = ['wm_calendar_events','wm_analytics','wm_specialdays','wm_activity','wm_tasks'];
+function safeSetItem(key, val){
+  try{ localStorage.setItem(key, val); return true; }catch(e){}
+  for(var i=0;i<_STORAGE_SHEDDABLE.length;i++){
+    var k=_STORAGE_SHEDDABLE[i]; if(k===key) continue;
+    var had=false;
+    try{ had=localStorage.getItem(k)!==null; if(had) localStorage.removeItem(k); }catch(_r){ continue; }
+    if(!had) continue;
+    try{ localStorage.setItem(key, val); return true; }catch(_e2){}
+  }
+  _storageDegraded=true;
+  if(!_storageWarned){
+    _storageWarned=true;
+    try{ toast('\u26A0\uFE0F Phone storage is full \u2014 your changes still save to the sheet, but this phone can\u2019t keep an offline copy. Free up space or clear browser data.', 7000); }catch(_t){}
+  }
+  try{ _refreshSyncBadge(); }catch(_b){}
+  return false;
+}
+function storageUsageInfo(){
+  var total=0, keys={};
+  try{ for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i), v=localStorage.getItem(k)||''; var n=(k.length+v.length)*2; total+=n; if(/^wm_/.test(k)) keys[k]=n; } }catch(e){}
+  return {bytes:total, keys:keys, degraded:_storageDegraded};
+}
+
+// ── Write queue (survives page reload) ──
+function _loadQ(){ if(_qLoaded) return; _qLoaded=true; try{ var q=JSON.parse(localStorage.getItem('wm_wq')||'[]'); if(Array.isArray(q)) _wq=q.concat(_wq); }catch(e){} }
+function _saveQ(){ return safeSetItem('wm_wq', JSON.stringify(_wq)); }
+// ── Permanently-failed writes — kept visible, never silently dropped. ──
+function _loadFailedQ(){ if(_fLoaded) return; _fLoaded=true; try{ var f=JSON.parse(localStorage.getItem('wm_wq_failed')||'[]'); if(Array.isArray(f)) _wqFailed=f.concat(_wqFailed); }catch(e){} }
+function _saveFailedQ(){ return safeSetItem('wm_wq_failed', JSON.stringify(_wqFailed)); }
 function hasFailedWrites(){ _loadFailedQ(); return _wqFailed.length>0; }
+
+// ── Transport for ONE write. Returns the server's JSON when it answered; a
+// failure object (success:false, transient:true, unconfirmed:true) when it
+// could not be confirmed; {sessionExpired:true} when the login lapsed. ──
+async function _doWrite(data){
+  if(!hasScript()) return {success:false, error:'no script url'};
+  var sess=getSession();
+  if(sess && sess.sessionToken && !data.session) data=Object.assign({}, data, {session:sess.sessionToken});
+  var body=JSON.stringify(data), url=cfg_.scriptUrl, lastErr='', sawServer=false;
+  _inflight++; try{ _refreshSyncBadge(); }catch(_b){}
+  try{
+    for(var attempt=0; attempt<3; attempt++){
+      var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+      var tm=ctl?setTimeout(function(){ ctl.abort(); }, DP_WRITE_TIMEOUT_MS):null;
+      try{
+        var r=await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body:body, signal:ctl?ctl.signal:undefined});
+        var t=await r.text(); if(tm) clearTimeout(tm);
+        var j=null; try{ j=JSON.parse(t); }catch(pe){}
+        if(j && typeof j==='object'){
+          if(j.error==='SESSION_EXPIRED') return {success:false, error:'SESSION_EXPIRED', sessionExpired:true};
+          if(j.success!==true && /server busy/i.test(String(j.error||''))){ lastErr=String(j.error); sawServer=true; }
+          else return j;                       // the server's own answer is authoritative
+        } else { sawServer=true; lastErr=r.ok?'The server sent an unreadable reply (possibly an error page)':('HTTP '+r.status); }
+      }catch(e){ if(tm) clearTimeout(tm); lastErr=(e&&e.name==='AbortError')?'Timed out waiting for the server':((e&&e.message)||'network error'); }
+      if(typeof navigator!=='undefined' && navigator.onLine===false) break;   // no point retrying while offline
+      if(attempt<2) await new Promise(function(res){ setTimeout(res, 600*(attempt+1)); });
+    }
+    // Last resort for SMALL payloads when POST reached the server but kept failing.
+    if(sawServer && !(typeof navigator!=='undefined' && navigator.onLine===false)){
+      try{
+        var enc=encodeURIComponent(body);
+        if(enc.length<6000){
+          var ctl2=(typeof AbortController!=='undefined')?new AbortController():null;
+          var tm2=ctl2?setTimeout(function(){ ctl2.abort(); }, DP_WRITE_TIMEOUT_MS):null;
+          var r2=await fetch(url+'?payload='+enc+'&t='+Date.now(), {signal:ctl2?ctl2.signal:undefined});
+          var t2=await r2.text(); if(tm2) clearTimeout(tm2);
+          var j2=null; try{ j2=JSON.parse(t2); }catch(pe2){}
+          if(j2 && typeof j2==='object'){ if(j2.error==='SESSION_EXPIRED') return {success:false, error:'SESSION_EXPIRED', sessionExpired:true}; return j2; }
+        }
+      }catch(e2){ lastErr=(e2&&e2.message)||lastErr; }
+    }
+    return {success:false, error:lastErr||'network error', transient:true, unconfirmed:true};
+  } finally { _inflight--; try{ _refreshSyncBadge(); }catch(_b2){} }
+}
+
+// ── The truth about saving, in one place ──
+function computeSyncState(){
+  if(!hasScript()) return {state:'off', n:0, text:'Not connected to a Google Sheet'};
+  var failed=_wqFailed.length, pending=_wq.length;
+  if(_loginNeeded) return {state:'login', n:pending, text:'Please log in again to finish saving'};
+  if(failed>0) return {state:'failed', n:failed, text:failed+' change'+(failed>1?'s':'')+' could not be saved'};
+  if(_inflight>0) return {state:'saving', n:_inflight, text:'Saving\u2026'};
+  if(typeof navigator!=='undefined' && navigator.onLine===false) return {state:'offline', n:pending, text:'Offline \u2014 '+(pending?pending+' change'+(pending>1?'s':'')+' waiting to sync':'nothing waiting')};
+  if(pending>0) return {state:'pending', n:pending, text:pending+' change'+(pending>1?'s':'')+' waiting to sync'};
+  return {state:'saved', n:0, text:'All changes saved'};
+}
+function _refreshSyncBadge(){
+  var st=computeSyncState();
+  var el=document.getElementById('sync-badge'); if(!el) return st;
+  var ICON={saved:'\u2713', saving:'\u27F3', pending:'\u23F3', offline:'\u2298', failed:'!', login:'\uD83D\uDD12', off:'\u2013'};
+  el.setAttribute('data-state', st.state);
+  el.title=st.text; el.setAttribute('aria-label','Sync status: '+st.text);
+  var ico=el.querySelector('.sb-ico'), nEl=el.querySelector('.sb-n');
+  if(ico) ico.textContent=ICON[st.state]||'\u2022';
+  var count=(st.state==='saving'||st.state==='saved'||st.state==='off')?0:(st.n||0);
+  if(nEl) nEl.textContent=count>0?String(count>99?'99+':count):'';
+  return st;
+}
+function _setSyncDot(){ _refreshSyncBadge(); }                 // legacy name, same truth
+function showSyncPush(){ _refreshSyncBadge(); }                // legacy name, same truth
+function _markSaved(){ _lastSavedAt=Date.now(); _refreshSyncBadge(); }
+
+// ── Queue + durable helpers ──
+function queueDurable(payload){
+  var item={payload:payload, ts:Date.now(), attempts:0, tries:0};
+  _wq.push(item); _saveQ(); _refreshSyncBadge();
+  return item;
+}
+// Try now; if it isn't confirmed keep it safely for automatic retry. Pass
+// {idem:true} for creates that are not naturally repeat-safe (tasks, reminders).
+async function durableWrite(payload, opts){
+  opts=opts||{};
+  if(opts.idem && !payload.idemKey) payload=Object.assign({}, payload, {idemKey:newIdemKey()});
+  var res=await _doWrite(payload);
+  if(res && res.success===true){ _markSaved(); return {ok:true, res:res}; }
+  if(res && res.notFound){ var up0=_upsertPayloadFor(payload); if(up0){ var r0=await _doWrite(up0); if(r0 && r0.success===true){ _markSaved(); return {ok:true, res:r0}; } } }
+  queueDurable(payload);
+  if(res && res.sessionExpired){ _loginNeeded=true; _refreshSyncBadge(); handleSessionExpired(); }
+  return {ok:false, queued:true, res:res};
+}
+// Several targeted ops in as few requests as possible (server "batch"); whatever
+// isn't confirmed is queued individually, so nothing is ever lost or half-applied.
+async function durableBatch(ops){
+  var okAll=true, queued=0;
+  for(var i=0;i<ops.length;i+=25){
+    var chunk=ops.slice(i,i+25);
+    var res=await _doWrite({action:'batch', ops:chunk});
+    if(res && res.success===true && Array.isArray(res.results)){
+      for(var k=0;k<chunk.length;k++){
+        var r=res.results[k];
+        if(r && r.success===true) continue;
+        if(r && r.notFound){ var up=_upsertPayloadFor(chunk[k]); if(up){ var r2=await _doWrite(up); if(r2 && r2.success===true) continue; } }
+        queueDurable(chunk[k]); queued++; okAll=false;
+      }
+    } else {
+      chunk.forEach(function(c){ queueDurable(c); }); queued+=chunk.length; okAll=false;
+      if(res && res.sessionExpired){ _loginNeeded=true; _refreshSyncBadge(); handleSessionExpired(); return {ok:false, queued:queued}; }
+    }
+  }
+  if(okAll) _markSaved();
+  return {ok:okAll, queued:queued};
+}
+// An update whose row isn't in the sheet becomes a single-row add (upsert) — never a rewrite.
+function _upsertPayloadFor(p){
+  if(!p) return null;
+  if(p.action==='updateLead') return {action:'appendLead', row:p.row};
+  if(p.action==='updateClient') return {action:'appendClient', row:p.row};
+  return null;
+}
+
+// ── Retry the queue. Single-flight: any number of triggers share ONE run. ──
+function flushWriteQueue(opts){
+  if(_flushPromise) return _flushPromise;
+  _flushPromise=_flushWriteQueueInner(opts||{}).then(function(){ _flushPromise=null; }, function(e){ _flushPromise=null; console.warn('flushWriteQueue:', e&&e.message); });
+  return _flushPromise;
+}
+async function _flushWriteQueueInner(opts){
+  _loadQ(); _loadFailedQ();
+  if(!_wq.length){ _refreshSyncBadge(); return; }
+  if(typeof navigator!=='undefined' && navigator.onLine===false){ _refreshSyncBadge(); return; }
+  var batch=_wq.slice(), remaining=[], newlyFailed=[], anySucceeded=false, touchedTasks=false, stopForLogin=false, now=Date.now();
+  for(var i=0;i<batch.length;i++){
+    var item=batch[i], p=item.payload||{};
+    if(stopForLogin){ remaining.push(item); continue; }
+    if(!opts.force && item.nextTry && item.nextTry>now){ remaining.push(item); continue; }   // still backing off
+    if((item.attempts||0)>=5){ newlyFailed.push(item); continue; }
+    var res=await _doWrite(p);
+    if(res && res.notFound){ var up=_upsertPayloadFor(p); if(up) res=await _doWrite(up); }
+    if(res && res.success===true){ anySucceeded=true; if(/Task$/.test(p.action||'')) touchedTasks=true; continue; }
+    if(res && res.sessionExpired){ remaining.push(item); stopForLogin=true; _loginNeeded=true; handleSessionExpired(); continue; }
+    if(res && res.transient){
+      // network trouble is not the change's fault: back off, and never count it toward "failed"
+      item.tries=(item.tries||0)+1;
+      item.nextTry=Date.now()+Math.min(300000, 15000*Math.pow(2, Math.min(item.tries-1,5)));
+    } else { item.attempts=(item.attempts||0)+1; }     // the server refused it: genuinely counts
+    item.lastError=String((res&&res.error)||'');
+    remaining.push(item);
+  }
+  var added=_wq.filter(function(x){ return batch.indexOf(x)<0; });   // queued while we were busy
+  _wq=remaining.concat(added); _saveQ();
+  if(newlyFailed.length){
+    _wqFailed=_wqFailed.concat(newlyFailed); _saveFailedQ();
+    toast('\u26A0\uFE0F '+newlyFailed.length+' change(s) could not be saved after several attempts \u2014 tap the sync badge for details', 6000);
+  }
+  if(anySucceeded){
+    _markSaved();
+    await reconcileLeadsAndClientsFromSheet();
+    if(touchedTasks && typeof pullTasks==='function'){ try{ await pullTasks(); }catch(_e){} }
+  }
+  _refreshSyncBadge();
+}
+
+// ── Keep unsynced local edits visible when a fresh pull from the sheet lands ──
+function _leadMatch(a, rid, mob, nm){
+  if(rid && a.recordId) return a.recordId===rid;
+  return String(a.mobile||'')===String(mob||'') && String(a.name||'').toLowerCase()===String(nm||'').toLowerCase();
+}
+function overlayPendingLeads_(sheetLeads, localLeads){
+  if(!sheetLeads) return sheetLeads;
+  _wq.forEach(function(it){
+    var p=it&&it.payload; if(!p) return;
+    if(p.action!=='appendLead' && p.action!=='updateLead' && p.action!=='deleteLead') return;
+    var row=p.row||[], rid=p.recordId||row[17]||'', mob=p.mobile||row[1]||'', nm=p.name||row[0]||'';
+    var si=-1; for(var i=0;i<sheetLeads.length;i++){ if(_leadMatch(sheetLeads[i],rid,mob,nm)){ si=i; break; } }
+    if(p.action==='deleteLead'){ if(si>=0) sheetLeads.splice(si,1); return; }
+    var local=null; (localLeads||[]).some(function(x){ if(_leadMatch(x,rid,mob,nm)){ local=x; return true; } return false; });
+    if(!local) return;
+    if(si>=0) sheetLeads[si]=local; else sheetLeads.push(local);
+  });
+  return sheetLeads;
+}
+function overlayPendingClients_(sheetClients, localClients){
+  if(!sheetClients) return sheetClients;
+  _wq.forEach(function(it){
+    var p=it&&it.payload; if(!p) return;
+    if(p.action!=='appendClient' && p.action!=='updateClient' && p.action!=='deleteClient') return;
+    var row=p.row||[], rid=p.recordId||row[36]||'', mob=p.mobile||row[1]||'', nm=p.name||row[0]||'';
+    var si=-1; for(var i=0;i<sheetClients.length;i++){ if(_leadMatch(sheetClients[i],rid,mob,nm)){ si=i; break; } }
+    if(p.action==='deleteClient'){ if(si>=0) sheetClients.splice(si,1); return; }
+    var local=null; (localClients||[]).some(function(x){ if(_leadMatch(x,rid,mob,nm)){ local=x; return true; } return false; });
+    if(!local) return;
+    if(si>=0) sheetClients[si]=local; else sheetClients.push(local);
+  });
+  return sheetClients;
+}
+function overlayPendingTasks_(fresh, prev){
+  var local=prev||tasks||[];
+  _wq.forEach(function(it){
+    var p=it&&it.payload; if(!p) return;
+    if(p.action==='addTask' && p.idemKey){
+      var lt=null; local.some(function(x){ if(x._idem===p.idemKey){ lt=x; return true; } return false; });
+      if(lt && !fresh.some(function(x){ return x._idem===p.idemKey || (x.name===lt.name && x.taskDetails===lt.taskDetails && x.dueDate===lt.dueDate && x.createdDate===lt.createdDate); })) fresh.unshift(lt);
+    } else if(p.action==='updateTask' && p.taskId){
+      var lt2=null; local.some(function(x){ if(x.taskId===p.taskId){ lt2=x; return true; } return false; });
+      var fi=-1; for(var i=0;i<fresh.length;i++){ if(fresh[i].taskId===p.taskId){ fi=i; break; } }
+      if(lt2 && fi>=0) fresh[fi]=lt2;
+    }
+  });
+  return fresh;
+}
+
+// ── Tap the badge: what is going on, and what can I do about it ──
+function openSyncPanel(){
+  var st=computeSyncState();
+  var old=document.getElementById('sync-panel'); if(old) old.remove();
+  var ov=document.createElement('div'); ov.id='sync-panel';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
+  var last=_lastSavedAt?new Date(_lastSavedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'nothing saved yet this session';
+  var pend=_wq.length, fail=_wqFailed.length;
+  var btn='flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--s2);color:var(--text);font-weight:700;font-size:13px;cursor:pointer';
+  ov.innerHTML='<div style="background:var(--s1);width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))">'
+    +'<div style="font-size:16px;font-weight:800;margin-bottom:6px">'+st.text+'</div>'
+    +'<div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:14px">Last saved to your sheet: '+last
+    +'<br>Waiting to sync: '+pend+' \u00B7 Could not save: '+fail
+    +(_storageDegraded?'<br>\u26A0\uFE0F Phone storage is full \u2014 the offline copy is limited.':'')+'</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:8px"><button id="sp-sync" style="'+btn+'">\uD83D\uDD04 Sync now</button>'
+    +(fail?'<button id="sp-retry" style="'+btn+'">\u21BB Retry failed</button>':'')+'</div>'
+    +(fail?'<div style="display:flex;gap:8px;margin-bottom:8px"><button id="sp-view" style="'+btn+'">View what failed</button></div>':'')
+    +'<button id="sp-close" style="'+btn+';width:100%">Close</button></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+  document.getElementById('sp-close').onclick=function(){ ov.remove(); };
+  document.getElementById('sp-sync').onclick=async function(){
+    ov.remove(); toast('Syncing\u2026', 2500);
+    await flushWriteQueue({force:true});
+    var s2=computeSyncState();
+    if(s2.state==='saved'){ try{ await pullFromSheet(false); }catch(_e){} toast('\u2705 Everything is saved and up to date'); }
+    else toast(s2.text, 5000);
+  };
+  var rb=document.getElementById('sp-retry');
+  if(rb) rb.onclick=function(){
+    _wqFailed.forEach(function(it){ it.attempts=0; it.tries=0; it.nextTry=0; _wq.push(it); });
+    _wqFailed=[]; _saveQ(); _saveFailedQ(); renderFailedWritesBanner(); ov.remove(); toast('Retrying\u2026'); flushWriteQueue({force:true});
+  };
+  var vb=document.getElementById('sp-view'); if(vb) vb.onclick=function(){ viewFailedWrites(); };
+}
+
+
 
 // ── Single row (15 cols) from a lead object ──
 function leadRow(l){
@@ -7139,155 +7462,37 @@ function leadRow(l){
 // _writePending: blocks auto-sync while a write is in-flight
 var _writePending = false;
 
+function _afterFailedWrite(payload, res){
+  queueDurable(payload);
+  if(res && res.sessionExpired){ _loginNeeded=true; _refreshSyncBadge(); handleSessionExpired(); return; }
+  if(typeof navigator!=='undefined' && navigator.onLine===false) toast('\u26A0\uFE0F Saved on this phone \u2014 will sync when you are back online');
+  else toast('\u26A0\uFE0F Not confirmed by the sheet yet \u2014 kept safely on this phone and retrying automatically');
+}
 async function syncLead(lead, action){
-  if(!hasScript()){
-    toast('⚠️ No Apps Script URL — check Settings');
-    return;
-  }
-  _writePending = true;
-  _setSyncDot('syncing');
-  var ok = false;
-  var finalRes = null;
-
-  try{
-    if(action==='add'){
-      // Try appendLead first (efficient — adds one row)
-      var res = await _doWrite({action:'appendLead', row:leadRow(lead)});
-      if(res && res.success){
-        ok = true; finalRes = res;
-        // Capture the server-assigned Record ID (L1, L2...) immediately — without
-        // this, the lead has no reliable identifier until the next full reload,
-        // which would block folder-tagging and edit/delete disambiguation.
-        if(res.recordId && !lead.recordId){
-          lead.recordId=res.recordId;
-          var _lIdx=leads.findIndex(function(x){return x.mobile===lead.mobile && x.name===lead.name && !x.recordId;});
-          if(_lIdx>=0) leads[_lIdx].recordId=res.recordId;
-          saveL();
-        }
-      } else {
-        // ANY failure — not just the old-deployment "Bad action" signal —
-        // falls back to a full rewrite, same reasoning as the update branch
-        // above: a genuine appendLead failure (quota, transient error, etc.)
-        // used to go silently nowhere for any reason other than that one
-        // specific error string.
-        console.warn('appendLead failed ('+(res&&res.error)+'), falling back to pushLeads');
-        var res2 = await _doWrite({action:'pushLeads', rows:leadsRows()});
-        ok = !!(res2 && res2.success); finalRes = res2;
-      }
-    } else if(action==='update'){
-      // Try updateLead first (efficient — updates one row) — matched by Record ID,
-      // never mobile alone, since mobile numbers can legitimately repeat.
-      var res3 = await _doWrite({action:'updateLead', mobile:lead.mobile, recordId:lead.recordId||'', row:leadRow(lead)});
-      if(res3 && res3.success){
-        ok = true; finalRes = res3;
-      } else {
-        // ANY failure here — not just an old-deployment "Bad action" error,
-        // but also a genuine "couldn't find a row matching this Record ID
-        // or Name+Mobile" failure (e.g. a lead added offline whose
-        // server-assigned Record ID never reconciled locally) — falls back
-        // to a full rewrite from local truth. Without this catch-all, that
-        // second failure mode used to go silently nowhere: the app showed
-        // "Lead updated" while nothing actually reached the sheet, and the
-        // retry queue kept using the same broken match criteria forever.
-        console.warn('updateLead failed ('+(res3&&res3.error)+'), falling back to pushLeads');
-        var res4 = await _doWrite({action:'pushLeads', rows:leadsRows()});
-        ok = !!(res4 && res4.success); finalRes = res4;
-      }
-    } else if(action==='delete'){
-      var res5 = await _doWrite({action:'deleteLead', mobile:lead.mobile, name:lead.name||'', recordId:lead.recordId||''});
-      if(res5 && res5.success){
-        ok = true; finalRes = res5;
-      } else {
-        // Fall back to pushLeads (rewrites without this lead)
-        var res6 = await _doWrite({action:'pushLeads', rows:leadsRows()});
-        ok = !!(res6 && res6.success); finalRes = res6;
-      }
+  if(!hasScript()){ toast('\u26A0\uFE0F No Apps Script URL \u2014 check Settings'); return; }
+  var payload = action==='add' ? {action:'appendLead', row:leadRow(lead)}
+    : action==='update' ? {action:'updateLead', mobile:lead.mobile, recordId:lead.recordId||'', row:leadRow(lead)}
+    : {action:'deleteLead', mobile:lead.mobile, name:lead.name||'', recordId:lead.recordId||''};
+  var res = await _doWrite(payload);
+  // An update for a row that isn't in the sheet (deleted by someone else, or an add that never landed):
+  // put back just that ONE row. Never a whole-sheet rewrite from this device's copy.
+  if(action==='update' && res && res.notFound){ res = await _doWrite({action:'appendLead', row:leadRow(lead)}); }
+  if(res && res.success===true){
+    // Capture the server-assigned Record ID (L1, L2...) immediately.
+    if(action!=='delete' && res.recordId && !lead.recordId){
+      lead.recordId=res.recordId;
+      var _lIdx=leads.findIndex(function(x){return x.mobile===lead.mobile && x.name===lead.name && !x.recordId;});
+      if(_lIdx>=0) leads[_lIdx].recordId=res.recordId;
+      saveL();
     }
-  } catch(e){
-    console.warn('syncLead error:', e.message);
-    ok = false;
+    _markSaved();
+    return res;
   }
-
-  _writePending = false;
-
-  // A genuinely expired session should prompt re-login rather than queue
-  // forever and keep re-showing "didn't confirm" on every retry.
-  if(!ok && finalRes && finalRes.error==='SESSION_EXPIRED'){ handleSessionExpired(); return; }
-
-  if(!ok){
-    // Queue for retry on next app open
-    var payload = action==='add'
-      ? {action:'appendLead', row:leadRow(lead)}
-      : action==='update'
-      ? {action:'updateLead', mobile:lead.mobile, recordId:lead.recordId||'', row:leadRow(lead)}
-      : {action:'deleteLead', mobile:lead.mobile, name:lead.name||'', recordId:lead.recordId||''};
-    _wq.push({payload:payload, ts:Date.now(), attempts:0});
-    _saveQ();
-    _setSyncDot('pending');
-    // Be honest about which situation this is. Truly offline → the original
-    // message. Online but the write didn't confirm (rare now that _doWrite
-    // retries transient failures) → say it's queued and will retry, rather
-    // than implying a connection problem that isn't there.
-    if(navigator && navigator.onLine===false){
-      toast('⚠️ Saved locally — will sync when connection ready');
-    } else {
-      toast('⚠️ Save didn\'t confirm — queued, will retry automatically');
-    }
-  } else {
-    _setSyncDot('ok');
-  }
-  return finalRes;
+  _afterFailedWrite(payload, res);
+  return res;
 }
 
 // ── Flush pending queue (called on boot and after successful writes) ──
-async function flushWriteQueue(){
-  if(_wq.length===0) return;
-  _loadQ();
-  var remaining=[];
-  var anySucceeded=false;
-  var newlyFailed=[];
-  for(var i=0;i<_wq.length;i++){
-    var item=_wq[i];
-    if(item.attempts>=5){
-      // Previously silently dropped here — that meant an edit could vanish
-      // forever with no trace anywhere. Now it's kept as a permanent,
-      // visible record instead, and the person is told plainly that this
-      // specific change needs to be redone manually.
-      newlyFailed.push(item);
-      continue;
-    }
-    var _r=await _doWrite(item.payload);
-    if(_r && _r.error==='SESSION_EXPIRED'){ handleSessionExpired(); remaining.push(item); continue; }
-    var ok=!!(_r&&_r.success);            // FIX: _doWrite returns an object, not a boolean.
-                                          // Safe to retry now that the backend is idempotent (v2.8).
-    if(ok){ anySucceeded=true; }
-    else{ item.attempts++; remaining.push(item); }
-  }
-  _wq=remaining;
-  _saveQ();
-
-  if(newlyFailed.length){
-    _loadFailedQ();
-    _wqFailed=_wqFailed.concat(newlyFailed);
-    _saveFailedQ();
-    console.error('Write queue: '+newlyFailed.length+' change(s) permanently failed after 5 attempts:', newlyFailed);
-    toast('⚠️ '+newlyFailed.length+' change(s) could not be saved after several attempts — check Settings > Sync to see what needs redoing', 6000);
-  }
-
-  if(_wq.length>0) _setSyncDot('pending');
-  else if(!hasFailedWrites()) _setSyncDot('ok');
-
-  // The critical fix: a successful retry here means the SHEET is now
-  // correct, but the local leads/clients arrays (and whatever's on
-  // screen) may still be showing whatever an earlier boot-time pull
-  // happened to see — which, if that pull raced ahead of this retry,
-  // would still be the pre-edit value. Silently re-pulling here is what
-  // actually closes that gap, instead of leaving the app quietly showing
-  // stale data until the next full reload happens to catch up on its own.
-  if(anySucceeded){
-    await reconcileLeadsAndClientsFromSheet();
-  }
-}
 
 // ── Lightweight, targeted re-pull of just leads+clients (not the full
 // pullFromSheet — this deliberately skips analytics/special-days/calendar/
@@ -7306,120 +7511,19 @@ async function reconcileLeadsAndClientsFromSheet(){
     }
     var sheetClients=parseClientsFromRows(_fetches[1]&&_fetches[1].rows);
     if(sheetClients){
-      clients=filterRecordsForRole(sheetClients); saveC();
+      clients=filterRecordsForRole(overlayPendingClients_(sheetClients, clients)); saveC();
     }
     renderAll();
   }catch(e){ console.warn('reconcileLeadsAndClientsFromSheet failed:', e.message); }
 }
 
 // ── The actual HTTP write — POST text/plain with GET fallback ──
-async function _doWrite(data){
-  if(!hasScript()) return {error:'no script url'};
-  var url  = cfg_.scriptUrl;
-  // Every one of these actions (appendLead, updateLead, deleteLead,
-  // pushLeads, pushClients, ...) needs a login session on the server side.
-  // Without this, every save was silently rejected as SESSION_EXPIRED,
-  // fell back to pushLeads (also rejected), and always ended in "Save
-  // didn't confirm — queued, will retry automatically" — never actually
-  // saving. Mirrors the same attach-if-missing pattern _sheetWriteInner uses.
-  var _dwSession=getSession();
-  if(_dwSession && _dwSession.sessionToken && !data.session) data=Object.assign({}, data, {session:_dwSession.sessionToken});
-  var body = JSON.stringify(data);
-
-  // Method 1: POST text/plain (avoids CORS preflight, Apps Script reads
-  // e.postData.contents). Retried up to 3 attempts: an Apps Script /exec
-  // endpoint intermittently cold-starts or returns a transient 5xx / dropped
-  // connection on the FIRST hit, and a single flaky attempt was enough to
-  // wrongly surface "Saved locally — will sync" even though the very next
-  // attempt succeeds. These write actions are idempotent server-side
-  // (appendLead upserts by name+mobile, updateLead overwrites the same row),
-  // so re-sending is safe and never double-writes. A backend response that
-  // parses as JSON is authoritative and returned immediately — including a
-  // genuine {success:false} — so a real "no matching row" result still falls
-  // straight through to the caller's own fallback (pushLeads) without wasting
-  // retries on it.
-  var lastErr='';
-  for(var attempt=0; attempt<3; attempt++){
-    try{
-      var r = await fetch(url, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain'},
-        body: body
-      });
-      var t = await r.text();
-      try{
-        return JSON.parse(t); // full JSON so caller can check j.success / j.error
-      }catch(pe){
-        if(r.ok) return {success:true}; // HTTP OK but non-JSON body — treat as success
-        lastErr='HTTP '+r.status;       // a transient HTTP error — retry
-      }
-    }catch(e){
-      lastErr=e.message || 'network error'; // network drop / timeout — retry
-    }
-    if(attempt<2){ await new Promise(function(res){ setTimeout(res, 400*(attempt+1)); }); }
-  }
-
-  // Method 2 (last resort): GET with payload in the URL, for small payloads.
-  try{
-    var enc = encodeURIComponent(body);
-    if(enc.length < 6000){
-      var r2 = await fetch(url+'?payload='+enc+'&t='+Date.now());
-      var t2 = await r2.text();
-      try{ return JSON.parse(t2); }
-      catch(pe2){ return r2.ok ? {success:true} : {error:'HTTP '+r2.status}; }
-    }
-  }catch(e2){ lastErr=e2.message || lastErr; }
-  return {error: lastErr || 'network error'};
-}
 
 // ── Sync status dot in top bar ──
-function _setSyncDot(state){
-  var el = document.getElementById('sync-dot');
-  if(!el) return;
-  if(state==='ok')      { el.style.background='#4CAF50'; el.title='All synced'; }
-  if(state==='pending') { el.style.background='#FF9800'; el.title='Pending writes (will retry)'; }
-  if(state==='syncing') { el.style.background='#2196F3'; el.title='Syncing…'; }
-  if(state==='err')     { el.style.background='#F44336'; el.title='Sync error'; }
-}
 
 // ── pushLeads: only used for Force Push All (full rewrite) ──
-async function pushLeads(){
-  if(!hasScript()) return;
-  showSyncPush('leads');
-  _setSyncDot('syncing');
-  // Chunk into 50-row batches to handle large lists
-  var rows = leadsRows();
-  var hdr = rows[0];
-  var data = rows.slice(1);
-  var BATCH = 50;
-  // First batch: full clear+rewrite with header + first 50
-  var first = [hdr].concat(data.slice(0,BATCH));
-  var ok = await _doWrite({action:'pushLeads', rows:first});
-  if(!ok){ showSyncPush('err'); _setSyncDot('err'); return; }
-  // Remaining batches: append
-  for(var i=BATCH; i<data.length; i+=BATCH){
-    var chunk = data.slice(i, i+BATCH);
-    ok = await _doWrite({action:'appendLeads', rows:chunk});
-    if(!ok){ showSyncPush('err'); _setSyncDot('err'); return; }
-  }
-  showSyncPush('ok');
-  _setSyncDot('ok');
-}
 
 // ── pushClients: chunked for scale ──
-async function pushClients(){
-  if(!hasScript()) return;
-  var rows = clientsRows();
-  var hdr = rows[0];
-  var data = rows.slice(1);
-  var BATCH = 50;
-  var first = [hdr].concat(data.slice(0,BATCH));
-  var ok = await _doWrite({action:'pushClients', rows:first});
-  if(!ok) return;
-  for(var i=BATCH; i<data.length; i+=BATCH){
-    await _doWrite({action:'appendClients', rows:data.slice(i, i+BATCH)});
-  }
-}
 
 
 
@@ -7456,7 +7560,7 @@ async function bootSequenceV17(){
     // during redeployment) would otherwise wipe the local client list permanently.
     var sheetClients=parseClientsFromRows(_fetches[1]&&_fetches[1].rows);
     if(sheetClients){
-      clients=filterRecordsForRole(sheetClients); saveC();
+      clients=filterRecordsForRole(overlayPendingClients_(sheetClients, clients)); saveC();
     }
 
     // Activity log fetched in background — not needed for initial render
@@ -7646,7 +7750,7 @@ function logAnalytics(col, delta){
   var todayStr=today();
   var row=_analyticsData.find(function(r){return String(r[0]||'').trim()===todayStr;});
   if(row){ row[col-1]=(parseInt(row[col-1])||0)+(delta||1); }
-  else { var nr=[todayStr,0,0,0,0,0,0]; nr[col-1]=(delta||1); _analyticsData.push(nr); localStorage.setItem('wm_analytics',JSON.stringify(_analyticsData)); }
+  else { var nr=[todayStr,0,0,0,0,0,0]; nr[col-1]=(delta||1); _analyticsData.push(nr); safeSetItem('wm_analytics',JSON.stringify(_analyticsData)); }
   apiFetch({action:'updateAnalytics', date:todayStr, col:col, delta:delta||1});
 }
 
@@ -7710,7 +7814,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.48.0';
+var EXPECTED_BACKEND_VERSION = '2.49.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -7858,7 +7962,7 @@ function buildFolderViewUrl(folderId){ return 'https://drive.google.com/drive/fo
 // ── Permanently tag a folder to a CLIENT — writes into CLIENTS column AI,
 // matched server-side by Client ID (client.recordId), never mobile alone. ──
 async function tagFolderToClient(client, folderId){
-  var res=await sheetWrite({action:'tagClientFolder', mobile:client.mobile, recordId:client.recordId||'', folderId:folderId});
+  var _tdr=await durableWrite({action:'tagClientFolder', mobile:client.mobile, recordId:client.recordId||'', folderId:folderId}); var res=_tdr.ok?_tdr.res:{success:!!_tdr.queued};
   if(res && res.success){
     client.folderId=folderId;
     var idx=clients.findIndex(function(c){return c.recordId===client.recordId||c.mobile===client.mobile;});
@@ -7870,7 +7974,7 @@ async function tagFolderToClient(client, folderId){
 // ── Permanently tag a folder to a LEAD — writes into LEADS column T,
 // matched server-side by Record ID (lead.recordId), never mobile alone. ──
 async function tagFolderToLead(lead, folderId){
-  var res=await sheetWrite({action:'tagLeadFolder', mobile:lead.mobile, recordId:lead.recordId||'', folderId:folderId});
+  var _tdr2=await durableWrite({action:'tagLeadFolder', mobile:lead.mobile, recordId:lead.recordId||'', folderId:folderId}); var res=_tdr2.ok?_tdr2.res:{success:!!_tdr2.queued};
   if(res && res.success){
     lead.folderId=folderId;
     var idx=leads.findIndex(function(x){return x.recordId===lead.recordId||x.mobile===lead.mobile;});
@@ -10175,6 +10279,35 @@ async function runHealthCheck(){
     }catch(e){ no('Real client folder scan error: '+e.message); }
   }
 
+  // 22. SAVING & SYNC STATUS + DATA INTEGRITY — the things that silently went wrong before.
+  log(''); log('\u2501\u2501 22. Saving, sync status & data integrity \u2501\u2501');
+  try{
+    var _badge=document.getElementById('sync-badge');
+    if(_badge) ok('Save-status badge is on screen (top-right) \u2014 right now: '+computeSyncState().text);
+    else no('The save-status badge is missing from the page');
+    var _pn=_wq.length, _pf=_wqFailed.length;
+    if(_pn===0 && _pf===0) ok('No changes are waiting or failed on this device');
+    else {
+      if(_pf) no(_pf+' change(s) on this device could not be saved \u2014 tap the badge, then Retry failed');
+      if(_pn) wn(_pn+' change(s) still waiting to sync (they retry automatically)');
+    }
+    var _su=storageUsageInfo(), _pct=Math.round(_su.bytes/(5*1024*1024)*100);
+    if(_su.degraded) no('This phone\u2019s storage filled up during this session \u2014 the offline copy is incomplete');
+    else if(_pct>=90) no('Phone storage is about '+_pct+'% full \u2014 saves may soon lose their offline copy');
+    else if(_pct>=70) wn('Phone storage is about '+_pct+'% full');
+    else ok('Phone storage use is healthy (about '+_pct+'% of a typical 5 MB browser limit)');
+    var _integ=async function(tab, idCol, label){
+      var d=await scriptGet(tab,2), rws=((d&&d.rows)||[]).slice(1).filter(function(r){ return String(r[0]||'').trim()||String(r[1]||'').trim(); });
+      var seen={}, dups=[], blank=0;
+      rws.forEach(function(r){ var id=String(r[idCol]||'').trim(); if(!id){ blank++; return; } if(seen[id] && dups.indexOf(id)<0) dups.push(id); seen[id]=1; });
+      if(!dups.length) ok(label+': no duplicated IDs ('+rws.length+' rows checked)');
+      else no(label+': '+dups.length+' duplicated ID(s) \u2014 e.g. '+dups.slice(0,4).join(', ')+' \u2014 the same person/row appears more than once; delete the extra row(s) in the sheet');
+      if(blank) wn(label+': '+blank+' row(s) have no ID yet (they get one the next time they are saved)');
+    };
+    await _integ('LEADS', 17, 'Leads');
+    await _integ('CLIENTS', 36, 'Clients');
+  }catch(e){ no('Save/sync status check error: '+e.message); }
+
   // 20. ACCESS CONTROL — what someone who only has the GitHub page (and
   // can see the Apps Script URL in it) can get WITHOUT logging in. Sent
   // deliberately without the session, via raw fetch (scriptGet would treat
@@ -10450,141 +10583,6 @@ function emailHealthReport(){
 // person can close the app right after tapping it and still get the
 // email, so the UI confirms immediately rather than waiting for the
 // (potentially 30-60+ second) Apps Script execution to finish and return.
-async function runFullSyncTest(){
-  var el=document.getElementById('full-test-result');
-  function log(m){ if(el) el.textContent+=m+'\n'; console.log('[TEST]',m); }
-  function clear(){ if(el) el.textContent=''; }
-  clear();
-
-  if(!hasScript()){ log('❌ No Apps Script URL configured'); return; }
-  log('🔗 URL: '+cfg_.scriptUrl.substring(0,50)+'...');
-  log('');
-
-  var testMob='8888000088';
-  var pass=0, fail=0;
-  function check(cond, label){ if(cond){pass++;log('  ✅ '+label);}else{fail++;log('  ❌ '+label);} }
-
-  // ─────────── RAW CONNECTION TEST ───────────
-  log('━━━ CONNECTION ━━━');
-  log('Testing READ...');
-  try{
-    var ping=await fetch(cfg_.scriptUrl+'?tab=LEADS'+sessionQS()+'&t='+Date.now());
-    log('  → HTTP status: '+ping.status+' '+(ping.ok?'OK':'FAIL'));
-    log('  → Response type: '+ping.type);
-    var pingData=await ping.json();
-    check(pingData && pingData.rows!==undefined, 'READ works (got JSON)');
-    log('  → LEADS rows in sheet: '+(pingData.rows?pingData.rows.length-1:0));
-  }catch(e){
-    log('  ❌ READ FAILED: '+e.message);
-  }
-  log('');
-  log('Testing WRITE (raw)...');
-  try{
-    var wtest=await fetch(cfg_.scriptUrl+'?payload='+encodeURIComponent(JSON.stringify({action:'appendLog',session:(getSession()||{}).sessionToken,row:[fmtStamp(new Date()),'PINGTEST','0000000000','LEAD','ping','']}))+'&t='+Date.now());
-    log('  → WRITE HTTP status: '+wtest.status+' '+(wtest.ok?'OK':'FAIL'));
-    var wtxt=await wtest.text();
-    log('  → WRITE response: '+wtxt.substring(0,80));
-    check(wtxt.indexOf('success')>=0, 'WRITE returns success');
-    // cleanup
-    await sheetWrite({action:'deleteLog',mobile:'0000000000'});
-  }catch(e){
-    log('  ❌ WRITE (cors) failed: '+e.message);
-    log('  → Trying no-cors write...');
-    try{
-      await fetch(cfg_.scriptUrl+'?payload='+encodeURIComponent(JSON.stringify({action:'appendLog',session:(getSession()||{}).sessionToken,row:[fmtStamp(new Date()),'PINGTEST2','0000000001','LEAD','ping2','']}))+'&t='+Date.now(),{mode:'no-cors'});
-      await sleep(1500);
-      var verify=await pullLogForMobile('0000000001');
-      check(verify.length>0, 'no-cors WRITE actually works (verified by read-back)');
-      await sheetWrite({action:'deleteLog',mobile:'0000000001'});
-    }catch(e2){ log('  ❌ no-cors also failed: '+e2.message); }
-  }
-  log('');
-
-  // ─────────── LEADS TEST ───────────
-  log('━━━ LEADS SHEET ━━━');
-  // 1. WRITE: add a test lead to the array and push
-  var testLead={name:'ZZTEST LEAD',mobile:testMob,email:'',country:'TESTLAND',age:'99',
-    gender:'',status:'PROSPECT',source:'TEST',referral:'',products:'TEST PRODUCT',
-    potentialSip:'10-25 Lakhs',contactMode:'Phone',nextFollowUp:'',remarks:'test remark',notes:[],
-    createdDate:today(),modifiedDate:now()};
-  leads.push(testLead);
-  log('1️⃣ Writing test lead...');
-  var w1=await sheetWrite({action:'pushLeads', rows:leadsRows()});
-  log('  → write returned: '+JSON.stringify(w1).substring(0,80));
-  await sleep(2000);
-  // 2. READ BACK
-  log('2️⃣ Reading LEADS back from sheet...');
-  var rb=await readSheetTab('LEADS');
-  var foundLead=rb.some(function(r){return String(r[1]).trim()===testMob;});
-  check(foundLead, 'Test lead found in sheet after write');
-  // 3. MODIFY
-  log('3️⃣ Modifying test lead (status→CONTACTED, mode→WhatsApp)...');
-  var li=leads.findIndex(function(x){return x.mobile===testMob;});
-  if(li>=0){ leads[li].status='CONTACTED'; leads[li].contactMode='WhatsApp'; leads[li].nextFollowUp='2026-12-31'; }
-  var w2=await sheetWrite({action:'pushLeads', rows:leadsRows()});
-  await sleep(2000);
-  var rb2=await readSheetTab('LEADS');
-  var modRow=rb2.find(function(r){return String(r[1]).trim()===testMob;});
-  check(modRow && String(modRow[5]).toUpperCase()==='CONTACTED', 'Status modified in sheet (CONTACTED)');
-  check(modRow && String(modRow[11]).trim()==='WhatsApp', 'Contact mode modified in sheet (col L)');
-  check(modRow && String(modRow[9]).indexOf('2026-12-31')>=0, 'Follow-up date modified in sheet');
-  // 4. DELETE
-  log('4️⃣ Deleting test lead...');
-  leads=leads.filter(function(x){return x.mobile!==testMob;});
-  var w3=await sheetWrite({action:'pushLeads', rows:leadsRows()});
-  await sleep(2000);
-  var rb3=await readSheetTab('LEADS');
-  var stillThere=rb3.some(function(r){return String(r[1]).trim()===testMob;});
-  check(!stillThere, 'Test lead removed from sheet after delete');
-  log('');
-
-  // ─────────── CLIENTS TEST ───────────
-  log('━━━ CLIENTS SHEET ━━━');
-  var testClient={name:'ZZTEST CLIENT',mobile:testMob,email:'',country:'TESTLAND',
-    age:'88',gender:'',pan:'',products:'TEST',remarks:'',convertedDate:today()};
-  clients.push(testClient);
-  log('1️⃣ Writing test client...');
-  await sheetWrite({action:'pushClients', rows:clientsRows()});
-  await sleep(2000);
-  var cb=await readSheetTab('CLIENTS');
-  check(cb.some(function(r){return String(r[1]).trim()===testMob;}), 'Test client found in sheet');
-  log('2️⃣ Deleting test client...');
-  clients=clients.filter(function(x){return x.mobile!==testMob;});
-  await sheetWrite({action:'pushClients', rows:clientsRows()});
-  await sleep(2000);
-  var cb2=await readSheetTab('CLIENTS');
-  check(!cb2.some(function(r){return String(r[1]).trim()===testMob;}), 'Test client removed from sheet');
-  log('');
-
-  // ─────────── ACTIVITY LOG TEST ───────────
-  log('━━━ ACTIVITY LOG SHEET ━━━');
-  var testTs=fmtStamp(new Date());
-  var testRid='TESTRID'+Date.now();
-  log('1️⃣ Writing test log entry...');
-  await sheetWrite({action:'appendLog', row:[testTs,'ZZTEST',testMob,'LEAD','🧪 test activity','',testRid]});
-  await sleep(2000);
-  log('2️⃣ Reading log back...');
-  var lb=await pullLogForMobile(testMob);
-  check(lb.length>0, 'Test log entry found in sheet');
-  log('3️⃣ Deleting test log entry by Raw ID...');
-  await sheetWrite({action:'deleteLogById', rowId:testRid});
-  await sleep(2000);
-  var lb2=await pullLogForMobile(testMob);
-  check(lb2.length===0, 'Test log entry removed from sheet');
-  log('');
-
-  // ─────────── SUMMARY ───────────
-  log('━━━━━━━━━━━━━━━━━━━');
-  log((fail===0?'🎉 ALL PASSED':'⚠️ '+fail+' FAILED')+' ('+pass+'/'+(pass+fail)+')');
-  if(fail>0){
-    log('');
-    log('If CONNECTION failed but writes still');
-    log('worked, your Apps Script deployment');
-    log('needs "Who has access: Anyone".');
-  }
-  // Restore local state from sheet
-  saveL();saveC();saveActivityLog();renderAll();
-}
 
 function sleep(ms){ return new Promise(function(r){setTimeout(r,ms);}); }
 
@@ -10830,7 +10828,7 @@ function bulkWhatsApp(){
   if(!msg) return;
   var mobiles=[];
   leads.forEach(function(l){
-    if(selectedLeads.has(l.mobile)){
+    if(selectedLeads.has(bulkKey(l))){
       var digits=(l.mobile||'').replace(/\D/g,'');
       var waNum=waNumber(l.mobile);
       mobiles.push({name:l.name, num:waNum});
@@ -11719,7 +11717,7 @@ async function pullAnalytics(){
     var res = await scriptGet('ANALYTICS');
     if(res && res.rows && res.rows.length > 1){
       _analyticsData = res.rows.slice(1); // skip header
-      localStorage.setItem('wm_analytics', JSON.stringify(_analyticsData));
+      safeSetItem('wm_analytics', JSON.stringify(_analyticsData));
     }
   }catch(e){ console.warn('Analytics pull failed:', e.message); }
 }
@@ -11787,80 +11785,23 @@ function clientToRow(c){
 // add → appendClient | update → updateClient | delete → deleteClient
 // Falls back to full pushClients only if the targeted action isn't supported by Apps Script
 async function syncClient(client, action){
-  // Uses apiFetch (POST text/plain) — reliable for 30-column client data
-  // GET would fail silently for large payloads; POST never has that issue
-  if(!hasScript()){
-    toast('⚠️ No Apps Script URL — check Settings');
-    return;
-  }
-  _writePending = true;
-  _setSyncDot('syncing');
-  var ok = false;
-
-  try{
-    var res;
-    if(action==='add'){
-      // Try appendClient first (adds one row), fall back to full rewrite
-      res = await apiFetch({action:'appendClient', row:clientToRow(client)});
-      if(res && res.success){
-        ok=true;
-        // Capture the server-assigned Client ID (C1, C2...) immediately — without
-        // this, the client has no reliable identifier until the next full reload,
-        // which would block folder-tagging and edit/delete disambiguation.
-        if(res.recordId && !client.recordId){
-          client.recordId=res.recordId;
-          var _cIdx=clients.findIndex(function(x){return x.mobile===client.mobile && x.name===client.name && !x.recordId;});
-          if(_cIdx>=0) clients[_cIdx].recordId=res.recordId;
-          saveC();
-        }
-      }
-      else {
-        // Fall back: full clients rewrite
-        res = await apiFetch({action:'pushClients', rows:clientsRows()});
-        ok = !!(res && res.success);
-      }
-
-    } else if(action==='update'){
-      // Try updateClient first (updates one row) — matched by Client ID (recordId),
-      // never mobile alone, since mobile numbers can legitimately repeat.
-      res = await apiFetch({action:'updateClient', mobile:client.mobile, recordId:client.recordId||'', row:clientToRow(client)});
-      if(res && res.success){ ok=true; }
-      else {
-        // Fall back: full clients rewrite — guarantees data reaches sheet
-        console.warn('updateClient failed ('+(res&&res.error)+'), falling back to pushClients');
-        res = await apiFetch({action:'pushClients', rows:clientsRows()});
-        ok = !!(res && res.success);
-      }
-
-    } else if(action==='delete'){
-      res = await apiFetch({action:'deleteClient', mobile:client.mobile, name:client.name||'', recordId:client.recordId||''});
-      if(res && res.success){ ok=true; }
-      else {
-        res = await apiFetch({action:'pushClients', rows:clientsRows()});
-        ok = !!(res && res.success);
-      }
+  if(!hasScript()){ toast('\u26A0\uFE0F No Apps Script URL \u2014 check Settings'); return; }
+  var payload = action==='add' ? {action:'appendClient', row:clientToRow(client)}
+    : action==='update' ? {action:'updateClient', mobile:client.mobile, recordId:client.recordId||'', row:clientToRow(client)}
+    : {action:'deleteClient', mobile:client.mobile, name:client.name||'', recordId:client.recordId||''};
+  var res = await _doWrite(payload);
+  if(action==='update' && res && res.notFound){ res = await _doWrite({action:'appendClient', row:clientToRow(client)}); }
+  if(res && res.success===true){
+    if(action!=='delete' && res.recordId && !client.recordId){
+      client.recordId=res.recordId;
+      var _cIdx=clients.findIndex(function(x){return x.mobile===client.mobile && x.name===client.name && !x.recordId;});
+      if(_cIdx>=0) clients[_cIdx].recordId=res.recordId;
+      saveC();
     }
-  } catch(e){
-    console.warn('syncClient error:', e.message);
-    ok = false;
+    _markSaved();
+    return res;
   }
-
-  _writePending = false;
-
-  if(!ok){
-    // Queue for retry on next session
-    var payload = action==='add'
-      ? {action:'appendClient', row:clientToRow(client)}
-      : action==='update'
-      ? {action:'updateClient', mobile:client.mobile, recordId:client.recordId||'', row:clientToRow(client)}
-      : {action:'deleteClient', mobile:client.mobile, name:client.name||'', recordId:client.recordId||''};
-    _wq.push({payload:payload, ts:Date.now(), attempts:0});
-    _saveQ();
-    _setSyncDot('pending');
-    toast('⚠️ Saved locally — will retry sync automatically');
-  } else {
-    _setSyncDot('ok');
-  }
+  _afterFailedWrite(payload, res);
   return res;
 }
 
@@ -12326,7 +12267,7 @@ async function pullSpecialDays(){
           _specialDays.push(sd);
         }
       });
-      localStorage.setItem('wm_specialdays',JSON.stringify(_specialDays));
+      safeSetItem('wm_specialdays',JSON.stringify(_specialDays));
     }
   }catch(e){ console.warn('pullSpecialDays failed:', e.message); }
 }
@@ -12397,7 +12338,7 @@ async function saveSpecialDay(){
     toast('Already exists');return;
   }
   _specialDays.push({date:mmdd,speciality:name});
-  localStorage.setItem('wm_specialdays',JSON.stringify(_specialDays));
+  safeSetItem('wm_specialdays',JSON.stringify(_specialDays));
   // Save to sheet
   var res=await apiFetch({action:'appendSpecialDay',date:mmdd,speciality:name});
   if(res&&res.success){toast('✅ Special Day saved to sheet');}
@@ -12801,7 +12742,7 @@ function filterTasksForRole(taskList){
   return taskList.filter(function(t){ return t.createdBy===session.name; });
 }
 function saveTasks(){
-  try{ localStorage.setItem('wm_tasks', JSON.stringify(tasks)); }catch(e){}
+  try{ safeSetItem('wm_tasks', JSON.stringify(tasks)); }catch(e){}
 }
 async function pullTasks(){
   if(!hasScript()) return;
@@ -12815,11 +12756,13 @@ async function pullTasks(){
     if(res && res.rows && res.rows.length > 1){
       var rows = res.rows.slice(1); // skip header
       var missingIdCount = 0;
+      var _prevTasks = tasks; // the list BEFORE it is replaced — the overlay needs it to find tasks still waiting to save
       tasks = rows.map(function(r){
         var taskId = r[6]||'';
         if(!taskId) missingIdCount++;
         return { createdDate:r[0]||'', name:r[1]||'', taskDetails:r[2]||'', dueDate:r[3]||'', status:r[4]||'Open', taskFor:r[5]||'OTHERS', taskId:taskId, linkedRecordId:r[7]||'', createdBy:r[8]||'', createdByRole:(r[9]||'').toUpperCase(), reviewedBy:r[10]||'', reviewedDate:r[11]||'', reviewComment:r[12]||'' };
       }).filter(function(t){ return t.name || t.taskDetails; }); // keep any row with real content, ID or not
+      tasks = overlayPendingTasks_(tasks, _prevTasks);
       tasks = filterTasksForRole(tasks);
       saveTasks();
       if(typeof renderDashboardActivityFeed==='function') renderDashboardActivityFeed();
@@ -12865,7 +12808,7 @@ async function pullCalendarEvents(){
     var res=await apiFetch({action:'getCalendarEvents', start:start, end:end});
     if(res && res.events){
       _calendarEvents=res.events;
-      localStorage.setItem('wm_calendar_events', JSON.stringify(_calendarEvents));
+      safeSetItem('wm_calendar_events', JSON.stringify(_calendarEvents));
     }
   }catch(e){ console.warn('pullCalendarEvents failed:', e.message); }
 }
@@ -12899,6 +12842,7 @@ function carryOverLeadNotes_(sheetLeads, existingLeads){
     var existing=(obj.recordId && byId[obj.recordId]) || byMobile[obj.mobile];
     obj.notes=(existing && existing.notes) ? existing.notes : [];
   });
+  overlayPendingLeads_(sheetLeads, existingLeads);
 }
 function parseLeadsFromRows(rows){
   if(!rows||rows.length<2) return null;
@@ -13210,8 +13154,10 @@ document.addEventListener('visibilitychange', function(){
 // while genuinely offline should retry the moment the device reconnects,
 // not wait for the next app reopen or manual Sync tap.
 window.addEventListener('online', function(){
-  if(typeof _wq!=='undefined' && _wq.length>0) flushWriteQueue();
+  _refreshSyncBadge();
+  if(typeof _wq!=='undefined' && _wq.length>0) flushWriteQueue({force:true});
 });
+window.addEventListener('offline', function(){ _refreshSyncBadge(); });
 
 // And for a session left open and idle rather than switched away from or
 // reconnected — a light periodic check, skipped entirely whenever there's
