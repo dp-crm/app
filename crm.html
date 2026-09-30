@@ -6255,7 +6255,7 @@ function renderFuDetailInner(mob,nameHint){
 //   … → 1.9.10 → 2.0.0, and so on.
 // i.e. each of the last two positions counts 0..10 (eleven steps) before
 // carrying to the next place. Bump this ONE line on every release.
-var APP_VERSION='1.6.4';
+var APP_VERSION='1.6.5';
 
 
 
@@ -13197,7 +13197,29 @@ document.addEventListener('visibilitychange', function(){
   } else if(document.visibilityState==='visible' && isLockEnabled() && !_lockUnlocked){
     showLockScreen();
   }
+  // A save that fails mid-session (a few seconds of weak signal, a brief
+  // server hiccup) used to sit queued with nothing retrying it until the
+  // app was fully closed and reopened — flushWriteQueue previously ran
+  // exactly once, right after boot sync, and never again. Coming back to
+  // an already-open app (switching back from another app, waking the
+  // phone) is a natural, low-cost moment to also retry.
+  if(document.visibilityState==='visible' && typeof _wq!=='undefined' && _wq.length>0) flushWriteQueue();
 });
+
+// Same idea for the connection itself coming back — a save that failed
+// while genuinely offline should retry the moment the device reconnects,
+// not wait for the next app reopen or manual Sync tap.
+window.addEventListener('online', function(){
+  if(typeof _wq!=='undefined' && _wq.length>0) flushWriteQueue();
+});
+
+// And for a session left open and idle rather than switched away from or
+// reconnected — a light periodic check, skipped entirely whenever there's
+// nothing queued (the normal case), so this costs nothing during ordinary
+// use and only ever does real work when a write is stuck waiting.
+setInterval(function(){
+  if(document.visibilityState==='visible' && typeof _wq!=='undefined' && _wq.length>0 && !syncInProgress) flushWriteQueue();
+}, 45000);
 
 // Settings UI status refresh
 function renderLockSettingsStatus(){
