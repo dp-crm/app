@@ -470,8 +470,9 @@ input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=file])
 .sync-badge{width:38px;height:38px;flex-shrink:0;border-radius:50%;border:1.5px solid var(--border);background:var(--s1);color:var(--green);font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
 .sync-badge .sb-n{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:var(--orange);color:#000;font-size:10px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 3px}
 .sync-badge .sb-n:not(:empty){display:flex}
-.sync-badge[data-state=saving]{color:var(--blue);border-color:var(--blue)}
-.sync-badge[data-state=saving] .sb-ico{display:inline-block;animation:sbspin 1s linear infinite}
+.sync-badge[data-state=saving],.sync-badge[data-state=loading]{color:var(--blue);border-color:var(--blue)}
+.sync-badge[data-state=saving] .sb-ico,.sync-badge[data-state=loading] .sb-ico{display:inline-block;animation:sbspin 1s linear infinite}
+.sync-badge[data-state=stale]{color:var(--orange);border-color:var(--orange)}
 .sync-badge[data-state=pending]{color:var(--orange);border-color:var(--orange)}
 .sync-badge[data-state=offline],.sync-badge[data-state=off]{color:var(--t3)}
 .sync-badge[data-state=failed],.sync-badge[data-state=login]{color:var(--red);border-color:var(--red)}
@@ -4821,25 +4822,59 @@ function showSyncMsg(msg,ok){var el=document.getElementById('sync-status');if(!e
 
 async function scriptGet(tab,retries){
   retries=retries||2;
+  // A big tab (thousands of rows) plus an Apps Script cold start can legitimately take 10-20 s; the old flat
+  // 10 s timeout made those loads fail routinely on larger firms. Big tabs now get 30 s, small ones 15 s, with
+  // a short back-off between tries. (DP_READ_TIMEOUT_MS is only ever set by tests.)
+  var big=(tab==='LEADS'||tab==='CLIENTS'||tab==='ACTIVITY_LOG'||tab==='TASKS'||tab==='REMINDERS');
+  var timeoutMs=DP_READ_TIMEOUT_MS?DP_READ_TIMEOUT_MS:(big?30000:15000);
   for(var attempt=1;attempt<=retries;attempt++){
+    var tm=null;
     try{
       var _session=getSession();
       var _sessionParam=_session&&_session.sessionToken?('&session='+encodeURIComponent(_session.sessionToken)):'';
       var url=cfg_.scriptUrl+'?tab='+encodeURIComponent(tab)+_sessionParam+'&t='+Date.now();
       var fetchPromise=fetch(url).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
-      var timeoutPromise=new Promise(function(_,rej){setTimeout(function(){rej(new Error('Timeout'));},10000);});
+      var timeoutPromise=new Promise(function(_,rej){tm=setTimeout(function(){rej(new Error('Timed out waiting for the sheet ('+Math.round(timeoutMs/1000)+'s)'));},timeoutMs);});
       var json=await Promise.race([fetchPromise,timeoutPromise]);
+      clearTimeout(tm);
       if(json && json.error==='SESSION_EXPIRED'){ handleSessionExpired(); return json; }
-      if(json.error&&attempt<retries){await new Promise(function(res){setTimeout(res,800);});continue;}
+      if(json && json.error && attempt<retries){await new Promise(function(res){setTimeout(res,800*attempt);});continue;}
       return json;
-    }catch(err){if(attempt===retries)throw err;await new Promise(function(res){setTimeout(res,1000);});}
+    }catch(err){ if(tm) clearTimeout(tm); if(attempt===retries)throw err; await new Promise(function(res){setTimeout(res,1000*attempt);}); }
   }
+}
+
+// ═══ LOADING FROM THE SHEET — shared by boot, manual Sync, and the live refresh ═══
+var DP_READ_TIMEOUT_MS = 0;
+var _lastLoadOk = 0, _loadErr = '', _loading = 0;
+function _loadBegin(){ _loading++; try{ _refreshSyncBadge(); }catch(e){} }
+function _loadEnd(ok, err){
+  _loading=Math.max(0,_loading-1);
+  if(ok){ _lastLoadOk=Date.now(); _lastFullRefresh=Date.now(); _loadErr=''; }
+  else if(err){ _loadErr=String(err).slice(0,200); }
+  try{ _refreshSyncBadge(); }catch(e){}
+}
+// A read that fails is returned as {error}, never thrown — so LEADS failing can never stop CLIENTS from loading.
+function _safeGet(tab){ return scriptGet(tab).catch(function(e){ return {error:String((e&&e.message)||e||'network error')}; }); }
+function _readErr_(x){ return (x&&x.error)?String(x.error):'no reply from the sheet'; }
+function _applyLeadsClientsFromFetch_(f, problems){
+  var lf=f&&f[0], cf=f&&f[1];
+  if(lf && lf.rows && !lf.error){
+    var sl=parseLeadsFromRows(lf.rows);
+    if(sl){ carryOverLeadNotes_(sl, leads); leads=filterRecordsForRole(sl); saveL(); }
+  } else problems.push('Leads: '+_readErr_(lf));
+  if(cf && cf.rows && !cf.error){
+    var sc=parseClientsFromRows(cf.rows);
+    if(sc){ clients=filterRecordsForRole(overlayPendingClients_(sc, clients)); saveC(); }
+  } else problems.push('Clients: '+_readErr_(cf));
+  return problems;
 }
 
 // ROBUST WRITE — uses same fetch pattern as scriptGet (follows 302 redirects, awaits response)
 async function sheetWrite(data, timeoutMs){
   var _res = await _sheetWriteInner(data, timeoutMs);
   if(_res && _res.error==='SESSION_EXPIRED'){ handleSessionExpired(); }
+  if(_res && _res.success===true && _res.rev) _noteRevFromWrite(_res);
   return _res;
 }
 async function _sheetWriteInner(data, timeoutMs){
@@ -4853,12 +4888,14 @@ async function _sheetWriteInner(data, timeoutMs){
   // PROVEN METHOD: POST with text/plain content-type avoids CORS preflight.
   // This is the method that works reliably in the older version.
   try{
+    var _bodyStr = JSON.stringify(data);
     var resp = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'text/plain'},
-      body: JSON.stringify(data),
-      signal: controller ? controller.signal : undefined
-    });
+      body: _bodyStr,
+      signal: controller ? controller.signal : undefined,
+      keepalive: (_bodyStr.length < 60000) && !data.expectsResponse   // a plain save can finish even if the app is backgrounded; AI calls that need the answer back are left alone
+    }); n+=1
     if(timer) clearTimeout(timer);
     var text = await resp.text();
     try{ return JSON.parse(text); }
@@ -5015,7 +5052,18 @@ async function testScriptConnection(){
 }
 
 function exportData(){var blob=new Blob([JSON.stringify({leads:leads,clients:clients,exportDate:new Date().toISOString()},null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='wm-crm-'+today()+'.json';a.click();toast('Exported!');}
-async function manualSync(){if(!hasScript()){toast('Add Apps Script URL in Sync tab');return;}setTopSync('syncing','Syncing…');await pullFromSheet(false);toast('✅ Synced');}
+async function manualSync(){
+  if(!hasScript()){ toast('Add Apps Script URL in Sync tab'); return; }
+  toast('Syncing…', 2500);
+  // Send anything still waiting FIRST, then read — so the refresh already contains this phone's own changes.
+  try{ await flushWriteQueue({force:true}); }catch(e){}
+  var r=await pullFromSheet(false);
+  var st=computeSyncState();
+  if(r && r.busy) toast('A sync is already running…');
+  else if(r && r.ok && (st.state==='saved'||st.state==='loading'||st.state==='saving')) toast('✅ Synced — '+leads.length+' leads, '+clients.length+' clients');
+  else if(r && r.ok) toast('⚠️ '+st.text, 5000);
+  else toast('⚠️ Couldn\'t fully sync — '+((r&&r.problems&&r.problems[0])||'please try again'), 5000);
+}
 
 // ═══════════════════════════════════════════════
 // HELPERS & NAV
@@ -5800,7 +5848,7 @@ function getActivity(mob, type){
 }
 
 async function pullActivityLog(){
-  if(!hasScript()) return;
+  if(!hasScript()) return false;
   try{
     // This was missing the login session for a long time, so the server
     // always refused it as SESSION_EXPIRED — the whole-sheet Activity Log
@@ -5814,7 +5862,7 @@ async function pullActivityLog(){
     var resp = await fetch(url);
     if(!resp.ok) throw new Error('HTTP '+resp.status);
     var d = await resp.json();
-    if(d && d.error==='SESSION_EXPIRED'){ handleSessionExpired(); return; }
+    if(d && d.error==='SESSION_EXPIRED'){ handleSessionExpired(); return false; }
     if(d && d.rows && d.rows.length > 1){
       // Columns: A=Timestamp B=Name C=Mobile D=Type E=Activity F=Notes G=RowId H=RecordId
       var _prevAct = activityLog;
@@ -5838,7 +5886,8 @@ async function pullActivityLog(){
       if(Object.keys(_pendDel).length) activityLog=activityLog.filter(function(e){ return !_pendDel[e.rowId]; });
       saveActivityLog();
     }
-  } catch(e){ console.warn('pullActivityLog:', e.message); }
+    return true;
+  } catch(e){ console.warn('pullActivityLog:', e.message); return false; }
 }
 
 // ── NEW LEADS COLUMNS (v2.7): 13 columns ──
@@ -5852,53 +5901,40 @@ function leadsRows(){
 
 // ── PULL FROM SHEET v2.7 (header-based, new columns) ──
 async function pullFromSheet(manual){
-  if(!hasScript()){if(manual)showSyncMsg('Add Apps Script URL first.',false);return;}
-  if(syncInProgress)return;
-  syncInProgress=true; setSyncBanner('syncing'); setTopSync('syncing','Syncing...');
+  if(!hasScript()){ if(manual)showSyncMsg('Add Apps Script URL first.',false); return {ok:false, problems:['No Apps Script URL']}; }
+  if(syncInProgress) return {ok:false, busy:true, problems:['A sync is already running']};
+  syncInProgress=true; _loadBegin();
   if(manual)toast('Syncing...',3000);
+  var problems=[];
   try{
-    // Pull LEADS + CLIENTS using the SAME shared parsers as boot — guarantees this
-    // manual sync button can never drift out of sync with the boot-time logic again.
-    var ld=await scriptGet('LEADS');
-    var sheetLeads=parseLeadsFromRows(ld&&ld.rows);
-    if(sheetLeads){
-      // REPLACE (not merge) — sheet is source of truth, correctly handles deletions
-      carryOverLeadNotes_(sheetLeads, leads);
-      leads=filterRecordsForRole(sheetLeads); saveL();
-    }
-
-    // Pull CLIENTS — never destructively clear local data on an empty-looking
-    // response (matches leads' safe behavior); only update when real data arrives
-    var cd=await _pClients; // already fetching in parallel since boot start
-    var sheetClients=parseClientsFromRows(cd&&cd.rows);
-    if(sheetClients){
-      clients=filterRecordsForRole(overlayPendingClients_(sheetClients, clients)); // replace (handles deletions from sheet)
-      saveC();
-    }
-    // Pull Activity Log — run alongside the other background pulls (they're
-    // independent of each other) instead of one-after-another, so the total
-    // wait is however long the SLOWEST of them takes, not the sum of all four.
-    await Promise.all([pullAnalytics(), pullSpecialDays(), pullCalendarEvents(), pullActivityLog()]);
+    // Same shared code as boot. (This used to `await _pClients`, a variable that was never defined anywhere — so
+    // every manual Sync / "Pull from Sheet" stopped right after the leads, never refreshed clients, activity,
+    // analytics or calendar, and still reported "Synced".)
+    var f=await Promise.all([_safeGet('LEADS'),_safeGet('CLIENTS')]);
+    _applyLeadsClientsFromFetch_(f, problems);
+    // The rest are independent of each other — run them together.
+    await Promise.all([pullAnalytics(), pullSpecialDays(), pullCalendarEvents(), pullActivityLog(), pullTasks()]);
     // If sheet has no special days yet, push all built-in data to it
     try{
       var spRes=await apiFetch({action:'readSpecialDays'});
       if(spRes&&spRes.rows&&spRes.rows.length===0){
-        // Sheet is empty — write all built-in special days to it
         var spAllRows=_specialDays.map(function(d){return[d.date,d.speciality];});
         await apiFetch({action:'pushSpecialDays',rows:spAllRows});
         toast('📅 Special Days written to sheet');
       }
     }catch(e){ console.warn('Special days sheet push failed:',e.message); }
     cfg_.lastPull=now(); saveCfg();
-    var ts=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
-    setSyncBanner('ok'); setTopSync('ok','Synced '+ts+' - '+leads.length+' leads');
     renderAll();
-    if(manual)showSyncMsg('Synced: '+leads.length+' leads, '+clients.length+' clients',true);
+    if(manual)showSyncMsg(problems.length?('Partly synced — '+problems.join(' · ')):('Synced: '+leads.length+' leads, '+clients.length+' clients'), !problems.length);
   }catch(err){
-    setSyncBanner('err'); setTopSync('err','Sync failed');
-    if(manual)showSyncMsg('Error: '+err.message,false);
-    console.warn('pullFromSheet:', err.message);
-  }finally{syncInProgress=false;}
+    problems.push(String((err&&err.message)||err));
+    if(manual)showSyncMsg('Error: '+((err&&err.message)||err),false);
+    console.warn('pullFromSheet:', err&&err.message);
+  }finally{
+    syncInProgress=false;
+    _loadEnd(problems.length===0, problems.join(' · '));
+  }
+  return {ok:problems.length===0, problems:problems};
 }
 
 // ── ACTIVITY LOG DISPLAY (replaces renderCommLog) ──
@@ -6291,7 +6327,7 @@ function renderFuDetailInner(mob,nameHint){
 //   … → 1.9.10 → 2.0.0, and so on.
 // i.e. each of the last two positions counts 0..10 (eleven steps) before
 // carrying to the next place. Bump this ONE line on every release.
-var APP_VERSION='1.7.1';
+var APP_VERSION='1.8.1';
 
 
 
@@ -7195,6 +7231,69 @@ function storageUsageInfo(){
 }
 
 // ── Write queue (survives page reload) ──
+// ═══ LIVE REFRESH — picks up other people's (and other devices') changes without a manual Sync ═══
+// Every 30 s (and whenever the app comes back to the front) this asks the server one tiny question — "have leads /
+// clients / tasks / activity changed since I last looked?" — and reloads ONLY what changed. A change this phone made
+// itself is recognised from the counters the server returns with each write, so it never reloads its own edits.
+// It never runs while you are in the middle of something (a form or detail window is open, a field is focused, a
+// save or sync is in progress); it simply tries again next tick, and a change is never lost by waiting.
+var _rev = null, _lastFullRefresh = 0, _pollBusy = false;
+async function _fetchRev(){
+  try{
+    if(!hasScript() || !getSession()) return null;
+    var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+    var tm=ctl?setTimeout(function(){ ctl.abort(); }, 8000):null;
+    var r=await fetch(cfg_.scriptUrl+'?action=dataRev'+sessionQS()+'&t='+Date.now(), {signal:ctl?ctl.signal:undefined});
+    var j=await r.json(); if(tm) clearTimeout(tm);
+    if(j && j.error==='SESSION_EXPIRED'){ handleSessionExpired(); return null; }
+    return (j && j.success && j.rev) ? j.rev : null;
+  }catch(e){ return null; }
+}
+function _noteRevFromWrite(res){
+  try{
+    if(!res || !res.rev || !res.revd || !_rev) return;
+    res.revd.forEach(function(d){ if(res.rev[d]===(_rev[d]||0)+1) _rev[d]=res.rev[d]; });   // exactly one step ahead = only my own write
+  }catch(e){}
+}
+function _userBusy_(){
+  try{
+    if(_inflight>0 || syncInProgress || _loading>0) return true;
+    if(document.querySelector('.ov.open')) return true;
+    var ae=document.activeElement;
+    if(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return true;
+  }catch(e){}
+  return false;
+}
+async function refreshChangedData_(ch){
+  var ok={};
+  if(ch.indexOf('L')>=0 || ch.indexOf('C')>=0){ var lc=await reconcileLeadsAndClientsFromSheet(); ok.L=lc; ok.C=lc; }
+  if(ch.indexOf('T')>=0) ok.T=await pullTasks();
+  if(ch.indexOf('A')>=0) ok.A=await pullActivityLog();
+  return ok;
+}
+async function pollForChanges_(force){
+  if(!hasScript() || !getSession() || _pollBusy) return;
+  if(typeof document!=='undefined' && document.visibilityState!=='visible') return;
+  if(typeof navigator!=='undefined' && navigator.onLine===false) return;
+  _pollBusy=true;
+  try{
+    var rev=await _fetchRev(); if(!rev) return;
+    if(!_rev){ _rev=rev; return; }
+    var changed=[]; ['L','C','T','A'].forEach(function(d){ if(rev[d]!==_rev[d]) changed.push(d); });
+    var due=(Date.now()-_lastFullRefresh)>300000;      // safety net: also catches edits made by hand in the sheet itself
+    if(!changed.length && !due && !force) return;
+    if(_userBusy_()) return;                            // try again next tick — nothing is lost by waiting
+    if(!changed.length) changed=['L','C','T','A'];
+    var okMap=await refreshChangedData_(changed);
+    // Only the parts that really reloaded count as seen. A reload that failed (weak signal, server busy) leaves
+    // that part's counter behind on purpose, so the very next check tries it again instead of losing the change.
+    var allOk=true;
+    changed.forEach(function(d){ if(okMap[d]) _rev[d]=rev[d]; else allOk=false; });
+    if(allOk) _lastFullRefresh=Date.now();
+  }catch(e){ console.warn('pollForChanges_:', e&&e.message); }
+  finally{ _pollBusy=false; }
+}
+
 function _loadQ(){ if(_qLoaded) return; _qLoaded=true; try{ var q=JSON.parse(localStorage.getItem('wm_wq')||'[]'); if(Array.isArray(q)) _wq=q.concat(_wq); }catch(e){} }
 function _saveQ(){ return safeSetItem('wm_wq', JSON.stringify(_wq)); }
 // ── Permanently-failed writes — kept visible, never silently dropped. ──
@@ -7216,13 +7315,13 @@ async function _doWrite(data){
       var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
       var tm=ctl?setTimeout(function(){ ctl.abort(); }, DP_WRITE_TIMEOUT_MS):null;
       try{
-        var r=await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body:body, signal:ctl?ctl.signal:undefined});
+        var r=await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain'}, body:body, signal:ctl?ctl.signal:undefined, keepalive:(body.length<60000)});   // keepalive: the browser finishes it even if the app is backgrounded
         var t=await r.text(); if(tm) clearTimeout(tm);
         var j=null; try{ j=JSON.parse(t); }catch(pe){}
         if(j && typeof j==='object'){
           if(j.error==='SESSION_EXPIRED') return {success:false, error:'SESSION_EXPIRED', sessionExpired:true};
           if(j.success!==true && /server busy/i.test(String(j.error||''))){ lastErr=String(j.error); sawServer=true; }
-          else return j;                       // the server's own answer is authoritative
+          else { if(j.success===true && j.rev) _noteRevFromWrite(j); return j; }   // the server's own answer is authoritative
         } else { sawServer=true; lastErr=r.ok?'The server sent an unreadable reply (possibly an error page)':('HTTP '+r.status); }
       }catch(e){ if(tm) clearTimeout(tm); lastErr=(e&&e.name==='AbortError')?'Timed out waiting for the server':((e&&e.message)||'network error'); }
       if(typeof navigator!=='undefined' && navigator.onLine===false) break;   // no point retrying while offline
@@ -7253,19 +7352,21 @@ function computeSyncState(){
   if(_loginNeeded) return {state:'login', n:pending, text:'Please log in again to finish saving'};
   if(failed>0) return {state:'failed', n:failed, text:failed+' change'+(failed>1?'s':'')+' could not be saved'};
   if(_inflight>0) return {state:'saving', n:_inflight, text:'Saving\u2026'};
+  if(_loading>0) return {state:'loading', n:0, text:'Loading from your sheet\u2026'};
   if(typeof navigator!=='undefined' && navigator.onLine===false) return {state:'offline', n:pending, text:'Offline \u2014 '+(pending?pending+' change'+(pending>1?'s':'')+' waiting to sync':'nothing waiting')};
   if(pending>0) return {state:'pending', n:pending, text:pending+' change'+(pending>1?'s':'')+' waiting to sync'};
+  if(_loadErr) return {state:'stale', n:0, text:'Couldn\u2019t refresh from the sheet \u2014 showing the last copy on this phone (tap to retry)'};
   return {state:'saved', n:0, text:'All changes saved'};
 }
 function _refreshSyncBadge(){
   var st=computeSyncState();
   var el=document.getElementById('sync-badge'); if(!el) return st;
-  var ICON={saved:'\u2713', saving:'\u27F3', pending:'\u23F3', offline:'\u2298', failed:'!', login:'\uD83D\uDD12', off:'\u2013'};
+  var ICON={saved:'\u2713', saving:'\u27F3', loading:'\u27F3', stale:'\u26A0', pending:'\u23F3', offline:'\u2298', failed:'!', login:'\uD83D\uDD12', off:'\u2013'};
   el.setAttribute('data-state', st.state);
   el.title=st.text; el.setAttribute('aria-label','Sync status: '+st.text);
   var ico=el.querySelector('.sb-ico'), nEl=el.querySelector('.sb-n');
   if(ico) ico.textContent=ICON[st.state]||'\u2022';
-  var count=(st.state==='saving'||st.state==='saved'||st.state==='off')?0:(st.n||0);
+  var count=(st.state==='saving'||st.state==='loading'||st.state==='stale'||st.state==='saved'||st.state==='off')?0:(st.n||0);
   if(nEl) nEl.textContent=count>0?String(count>99?'99+':count):'';
   return st;
 }
@@ -7284,6 +7385,7 @@ function queueDurable(payload){
 async function durableWrite(payload, opts){
   opts=opts||{};
   if(opts.idem && !payload.idemKey) payload=Object.assign({}, payload, {idemKey:newIdemKey()});
+  if(_hasPendingForKey(payload)){ return {ok:false, queued:true, res:_queueBehind_(payload)}; }
   var res=await _doWrite(payload);
   if(res && res.success===true){ _markSaved(); return {ok:true, res:res}; }
   if(res && res.notFound){ var up0=_upsertPayloadFor(payload); if(up0){ var r0=await _doWrite(up0); if(r0 && r0.success===true){ _markSaved(); return {ok:true, res:r0}; } } }
@@ -7327,25 +7429,49 @@ function flushWriteQueue(opts){
   _flushPromise=_flushWriteQueueInner(opts||{}).then(function(){ _flushPromise=null; }, function(e){ _flushPromise=null; console.warn('flushWriteQueue:', e&&e.message); });
   return _flushPromise;
 }
+function _qKey(p){
+  p=p||{}; var a=String(p.action||''), r=p.row||[];
+  if(/Lead$/.test(a)){ var id=String(p.recordId||r[17]||'').trim(); return id?('L:'+id):('L:'+String(p.mobile||r[1]||'')+'|'+String(p.name||r[0]||'').toLowerCase()); }
+  if(/Client$/.test(a)){ var cid=String(p.recordId||r[36]||'').trim(); return cid?('C:'+cid):('C:'+String(p.mobile||r[1]||'')+'|'+String(p.name||r[0]||'').toLowerCase()); }
+  if(/Task$/.test(a)) return 'T:'+String(p.taskId||p.idemKey||'');
+  return 'G:'+a+':'+String(p.rowId||r[6]||p.idemKey||Math.random());
+}
+function _hasPendingForKey(p){
+  var k=_qKey(p);
+  for(var i=0;i<_wq.length;i++){ if(_qKey(_wq[i].payload)===k) return true; }
+  return false;
+}
+// An earlier change to this same record is still waiting to be delivered: the new one goes in BEHIND it (never
+// ahead), so a retried older change can't land later and overwrite a newer one with stale values.
+function _queueBehind_(payload){
+  queueDurable(payload);
+  setTimeout(function(){ try{ flushWriteQueue(); }catch(e){} }, 0);
+  return {success:false, queued:true, ordered:true, error:'waiting behind an earlier change to this record'};
+}
 async function _flushWriteQueueInner(opts){
   _loadQ(); _loadFailedQ();
   if(!_wq.length){ _refreshSyncBadge(); return; }
   if(typeof navigator!=='undefined' && navigator.onLine===false){ _refreshSyncBadge(); return; }
   var batch=_wq.slice(), remaining=[], newlyFailed=[], anySucceeded=false, touchedTasks=false, stopForLogin=false, now=Date.now();
+  // ORDER PER RECORD: if an earlier change to a record has not landed (waiting, backing off, or just failed), every
+  // later change to the SAME record waits behind it. Otherwise a retried "add" could land AFTER a newer "update" and
+  // silently overwrite it with the older values. Different records still go through independently.
+  var held={}, transientStreak=0;
   for(var i=0;i<batch.length;i++){
-    var item=batch[i], p=item.payload||{};
-    if(stopForLogin){ remaining.push(item); continue; }
-    if(!opts.force && item.nextTry && item.nextTry>now){ remaining.push(item); continue; }   // still backing off
+    var item=batch[i], p=item.payload||{}, k=_qKey(p);
+    if(stopForLogin || transientStreak>=2 || held[k]){ remaining.push(item); held[k]=true; continue; }   // 2 network failures in a row = offline: stop, don't burn tries
+    if(!opts.force && item.nextTry && item.nextTry>now){ remaining.push(item); held[k]=true; continue; }   // still backing off
     if((item.attempts||0)>=5){ newlyFailed.push(item); continue; }
     var res=await _doWrite(p);
     if(res && res.notFound){ var up=_upsertPayloadFor(p); if(up) res=await _doWrite(up); }
-    if(res && res.success===true){ anySucceeded=true; if(/Task$/.test(p.action||'')) touchedTasks=true; continue; }
-    if(res && res.sessionExpired){ remaining.push(item); stopForLogin=true; _loginNeeded=true; handleSessionExpired(); continue; }
+    if(res && res.success===true){ anySucceeded=true; transientStreak=0; if(/Task$/.test(p.action||'')) touchedTasks=true; continue; }
+    if(res && res.sessionExpired){ remaining.push(item); held[k]=true; stopForLogin=true; _loginNeeded=true; handleSessionExpired(); continue; }
+    held[k]=true;
     if(res && res.transient){
-      // network trouble is not the change's fault: back off, and never count it toward "failed"
+      transientStreak++;
       item.tries=(item.tries||0)+1;
       item.nextTry=Date.now()+Math.min(300000, 15000*Math.pow(2, Math.min(item.tries-1,5)));
-    } else { item.attempts=(item.attempts||0)+1; }     // the server refused it: genuinely counts
+    } else { transientStreak=0; item.attempts=(item.attempts||0)+1; }     // the server refused it: genuinely counts
     item.lastError=String((res&&res.error)||'');
     remaining.push(item);
   }
@@ -7424,7 +7550,10 @@ function openSyncPanel(){
   ov.innerHTML='<div style="background:var(--s1);width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))">'
     +'<div style="font-size:16px;font-weight:800;margin-bottom:6px">'+st.text+'</div>'
     +'<div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:14px">Last saved to your sheet: '+last
+    +'<br>Sheet last loaded: '+(_lastLoadOk?new Date(_lastLoadOk).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'not yet')
     +'<br>Waiting to sync: '+pend+' \u00B7 Could not save: '+fail
+    +'<br>Last loaded from your sheet: '+(_lastLoadOk?new Date(_lastLoadOk).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'not yet this session')
+    +(_loadErr?'<br>\u26A0\uFE0F Last load problem: '+String(_loadErr).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}):'')
     +(_storageDegraded?'<br>\u26A0\uFE0F Phone storage is full \u2014 the offline copy is limited.':'')+'</div>'
     +'<div style="display:flex;gap:8px;margin-bottom:8px"><button id="sp-sync" style="'+btn+'">\uD83D\uDD04 Sync now</button>'
     +(fail?'<button id="sp-retry" style="'+btn+'">\u21BB Retry failed</button>':'')+'</div>'
@@ -7433,13 +7562,7 @@ function openSyncPanel(){
   document.body.appendChild(ov);
   ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
   document.getElementById('sp-close').onclick=function(){ ov.remove(); };
-  document.getElementById('sp-sync').onclick=async function(){
-    ov.remove(); toast('Syncing\u2026', 2500);
-    await flushWriteQueue({force:true});
-    var s2=computeSyncState();
-    if(s2.state==='saved'){ try{ await pullFromSheet(false); }catch(_e){} toast('\u2705 Everything is saved and up to date'); }
-    else toast(s2.text, 5000);
-  };
+  document.getElementById('sp-sync').onclick=function(){ ov.remove(); manualSync(); };
   var rb=document.getElementById('sp-retry');
   if(rb) rb.onclick=function(){
     _wqFailed.forEach(function(it){ it.attempts=0; it.tries=0; it.nextTry=0; _wq.push(it); });
@@ -7473,6 +7596,7 @@ async function syncLead(lead, action){
   var payload = action==='add' ? {action:'appendLead', row:leadRow(lead)}
     : action==='update' ? {action:'updateLead', mobile:lead.mobile, recordId:lead.recordId||'', row:leadRow(lead)}
     : {action:'deleteLead', mobile:lead.mobile, name:lead.name||'', recordId:lead.recordId||''};
+  if(_hasPendingForKey(payload)) return _queueBehind_(payload);
   var res = await _doWrite(payload);
   // An update for a row that isn't in the sheet (deleted by someone else, or an add that never landed):
   // put back just that ONE row. Never a whole-sheet rewrite from this device's copy.
@@ -7501,20 +7625,19 @@ async function syncLead(lead, action){
 // moment). Same REPLACE-from-sheet logic as boot and manual sync, kept as
 // its own function so all three call sites can never drift apart. ──
 async function reconcileLeadsAndClientsFromSheet(){
-  if(!hasScript() || syncInProgress) return;
+  // Returns true only when BOTH tabs were really reloaded — the live-refresh poller uses this to decide whether
+  // a change has been seen. (It used to return nothing, so a failed reload still counted as "seen" and the
+  // change stayed invisible until the 5-minute safety net.)
+  if(!hasScript() || syncInProgress) return false;
   try{
-    var _fetches=await Promise.all([scriptGet('LEADS'),scriptGet('CLIENTS')]);
-    var sheetLeads=parseLeadsFromRows(_fetches[0]&&_fetches[0].rows);
-    if(sheetLeads){
-      carryOverLeadNotes_(sheetLeads, leads);
-      leads=filterRecordsForRole(sheetLeads); saveL();
-    }
-    var sheetClients=parseClientsFromRows(_fetches[1]&&_fetches[1].rows);
-    if(sheetClients){
-      clients=filterRecordsForRole(overlayPendingClients_(sheetClients, clients)); saveC();
-    }
+    var f=await Promise.all([_safeGet('LEADS'),_safeGet('CLIENTS')]);
+    var problems=[]; _applyLeadsClientsFromFetch_(f, problems);
+    if(problems.length){ _loadErr=problems.join(' · ').slice(0,200); }
+    else { _loadErr=''; _lastLoadOk=Date.now(); }
+    try{ _refreshSyncBadge(); }catch(_b){}
     renderAll();
-  }catch(e){ console.warn('reconcileLeadsAndClientsFromSheet failed:', e.message); }
+    return problems.length===0;
+  }catch(e){ console.warn('reconcileLeadsAndClientsFromSheet failed:', e.message); return false; }
 }
 
 // ── The actual HTTP write — POST text/plain with GET fallback ──
@@ -7541,27 +7664,17 @@ async function bootSequenceV17(){
     return;
   }
   setTopSync('syncing','Syncing on startup…');
+  if(!leads.length && !clients.length) toast('Loading your data from the sheet…', 3500);
+  var _loadProblems=[];
+  _loadBegin();
   try{
     syncInProgress=true;
     // PARALLEL fetch: LEADS + CLIENTS simultaneously (60% faster boot)
-    var _fetches=await Promise.all([scriptGet('LEADS'),scriptGet('CLIENTS')]);
-
-    // Parse using the SAME shared functions pullFromSheet (manual sync) uses —
-    // guarantees boot and manual sync can never drift apart again.
-    var sheetLeads=parseLeadsFromRows(_fetches[0]&&_fetches[0].rows);
-    if(sheetLeads){
-      carryOverLeadNotes_(sheetLeads, leads);
-      // REPLACE local leads with sheet (sheet is source of truth — handles deletions)
-      leads=filterRecordsForRole(sheetLeads); saveL();
-    }
-
-    // NOTE: never destructively clear local clients on an empty-looking response —
-    // any transient empty/partial reply (cold start, network hiccup, brief moment
-    // during redeployment) would otherwise wipe the local client list permanently.
-    var sheetClients=parseClientsFromRows(_fetches[1]&&_fetches[1].rows);
-    if(sheetClients){
-      clients=filterRecordsForRole(overlayPendingClients_(sheetClients, clients)); saveC();
-    }
+    _fetchRev().then(function(r){ if(r && !_rev) _rev=r; });   // baseline for live refresh, runs alongside the reads
+    // Each tab is read independently — one slow or failed read never blocks the other, and a failure is
+    // recorded (shown on the status badge) instead of leaving old data on screen with no explanation.
+    var _fetches=await Promise.all([_safeGet('LEADS'),_safeGet('CLIENTS')]);
+    _applyLeadsClientsFromFetch_(_fetches, _loadProblems);
 
     // Activity log fetched in background — not needed for initial render
     pullActivityLog();
@@ -7598,10 +7711,12 @@ async function bootSequenceV17(){
     var anaPg=document.getElementById('pg-analytics');
     if(anaPg&&anaPg.classList.contains('active')){ loadAllBusinessInsights(); }
   }catch(err){
+    _loadProblems.push(String((err&&err.message)||err));
     setTopSync('err','Sync failed — tap 🔄');setSyncBanner('err');
     console.warn('Boot sync:',err.message);
   }finally{
     syncInProgress=false;
+    _loadEnd(_loadProblems.length===0, _loadProblems.join(' · '));
     // Flush any pending writes from a previous session AFTER this pull has
     // already landed, not on an independent timer racing against it —
     // previously a standalone 4-second timer could fire before or during
@@ -7814,7 +7929,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.49.0';
+var EXPECTED_BACKEND_VERSION = '2.50.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -10296,6 +10411,22 @@ async function runHealthCheck(){
     else if(_pct>=90) no('Phone storage is about '+_pct+'% full \u2014 saves may soon lose their offline copy');
     else if(_pct>=70) wn('Phone storage is about '+_pct+'% full');
     else ok('Phone storage use is healthy (about '+_pct+'% of a typical 5 MB browser limit)');
+    // Loading & freshness — is this phone actually showing what is in the sheet?
+    if(_lastLoadOk) ok('Last loaded from your sheet at '+new Date(_lastLoadOk).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+    else wn('This phone has not completed a load from the sheet yet in this session');
+    if(_loadErr) no('The last load from the sheet had a problem: '+_loadErr);
+    var _t0=Date.now(), _lr=await scriptGet('LEADS',2), _ms=Date.now()-_t0;
+    var _nL=((_lr&&_lr.rows)||[]).slice(1).filter(function(r){ return String(r[1]||'').trim(); }).length;
+    if(_ms>15000) no('Loading the leads tab took '+Math.round(_ms/1000)+' s ('+_nL+' rows) \u2014 too slow; the app may time out on a weak connection');
+    else if(_ms>6000) wn('Loading the leads tab took '+Math.round(_ms/1000)+' s ('+_nL+' rows)');
+    else ok('Leads tab loads in '+(Math.round(_ms/100)/10)+' s ('+_nL+' rows)');
+    if(isAdmin() && _wq.length===0){
+      if(leads.length===_nL) ok('This phone shows all '+_nL+' leads that are in the sheet');
+      else wn('This phone shows '+leads.length+' leads but the sheet has '+_nL+' \u2014 tap the badge \u2192 Sync now');
+    }
+    var _rv=await _fetchRev();
+    if(_rv) ok('Live refresh works \u2014 this phone picks up changes made by others within about 30 seconds');
+    else no('Live refresh is not working \u2014 other people\u2019s changes will only appear after a manual Sync (redeploy Code.gs '+EXPECTED_BACKEND_VERSION+')');
     var _integ=async function(tab, idCol, label){
       var d=await scriptGet(tab,2), rws=((d&&d.rows)||[]).slice(1).filter(function(r){ return String(r[0]||'').trim()||String(r[1]||'').trim(); });
       var seen={}, dups=[], blank=0;
@@ -11789,6 +11920,7 @@ async function syncClient(client, action){
   var payload = action==='add' ? {action:'appendClient', row:clientToRow(client)}
     : action==='update' ? {action:'updateClient', mobile:client.mobile, recordId:client.recordId||'', row:clientToRow(client)}
     : {action:'deleteClient', mobile:client.mobile, name:client.name||'', recordId:client.recordId||''};
+  if(_hasPendingForKey(payload)) return _queueBehind_(payload);
   var res = await _doWrite(payload);
   if(action==='update' && res && res.notFound){ res = await _doWrite({action:'appendClient', row:clientToRow(client)}); }
   if(res && res.success===true){
@@ -12745,7 +12877,7 @@ function saveTasks(){
   try{ safeSetItem('wm_tasks', JSON.stringify(tasks)); }catch(e){}
 }
 async function pullTasks(){
-  if(!hasScript()) return;
+  if(!hasScript()) return false;
   try{
     // Sheet may be named TASKS (new) or still REMINDERS (never renamed) —
     // try both so existing data is never silently invisible either way.
@@ -12777,7 +12909,8 @@ async function pullTasks(){
         }catch(bfErr){ console.warn('Task ID backfill failed:', bfErr.message); }
       }
     }
-  }catch(e){ console.warn('pullTasks failed:', e.message); }
+    return !!res && res.error!=='SESSION_EXPIRED';
+  }catch(e){ console.warn('pullTasks failed:', e.message); return false; }
 }
 
 // Fire-and-forget: silently flips any overdue "Open" task to "Due" in the
@@ -12845,7 +12978,14 @@ function carryOverLeadNotes_(sheetLeads, existingLeads){
   overlayPendingLeads_(sheetLeads, existingLeads);
 }
 function parseLeadsFromRows(rows){
-  if(!rows||rows.length<2) return null;
+  if(!rows||!rows.length) return null;
+  if(rows.length<2){
+    // Header row only. A recognisable header means the tab genuinely has no leads (everything was deleted) — that
+    // must clear this phone too, otherwise deleted leads linger on every device forever. A reply with no
+    // recognisable header is still treated as "no information", never as "everything was deleted".
+    var _h0=(rows[0]||[]).map(function(h){return String(h||'').toLowerCase();});
+    return (_h0.some(function(h){return h.indexOf('name')>=0;}) && _h0.some(function(h){return h.indexOf('mobile')>=0||h.indexOf('phone')>=0;}))?[]:null;
+  }
   var hdr=rows[0].map(function(h){return (h||'').toLowerCase().trim();});
   var ci=function(keys){for(var ki=0;ki<keys.length;ki++)for(var hi=0;hi<hdr.length;hi++)if(hdr[hi].includes(keys[ki]))return hi;return -1;};
   var C={name:ci(['name']),mob:ci(['mobile','phone']),email:ci(['email']),age:ci(['age']),country:ci(['country']),contactMode:ci(['mode','contact']),status:ci(['status']),source:ci(['source']),ref:ci(['referred','referral']),aum:ci(['sip']),fu:ci(['follow']),prod:ci(['product','investment']),rem:ci(['remark','note']),mod:ci(['modified']),created:ci(['created']),geo:ci(['geo']),potAum:ci(['aum']),recordId:ci(['record id']),familyName:ci(['family']),folderId:ci(['folder']),token:ci(['upload token','token']),userId:ci(['user id','user'])};
@@ -12871,7 +13011,11 @@ function parseLeadsFromRows(rows){
 
 // ── Shared CLIENTS row-parser — single source of truth, all 30 columns ──
 function parseClientsFromRows(rows){
-  if(!rows||rows.length<2) return null;
+  if(!rows||!rows.length) return null;
+  if(rows.length<2){
+    var _h1=(rows[0]||[]).map(function(h){return String(h||'').toLowerCase();});
+    return (_h1.some(function(h){return h.indexOf('name')>=0;}) && _h1.some(function(h){return h.indexOf('mobile')>=0;}))?[]:null;
+  }
   var chdr=rows[0].map(function(h){return (h||'').toLowerCase().trim();});
   var cci=function(keys){for(var ki=0;ki<keys.length;ki++)for(var hi=0;hi<chdr.length;hi++)if(chdr[hi].includes(keys[ki]))return hi;return -1;};
   var CC2={
@@ -13148,6 +13292,12 @@ document.addEventListener('visibilitychange', function(){
   // an already-open app (switching back from another app, waking the
   // phone) is a natural, low-cost moment to also retry.
   if(document.visibilityState==='visible' && typeof _wq!=='undefined' && _wq.length>0) flushWriteQueue();
+  // Leaving the app (switching away, locking the phone) with a save still waiting: make one last delivery attempt
+  // right now, while the page is still alive. Saves are sent with keepalive, so the browser can finish the
+  // request even after the app is suspended.
+  if(document.visibilityState==='hidden' && typeof _wq!=='undefined' && _wq.length>0) flushWriteQueue({force:true});
+  if(document.visibilityState==='visible') setTimeout(function(){ pollForChanges_(false); }, 800);
+  try{ _refreshSyncBadge(); }catch(_b){}
 });
 
 // Same idea for the connection itself coming back — a save that failed
@@ -13156,8 +13306,10 @@ document.addEventListener('visibilitychange', function(){
 window.addEventListener('online', function(){
   _refreshSyncBadge();
   if(typeof _wq!=='undefined' && _wq.length>0) flushWriteQueue({force:true});
+  setTimeout(function(){ pollForChanges_(false); }, 1500);
 });
 window.addEventListener('offline', function(){ _refreshSyncBadge(); });
+window.addEventListener('pagehide', function(){ if(typeof _wq!=='undefined' && _wq.length>0) flushWriteQueue({force:true}); });
 
 // And for a session left open and idle rather than switched away from or
 // reconnected — a light periodic check, skipped entirely whenever there's
@@ -13166,6 +13318,9 @@ window.addEventListener('offline', function(){ _refreshSyncBadge(); });
 setInterval(function(){
   if(document.visibilityState==='visible' && typeof _wq!=='undefined' && _wq.length>0 && !syncInProgress) flushWriteQueue();
 }, 45000);
+
+// Live refresh tick (see pollForChanges_): cheap when nothing changed, and it skips itself whenever you are mid-edit.
+setInterval(function(){ pollForChanges_(false); }, 30000);
 
 // Settings UI status refresh
 function renderLockSettingsStatus(){
