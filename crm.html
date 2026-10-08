@@ -1132,7 +1132,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=file])
       </div>
       <div class="acc-body">
         <div class="sg">
-          <div class="si" style="font-size:10px;color:var(--t3)"><span>Checks that your CRM is fully working end to end: the connection to your Google Sheet, every tab the app uses, saving and updating leads, clients, tasks, reminders and activity notes (and that every field lands in the right column), client and lead upload links, Drive folders, calendar, WhatsApp links, your client-facing pages, AI features, that nobody can read your data without logging in, and your login accounts. It writes a few temporary test records and removes them at the end. The report is for you — copy it, or email it to yourself.</span></div>
+          <div class="si" style="font-size:10px;color:var(--t3)"><span>Checks that your CRM is fully working end to end: the connection to your Google Sheet, every tab the app uses, saving and updating leads, clients, tasks, reminders and activity notes (and that every field lands in the right column), client and lead upload links, Drive folders, calendar, WhatsApp links, your client-facing pages, AI features, that nobody can read your data without logging in, your login accounts, and your security setup (the login and security tabs and columns, upload links, and who can open the sheet). It writes a few temporary test records and removes them at the end. The report is for you — copy it, or email it to yourself.</span></div>
           <div class="syc"><button class="btn btn-gold btn-full" style="font-weight:700" onclick="runHealthCheck()">🩺 Run Full Health Check</button></div>
           <div class="syc"><pre id="health-result" style="font-size:10px;background:var(--s2);border-radius:8px;padding:10px;white-space:pre-wrap;max-height:340px;overflow-y:auto;margin:0"></pre></div>
           <div class="syc" id="health-report-actions" style="display:none;gap:8px">
@@ -1201,6 +1201,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=file])
         <div class="sg">
           <div class="si" style="font-size:10px;color:var(--t3)"><span>Set a new password for your own account. You'll need your current password to confirm.</span></div>
           <div class="syc"><button class="btn btn-gold btn-full" onclick="openChangePasswordForm()">🔑 Change Password</button></div>
+          <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:12px" onclick="signOutOtherDevices()">📵 Sign out other devices</button></div>
         </div>
       </div>
     </div>
@@ -1213,6 +1214,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=file])
       <div class="acc-body">
         <div class="card" style="padding:12px 14px">
           <button class="btn btn-gold btn-full" style="margin-bottom:10px" onclick="openCreateUserForm()">➕ Add User</button>
+          <button class="btn btn-ghost btn-full" style="margin-bottom:10px;font-size:12px" onclick="runSecurityCheck(false)">🛡️ Check security setup</button>
           <div id="admin-user-list"><div style="font-size:11px;color:var(--t3);text-align:center;padding:8px">Loading…</div></div>
         </div>
       </div>
@@ -2427,12 +2429,13 @@ async function pullLeadActivity(mob, recType){
       // reappeared only after a later retry succeeded). Pending notes are kept.
       var _prevAct2 = activityLog, _have2 = {};
       fresh.forEach(function(e){ if(e.rowId) _have2[e.rowId]=1; });
+      var _recentKeep=[]; _keepRecentLog_(_prevAct2, _have2, _recentKeep);   // a note added a moment ago that the sheet doesn't show yet
       activityLog = activityLog.filter(function(e){
         if(e.recordId && targetRecordId) return e.recordId!==targetRecordId;
         if(!e.recordId) return !mobMatch(e.mobile, targetMobile);
         return true;
       });
-      activityLog = activityLog.concat(fresh);
+      activityLog = activityLog.concat(fresh).concat(_recentKeep);
       (_wq||[]).forEach(function(it){
         var p=it&&it.payload;
         if(p && p.action==='appendLog' && p.row){
@@ -4859,11 +4862,12 @@ function _safeGet(tab){ return scriptGet(tab).catch(function(e){ return {error:S
 function _readErr_(x){ return (x&&x.error)?String(x.error):'no reply from the sheet'; }
 function _applyLeadsClientsFromFetch_(f, problems){
   var lf=f&&f[0], cf=f&&f[1];
-  if(lf && lf.rows && !lf.error){
+  // `undefined` means "not requested this time" (a refresh of only the leads, say) — not a failure.
+  if(lf===undefined){ /* skip */ } else if(lf && lf.rows && !lf.error){
     var sl=parseLeadsFromRows(lf.rows);
     if(sl){ carryOverLeadNotes_(sl, leads); leads=filterRecordsForRole(sl); saveL(); }
   } else problems.push('Leads: '+_readErr_(lf));
-  if(cf && cf.rows && !cf.error){
+  if(cf===undefined){ /* skip */ } else if(cf && cf.rows && !cf.error){
     var sc=parseClientsFromRows(cf.rows);
     if(sc){ clients=filterRecordsForRole(overlayPendingClients_(sc, clients)); saveC(); }
   } else problems.push('Clients: '+_readErr_(cf));
@@ -4895,7 +4899,7 @@ async function _sheetWriteInner(data, timeoutMs){
       body: _bodyStr,
       signal: controller ? controller.signal : undefined,
       keepalive: (_bodyStr.length < 60000) && !data.expectsResponse   // a plain save can finish even if the app is backgrounded; AI calls that need the answer back are left alone
-    }); n+=1
+    });
     if(timer) clearTimeout(timer);
     var text = await resp.text();
     try{ return JSON.parse(text); }
@@ -5220,30 +5224,72 @@ document.querySelectorAll('.ov').forEach(function(o){o.addEventListener('click',
 // history.back() itself to consume the now-unneeded entry — so closing a
 // form the normal way never leaves the back-stack growing. _dpPopstateClosing
 // is just a re-entrancy guard so those two paths don't double-fire each other.
-var _dpPopstateClosing=false;
+var _dpPopstateClosing=false;   // kept only so older references stay valid
 (function(){
-  var _dpModalObserver=new MutationObserver(function(mutations){
+  // BACK BUTTON / BACK GESTURE closes the open screen instead of leaving the app.
+  //
+  // Design: while ANY overlay is open the page holds exactly ONE extra history entry (the "guard").
+  //  - Back pressed  -> the browser consumes the guard; we close the overlay that opened last (and put the guard
+  //                     back if another overlay is still open underneath).
+  //  - Overlay closed normally (Save / Cancel / X) -> nothing happens straight away. Only if NO overlay is open
+  //                     250 ms later do we tidy the guard away with one history.back().
+  // The earlier version called history.back() for every overlay that closed and pushState() for every one that
+  // opened. When one screen was swapped for another (e.g. tapping Modify on a client: the detail window closes
+  // while the edit form opens) those two calls collided: the browser cancelled the pending Back, a stale entry
+  // was left behind, and the next real Back press was mistaken for the app's own tidy-up. The edit form then
+  // closed the moment it opened. Here, history.back() and pushState() can never run close together.
+  var openOrder=[];          // ids of open overlays, oldest first (the last one is on top)
+  var guard=false;           // true while our one history entry is on top of the stack
+  var ownBack=false;         // a tidy-up history.back() is in flight
+  var ownBackTimer=null, cleanupTimer=null, needGuard=false;
+
+  function openCount(){ return document.querySelectorAll('.ov.open').length; }
+  function pushGuard(){ try{ history.pushState({dpModal:true}, ''); guard=true; }catch(e){} }
+  function ensureGuard(){
+    if(guard) return;
+    if(ownBack){ needGuard=true; return; }       // wait for the tidy-up Back to finish before pushing again
+    pushGuard();
+  }
+  function finishOwnBack(){
+    ownBack=false; if(ownBackTimer){ clearTimeout(ownBackTimer); ownBackTimer=null; }
+    if(needGuard){ needGuard=false; if(openCount()>0) ensureGuard(); }
+  }
+  function scheduleCleanup(){
+    if(!guard || cleanupTimer) return;
+    cleanupTimer=setTimeout(function(){
+      cleanupTimer=null;
+      if(!guard || openCount()>0) return;        // something opened again meanwhile — keep the guard for it
+      guard=false; ownBack=true;
+      ownBackTimer=setTimeout(finishOwnBack, 1500);   // in case the browser never reports the Back
+      try{ history.back(); }catch(e){ finishOwnBack(); }
+    }, 250);
+  }
+
+  var obs=new MutationObserver(function(mutations){
     mutations.forEach(function(m){
       if(m.attributeName!=='class') return;
       var el=m.target;
       var isOpenNow=el.classList.contains('open');
       var wasOpen=(m.oldValue||'').split(/\s+/).indexOf('open')>=0;
-      if(isOpenNow && !wasOpen){
-        try{ history.pushState({dpModal:el.id}, ''); }catch(e){}
-      } else if(!isOpenNow && wasOpen && !_dpPopstateClosing){
-        try{ history.back(); }catch(e){}
-      }
+      if(isOpenNow && !wasOpen){ openOrder=openOrder.filter(function(id){ return id!==el.id; }); openOrder.push(el.id); }
+      else if(!isOpenNow && wasOpen){ openOrder=openOrder.filter(function(id){ return id!==el.id; }); }
     });
+    if(openCount()>0){ if(cleanupTimer){ clearTimeout(cleanupTimer); cleanupTimer=null; } ensureGuard(); }
+    else scheduleCleanup();
   });
   document.querySelectorAll('.ov').forEach(function(el){
-    _dpModalObserver.observe(el, {attributes:true, attributeFilter:['class'], attributeOldValue:true});
+    obs.observe(el, {attributes:true, attributeFilter:['class'], attributeOldValue:true});
   });
+
   window.addEventListener('popstate', function(){
-    var openEl=document.querySelector('.ov.open');
-    if(!openEl) return; // nothing open — let back proceed normally (exit/background the app)
-    _dpPopstateClosing=true;
+    if(ownBack){ finishOwnBack(); return; }      // our own tidy-up, not the user pressing Back
+    guard=false;                                  // the browser has consumed the guard
+    var openEl=null;
+    for(var i=openOrder.length-1;i>=0 && !openEl;i--){ var c=document.getElementById(openOrder[i]); if(c && c.classList.contains('open')) openEl=c; }
+    if(!openEl) openEl=document.querySelector('.ov.open');
+    if(!openEl) return;                           // nothing open — Back simply carries on (leaves/backgrounds the app)
     if(openEl.id==='ov-fu-detail') closeFuDetail(); else closeOv(openEl.id);
-    _dpPopstateClosing=false;
+    // if another overlay is still open underneath, the observer above puts the guard back
   });
 })();
 function renderAll(){
@@ -5763,6 +5809,21 @@ function genRowId(){
   return 'L'+Date.now().toString(36)+Math.random().toString(36).substr(2,6);
 }
 
+// ═══ A note you have just added must never vanish because a refresh happened to land mid-send ═══
+// After you add a note it is shown at once from the phone and sent to the sheet. If the app refreshed its list from the
+// sheet during that send — a manual sync, the 30-second live refresh, another device's change — the sheet's copy did not
+// contain the note yet, so the refresh replaced the list and the note disappeared until the NEXT refresh. Now every note
+// added on this phone is remembered for two minutes and kept through any refresh until the sheet's own copy shows up.
+var _recentLog={};   // rowId -> when it was added on this phone
+function _noteRecentLog_(rowId){ if(rowId) _recentLog[rowId]=Date.now(); }
+function _keepRecentLog_(prevList, haveIds, outList){
+  var nowT=Date.now();
+  Object.keys(_recentLog).forEach(function(id){
+    if(haveIds[id]){ delete _recentLog[id]; return; }               // the sheet has it now — confirmed
+    if(nowT-_recentLog[id]>120000){ delete _recentLog[id]; return; }  // stopped waiting (a send that failed is protected by the queue instead)
+    for(var i=0;i<prevList.length;i++){ if(prevList[i].rowId===id){ outList.push(prevList[i]); haveIds[id]=1; break; } }
+  });
+}
 async function logActivity(mob, type, activity, notes){
   mob = String(mob||'').trim();
   if(!mob || !activity) return;
@@ -5783,6 +5844,7 @@ async function logActivity(mob, type, activity, notes){
 
   // Save locally first
   activityLog.push(entry);
+  _noteRecentLog_(rowId);
   saveActivityLog();
 
   // Reflect the new entry in any open history view IMMEDIATELY — before the
@@ -5847,7 +5909,7 @@ function getActivity(mob, type){
     .sort(function(a,b){ return (a.ts||'').localeCompare(b.ts||''); });
 }
 
-async function pullActivityLog(){
+async function pullActivityLog(pre){   // pre = the ACTIVITY_LOG part of a syncAll reply (when there is one)
   if(!hasScript()) return false;
   try{
     // This was missing the login session for a long time, so the server
@@ -5859,9 +5921,13 @@ async function pullActivityLog(){
     var url = cfg_.scriptUrl + '?tab=ACTIVITY_LOG'
       + (_session&&_session.sessionToken?('&session='+encodeURIComponent(_session.sessionToken)):'')
       + '&t=' + Date.now();
-    var resp = await fetch(url);
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
-    var d = await resp.json();
+    var d;
+    if(pre){ d = pre; }
+    else {
+      var resp = await fetch(url);
+      if(!resp.ok) throw new Error('HTTP '+resp.status);
+      d = await resp.json();
+    }
     if(d && d.error==='SESSION_EXPIRED'){ handleSessionExpired(); return false; }
     if(d && d.rows && d.rows.length > 1){
       // Columns: A=Timestamp B=Name C=Mobile D=Type E=Activity F=Notes G=RowId H=RecordId
@@ -5877,6 +5943,7 @@ async function pullActivityLog(){
       // Keep notes that are still waiting to reach the sheet (they aren't in it yet), and hide entries
       // whose delete is still waiting — otherwise a refresh silently makes them vanish / reappear.
       var _have={}; activityLog.forEach(function(e){ if(e.rowId) _have[e.rowId]=1; });
+      _keepRecentLog_(_prevAct, _have, activityLog);   // notes added a moment ago that the sheet's copy doesn't show yet
       var _pendDel={};
       (_wq||[]).forEach(function(it){
         var p=it&&it.payload||{};
@@ -5907,24 +5974,11 @@ async function pullFromSheet(manual){
   if(manual)toast('Syncing...',3000);
   var problems=[];
   try{
-    // Same shared code as boot. (This used to `await _pClients`, a variable that was never defined anywhere — so
-    // every manual Sync / "Pull from Sheet" stopped right after the leads, never refreshed clients, activity,
-    // analytics or calendar, and still reported "Synced".)
-    var f=await Promise.all([_safeGet('LEADS'),_safeGet('CLIENTS')]);
-    _applyLeadsClientsFromFetch_(f, problems);
-    // The rest are independent of each other — run them together.
-    await Promise.all([pullAnalytics(), pullSpecialDays(), pullCalendarEvents(), pullActivityLog(), pullTasks()]);
-    // If sheet has no special days yet, push all built-in data to it
-    try{
-      var spRes=await apiFetch({action:'readSpecialDays'});
-      if(spRes&&spRes.rows&&spRes.rows.length===0){
-        var spAllRows=_specialDays.map(function(d){return[d.date,d.speciality];});
-        await apiFetch({action:'pushSpecialDays',rows:spAllRows});
-        toast('📅 Special Days written to sheet');
-      }
-    }catch(e){ console.warn('Special days sheet push failed:',e.message); }
+    // The same one-call loading as start-up: everything the screens need in ONE request.
+    var okm=await loadParts_('L,C,T,A,S', problems);
     cfg_.lastPull=now(); saveCfg();
     renderAll();
+    Promise.all([pullCalendarEvents(), pullAnalytics()]).then(function(){ renderDash(); }).catch(function(){});   // the slow extras arrive afterwards (only the dashboard shows them)
     if(manual)showSyncMsg(problems.length?('Partly synced — '+problems.join(' · ')):('Synced: '+leads.length+' leads, '+clients.length+' clients'), !problems.length);
   }catch(err){
     problems.push(String((err&&err.message)||err));
@@ -6038,6 +6092,7 @@ function deleteActivityEntry(rowId, mob, clickTs){
     if(hasScript()){
       _writePending = true;
       showActivity('deleting');
+      delete _recentLog[rowId];
       durableWrite({action:'deleteLogById', rowId:rowId, mobile:mob, ts:delTs, activity:delAct})
         .then(function(r){ _writePending = false; if(r.ok) flashActivityDone('Deleted'); else { hideActivity(); toast('⚠️ Delete will finish syncing automatically'); } });
     } else {
@@ -6303,15 +6358,10 @@ function renderFuDetailInner(mob,nameHint){
       setTimeout(function(){editLeadOpen(m);},150);
     }
     if(action==='fu-delete'){
-      var ln=resolveOpenRecord(m,'lead');
-      if(ln){
-        var ov2=document.createElement('div');
-        ov2.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
-        ov2.innerHTML='<div style="background:var(--s1);border-radius:12px;width:100%;max-width:320px;overflow:hidden"><div style="padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border)">Delete '+toTitle(ln.name)+'?</div><div style="display:flex;border-top:1px solid var(--border)"><button id="_ld_no" style="flex:1;padding:12px;border:none;background:none;color:var(--t2);cursor:pointer;border-right:1px solid var(--border)">Cancel</button><button id="_ld_yes" style="flex:1;padding:12px;border:none;background:none;color:var(--accent);font-weight:700;cursor:pointer">Delete</button></div></div>';
-        document.body.appendChild(ov2);
-        document.getElementById('_ld_no').onclick=function(){ov2.remove();};
-        document.getElementById('_ld_yes').onclick=function(){ov2.remove();deleteLead(m);closeFuDetail();};
-      }
+      // deleteLead() asks "Delete <name>?" itself and, once confirmed, also closes this window. This handler used
+      // to show its OWN identical dialog first, so deleting a lead meant confirming twice in a row, and the lead
+      // window closed behind the second dialog even if you then cancelled it.
+      if(resolveOpenRecord(m,'lead')) deleteLead(m);
     }
   };
 }
@@ -6327,7 +6377,7 @@ function renderFuDetailInner(mob,nameHint){
 //   … → 1.9.10 → 2.0.0, and so on.
 // i.e. each of the last two positions counts 0..10 (eleven steps) before
 // carrying to the next place. Bump this ONE line on every release.
-var APP_VERSION='1.8.1';
+var APP_VERSION='1.8.7';
 
 
 
@@ -7265,10 +7315,21 @@ function _userBusy_(){
   return false;
 }
 async function refreshChangedData_(ch){
-  var ok={};
-  if(ch.indexOf('L')>=0 || ch.indexOf('C')>=0){ var lc=await reconcileLeadsAndClientsFromSheet(); ok.L=lc; ok.C=lc; }
-  if(ch.indexOf('T')>=0) ok.T=await pullTasks();
-  if(ch.indexOf('A')>=0) ok.A=await pullActivityLog();
+  // ONE request for whatever changed (it used to be up to three separate ones).
+  var parts=[], ok={}, problems=[];
+  if(ch.indexOf('L')>=0 || ch.indexOf('C')>=0) parts.push('L','C');
+  if(ch.indexOf('T')>=0) parts.push('T');
+  if(ch.indexOf('A')>=0) parts.push('A');
+  if(!parts.length || syncInProgress) return ok;
+  var m=await loadParts_(parts.join(','), problems);
+  if(m.L!==undefined || m.C!==undefined){
+    if(problems.length){ _loadErr=problems.join(' \u00B7 ').slice(0,200); } else { _loadErr=''; _lastLoadOk=Date.now(); }
+    try{ _refreshSyncBadge(); }catch(_b){}
+    renderAll();
+  }
+  if(ch.indexOf('L')>=0 || ch.indexOf('C')>=0){ var lc=!!(m.L&&m.C); ok.L=lc; ok.C=lc; }
+  if(ch.indexOf('T')>=0) ok.T=!!m.T;
+  if(ch.indexOf('A')>=0) ok.A=!!m.A;
   return ok;
 }
 async function pollForChanges_(force){
@@ -7550,6 +7611,7 @@ function openSyncPanel(){
   ov.innerHTML='<div style="background:var(--s1);width:100%;max-width:480px;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))">'
     +'<div style="font-size:16px;font-weight:800;margin-bottom:6px">'+st.text+'</div>'
     +'<div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:14px">Last saved to your sheet: '+last
+    +(loadTimingText_()?'<br><span style="color:var(--t3)">'+loadTimingText_()+'</span>':'')
     +'<br>Sheet last loaded: '+(_lastLoadOk?new Date(_lastLoadOk).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'not yet')
     +'<br>Waiting to sync: '+pend+' \u00B7 Could not save: '+fail
     +'<br>Last loaded from your sheet: '+(_lastLoadOk?new Date(_lastLoadOk).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'not yet this session')
@@ -7624,14 +7686,100 @@ async function syncLead(lead, action){
 // time via flushWriteQueue and shouldn't surface as a visible "Syncing…"
 // moment). Same REPLACE-from-sheet logic as boot and manual sync, kept as
 // its own function so all three call sites can never drift apart. ──
+// ═══ ONE-CALL LOADING ═══
+// Loading used to be many separate requests in two waves (the second only started when the first came back, and the
+// screen was not drawn until the calendar — the slowest read of all — had finished). Now everything the screens need
+// comes back in ONE request (syncAll in Code.gs); the screen is drawn straight away and the slow extras (calendar,
+// analytics, AI usage, news, branding) load afterwards in the background. If the server is older and does not know
+// syncAll, the original per-tab loading is used instead, so nothing breaks while an update is being rolled out.
+var _syncAllBroken=false;     // set once the server turns out not to know syncAll — no point asking again
+var _loadTiming=null;         // how long the last load took, and where the time went (shown in the sync panel + Health Check)
+var _coreLoaded=false, _afterCore=[];
+function afterCoreLoad_(fn){ if(_coreLoaded) setTimeout(fn,0); else _afterCore.push(fn); }
+function _coreLoadDone_(){
+  if(_coreLoaded) return; _coreLoaded=true;
+  var q=_afterCore; _afterCore=[];
+  q.forEach(function(f,i){ setTimeout(function(){ try{ f(); }catch(e){ console.warn('deferred start-up task:', e&&e.message); } }, 250*(i+1)); });   // staggered, so the extras don't all hit the server at the same instant
+}
+async function fetchSyncAll_(parts){
+  if(_syncAllBroken || !hasScript()) return null;
+  var t0=Date.now(), j=null, bytes=0;
+  for(var attempt=0; attempt<2; attempt++){
+    try{
+      var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+      var tm=ctl?setTimeout(function(){ ctl.abort(); }, DP_READ_TIMEOUT_MS?DP_READ_TIMEOUT_MS:40000):null;
+      var r=await fetch(cfg_.scriptUrl+'?action=syncAll&parts='+encodeURIComponent(parts)+sessionQS()+'&t='+Date.now(), {signal:ctl?ctl.signal:undefined});
+      var txt=await r.text(); if(tm) clearTimeout(tm);
+      bytes=txt.length; j=null; try{ j=JSON.parse(txt); }catch(pe){ j=null; }
+      if(j && j.error==='SESSION_EXPIRED'){ handleSessionExpired(); return null; }
+      if(j && j.success && j.tabs) break;
+      // An older Code.gs answers an unknown action like a plain tab read (rows, no `tabs`): remember that and stop asking.
+      if(j && !j.tabs && (j.rows || /bad action/i.test(String(j.error||'')))){ _syncAllBroken=true; return null; }
+      j=null;
+    }catch(e){ j=null; }
+    if(attempt===0) await new Promise(function(res){ setTimeout(res, 700); });
+  }
+  if(!j) return null;
+  var total=Date.now()-t0, server=(j.ms&&j.ms.total)||0;
+  _loadTiming={at:Date.now(), parts:parts, totalMs:total, serverMs:server, waitMs:Math.max(0,total-server), bytes:bytes, perPart:j.ms||{}, appMs:0, renderMs:0};
+  return j;
+}
+// Loads the wanted parts ('L,C,T,A,S') with ONE request and applies them. Returns {L,C,T,A,S: true/false}.
+async function loadParts_(parts, problems){
+  problems=problems||[]; var want={}, ok={};
+  String(parts).split(',').forEach(function(x){ want[x.trim()]=true; });
+  var B=await fetchSyncAll_(parts);
+  if(B){
+    var tp=Date.now();
+    if(want.L||want.C){
+      var f=[want.L?B.tabs.LEADS:undefined, want.C?B.tabs.CLIENTS:undefined];
+      _applyLeadsClientsFromFetch_(f, problems);
+      if(want.L) ok.L=!!(f[0]&&f[0].rows&&!f[0].error);
+      if(want.C) ok.C=!!(f[1]&&f[1].rows&&!f[1].error);
+    }
+    if(want.T) ok.T=await pullTasks(B.tabs.TASKS);
+    if(want.A) ok.A=await pullActivityLog(B.tabs.ACTIVITY_LOG);
+    if(want.S && B.special){ await pullSpecialDays(B.special); ok.S=true; if(B.special.rows && B.special.rows.length===0) seedSpecialDays_(); }
+    if(B.rev && !_rev) _rev=B.rev;                 // baseline for live refresh — no separate request needed
+    if(_loadTiming) _loadTiming.appMs=Date.now()-tp;
+    return ok;
+  }
+  // Fallback: the original one-tab-at-a-time loading (older server, or the combined call failed twice).
+  if(want.L||want.C){
+    var f2=await Promise.all([want.L?_safeGet('LEADS'):Promise.resolve(undefined), want.C?_safeGet('CLIENTS'):Promise.resolve(undefined)]);
+    _applyLeadsClientsFromFetch_(f2, problems);
+    if(want.L) ok.L=!!(f2[0]&&f2[0].rows&&!f2[0].error);
+    if(want.C) ok.C=!!(f2[1]&&f2[1].rows&&!f2[1].error);
+  }
+  var rest=[];
+  if(want.T) rest.push(pullTasks().then(function(v){ ok.T=v; }));
+  if(want.A) rest.push(pullActivityLog().then(function(v){ ok.A=v; }));
+  if(want.S) rest.push(pullSpecialDays().then(function(){ ok.S=true; }));
+  await Promise.all(rest);
+  return ok;
+}
+// First-ever load of a brand-new sheet: copy the built-in special days into it (the combined reply already told us it was empty).
+function seedSpecialDays_(){
+  try{
+    var rows=_specialDays.map(function(d){ return [d.date,d.speciality]; });
+    return apiFetch({action:'pushSpecialDays', rows:rows}).catch(function(e){ console.warn('Special days seed:', e&&e.message); });
+  }catch(e){}
+}
+// A one-line summary of where the last load's time went.
+function loadTimingText_(){
+  var t=_loadTiming; if(!t) return '';
+  function sec(ms){ return (ms/1000).toFixed(1)+'s'; }
+  var big=''; var best=0; ['L','C','T','A','S'].forEach(function(k){ if(t.perPart[k]>best){ best=t.perPart[k]; big=({L:'leads',C:'clients',T:'tasks',A:'activity',S:'special days'})[k]; } });
+  return 'Last load: '+sec(t.totalMs+t.appMs+t.renderMs)+' \u2014 waiting for Google '+sec(t.waitMs)+' \u00B7 reading the sheet '+sec(t.serverMs)+(best>=200?' (slowest: '+big+' '+sec(best)+')':'')+' \u00B7 app '+sec(t.appMs+t.renderMs)+' \u00B7 '+Math.round(t.bytes/1024)+' KB';
+}
+
 async function reconcileLeadsAndClientsFromSheet(){
   // Returns true only when BOTH tabs were really reloaded — the live-refresh poller uses this to decide whether
   // a change has been seen. (It used to return nothing, so a failed reload still counted as "seen" and the
   // change stayed invisible until the 5-minute safety net.)
   if(!hasScript() || syncInProgress) return false;
   try{
-    var f=await Promise.all([_safeGet('LEADS'),_safeGet('CLIENTS')]);
-    var problems=[]; _applyLeadsClientsFromFetch_(f, problems);
+    var problems=[]; await loadParts_('L,C', problems);
     if(problems.length){ _loadErr=problems.join(' · ').slice(0,200); }
     else { _loadErr=''; _lastLoadOk=Date.now(); }
     try{ _refreshSyncBadge(); }catch(_b){}
@@ -7669,53 +7817,32 @@ async function bootSequenceV17(){
   _loadBegin();
   try{
     syncInProgress=true;
-    // PARALLEL fetch: LEADS + CLIENTS simultaneously (60% faster boot)
-    _fetchRev().then(function(r){ if(r && !_rev) _rev=r; });   // baseline for live refresh, runs alongside the reads
-    // Each tab is read independently — one slow or failed read never blocks the other, and a failure is
-    // recorded (shown on the status badge) instead of leaving old data on screen with no explanation.
-    var _fetches=await Promise.all([_safeGet('LEADS'),_safeGet('CLIENTS')]);
-    _applyLeadsClientsFromFetch_(_fetches, _loadProblems);
-
-    // Activity log fetched in background — not needed for initial render
-    pullActivityLog();
-
-    // Background, silent cleanup: trim activity log history down to the most
-    // recent 10 entries per lead/client (items 5 & 6 — no confirmation asked,
-    // runs once per app load). Only re-pulls the log if something was actually
-    // removed, to avoid an unnecessary extra fetch on every normal boot.
-    apiFetch({action:'trimActivityLogHistory'}).then(function(trimRes){
-      if(trimRes && trimRes.success && trimRes.removed>0){
-        console.log('Activity log trimmed:', trimRes.removed, 'old entries removed');
-        pullActivityLog();
-      }
-    }).catch(function(e){ console.warn('Activity log trim failed:', e.message); });
-
-    // Analytics + Special Days + Calendar — AWAITED (not fire-and-forget) so the
-    // dashboard's first real render is guaranteed to already include calendar
-    // events and analytics data, instead of racing a background update in later.
-    await Promise.all([pullAnalytics(),pullSpecialDays(),pullCalendarEvents(),pullTasks()]);
-
-    // Seed Special Days sheet if empty (one-time, background — genuinely OK to
-    // leave un-awaited since it never affects what's displayed on this render)
-    apiFetch({action:'readSpecialDays'}).then(function(spRes){
-      if(spRes&&spRes.rows&&spRes.rows.length===0){
-        var spAllRows=_specialDays.map(function(d){return[d.date,d.speciality];});
-        return apiFetch({action:'pushSpecialDays',rows:spAllRows});
-      }
-    }).catch(function(e){console.warn('SD seed:',e.message);});
-
+    // ONE request returns everything the screens need — leads, clients, tasks, the latest activity, special days and
+    // the revision counters used by live refresh (see syncAll in Code.gs) — and the screen is drawn the moment it arrives.
+    await loadParts_('L,C,T,A,S', _loadProblems);
     cfg_.lastPull=now();saveCfg();
     var ts=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
-    setTopSync('ok','Synced '+ts+' — '+leads.length+' leads');setSyncBanner('ok');
-    renderAll();updateFUBadge();
+    setTopSync('ok','Synced '+ts+' \u2014 '+leads.length+' leads');setSyncBanner('ok');
+    var _tr=Date.now(); renderAll();updateFUBadge(); if(_loadTiming) _loadTiming.renderMs=Date.now()-_tr;
     var anaPg=document.getElementById('pg-analytics');
     if(anaPg&&anaPg.classList.contains('active')){ loadAllBusinessInsights(); }
+    syncInProgress=false;     // freed NOW: manual sync and live refresh must not wait for the slow extras below
+    _coreLoadDone_();         // lets the deferred start-up tasks (branding, AI usage, news) go
+    // The slow extras load in the BACKGROUND and re-draw when they land: the Google Calendar read and the analytics tab.
+    Promise.all([pullCalendarEvents(),pullAnalytics()]).then(function(){ renderDash();updateFUBadge(); }).catch(function(){});   // only the dashboard shows calendar data — no need to redraw every list again
+    // Old-entry clean-up of the activity log a few seconds later, so it never competes with the screen being drawn.
+    setTimeout(function(){
+      apiFetch({action:'trimActivityLogHistory'}).then(function(trimRes){
+        if(trimRes && trimRes.success && trimRes.removed>0){ console.log('Activity log trimmed:', trimRes.removed, 'old entries removed'); pullActivityLog(); }
+      }).catch(function(e){ console.warn('Activity log trim failed:', e.message); });
+    }, 8000);
   }catch(err){
     _loadProblems.push(String((err&&err.message)||err));
     setTopSync('err','Sync failed — tap 🔄');setSyncBanner('err');
     console.warn('Boot sync:',err.message);
   }finally{
     syncInProgress=false;
+    _coreLoadDone_();   // even if loading failed, the deferred tasks still run
     _loadEnd(_loadProblems.length===0, _loadProblems.join(' · '));
     // Flush any pending writes from a previous session AFTER this pull has
     // already landed, not on an independent timer racing against it —
@@ -7929,7 +8056,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.50.0';
+var EXPECTED_BACKEND_VERSION = '2.56.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -9888,6 +10015,14 @@ async function runHealthCheck(){
   var lg=await pullLogForMobile(TMOB);
   var mineLg=lg.filter(function(r){return String(r[6]||'').trim()===rid;});
   if(mineLg.length===1) ok('Log added + deduped by Raw ID (1 row)');
+  if(mineLg.length===1){
+    // The time written must be the time read back. If Google Sheets turns the text into a date and the sheet's time zone differs
+    // from the script's, every note's time shifts after a refresh — and a note added today can land on a different day.
+    var _tsBack=String(mineLg[0][0]||'').trim();
+    if(_tsBack===stamp) ok('Activity time comes back exactly as written ('+stamp+') \u2014 no time-zone or date shift');
+    else no('Activity time changed on the way back: wrote "'+stamp+'", read "'+_tsBack+'". After a refresh notes will show the wrong time, or fall on the wrong day. Make the time zone the same in Google Sheets (File \u2192 Settings) and in Apps Script (Project Settings).');
+  }
+  if(mineLg.length===1){ /* counted above */ }
   else if(mineLg.length>1) no('Log duplicated ('+mineLg.length+') \u2014 deploy v2.8');
   else no('Log not found after add');
   await sheetWrite({action:'deleteLogById',rowId:rid,mobile:TMOB,ts:stamp,activity:'healthcheck entry'});
@@ -10477,6 +10612,50 @@ async function runHealthCheck(){
   } else {
     wn('Skipped \u2014 only an Admin can review login accounts');
   }
+
+  // 24. LOAD SPEED — a real timed load of everything the screens need, with the time split into where it went.
+  log(''); log('\u2501\u2501 24. Load speed \u2501\u2501');
+  try{
+    var _t0=Date.now(); var _B=await fetchSyncAll_('L,C,T,A,S'); var _tt=Date.now()-_t0;
+    if(!_B){ wn('The one-call load is not available (older Code.gs) \u2014 the app falls back to loading tab by tab, which is slower. Deploy Code.gs '+EXPECTED_BACKEND_VERSION+'.'); }
+    else {
+      ok('Everything the screens need loaded in ONE request ('+(_tt/1000).toFixed(1)+'s, '+Math.round((_loadTiming&&_loadTiming.bytes||0)/1024)+' KB)');
+      var _pp=_B.ms||{}, _nm={L:'leads',C:'clients',T:'tasks',A:'activity',S:'special days'};
+      log('     Inside the script: '+['L','C','T','A','S'].map(function(k){ return _nm[k]+' '+(_pp[k]||0)+'ms'; }).join(' \u00B7 ')+' \u00B7 total '+(_pp.total||0)+'ms');
+      log('     Waiting for Google to start the script and send the reply: about '+Math.max(0,_tt-(_pp.total||0))+'ms (this part is outside the app\u2019s control)');
+      if(_tt>8000) no('Loading takes '+(_tt/1000).toFixed(1)+'s \u2014 slow. '+((_pp.total||0)>_tt*0.6?'Most of it is reading the sheet: the biggest tab is the one to look at (see the line above).':'Most of it is waiting for Google/the network, not the sheet.'));
+      else if(_tt>4000) wn('Loading takes '+(_tt/1000).toFixed(1)+'s \u2014 acceptable but not quick.');
+      else ok('Load time is good ('+(_tt/1000).toFixed(1)+'s).');
+      if((_pp.total||0)>3000) wn('Reading the sheet itself takes '+((_pp.total||0)/1000).toFixed(1)+'s \u2014 a very large Leads/Clients tab or a heavy sheet formula can cause this.');
+    }
+  }catch(e){ wn('Load speed check error: '+e.message); }
+
+  // 22b. SESSION SAFETY NET — the probe the app uses to double-check a "session expired" reply before it ever
+  // asks you to sign in again. If this is missing the app falls back to the old, jumpier behaviour.
+  log(''); log('\u2501\u2501 Login continuity \u2501\u2501');
+  try{
+    var _cs=getSession(); var _st=(_cs&&_cs.sessionToken)?await _checkSessionState_(_cs.sessionToken):'unknown';
+    if(_st==='valid') ok('This login can be verified directly with the server (a stray "expired" reply will not log you out)');
+    else if(_st==='invalid') no('The server says THIS login is not valid \u2014 you will be asked to sign in again');
+    else wn('Could not verify this login right now ('+_st+') \u2014 deploy Code.gs '+EXPECTED_BACKEND_VERSION+' if the Health Check just reported an older backend');
+  }catch(e){ wn('Login continuity check error: '+e.message); }
+
+  // 23. SECURITY SETUP — every login/security-related tab, column and setting (read-only; Admin).
+  log(''); log('\u2501\u2501 23. Security setup (tabs \u00B7 columns \u00B7 logins \u00B7 sharing) \u2501\u2501');
+  if(typeof isAdmin==='function' && isAdmin()){
+    try{
+      var _sa=await sheetWrite({action:'securityAudit', expectsResponse:true}, 60000);
+      if(_sa && _sa.success && _sa.items){
+        _sa.items.forEach(function(it){
+          var line=it.area+' \u2014 '+it.check+(it.detail?': '+it.detail:'');
+          if(it.status==='ok'||it.status==='fixed') ok(line); else if(it.status==='warn') wn(line); else no(line);
+        });
+        if(_sa.summary) log('     Security setup: '+_sa.summary.ok+' ok \u00B7 '+(_sa.summary.warn||0)+' to review \u00B7 '+(_sa.summary.fail||0)+' need attention');
+        if(_sa.summary && (_sa.summary.warn||_sa.summary.fail)) log('     \u2192 Settings \u2192 User Management \u2192 "Check security setup" shows the full list and can repair the safe items.');
+      } else if(_sa && /bad action/i.test(String(_sa.error||''))) wn('Security check not available \u2014 deploy Code.gs '+EXPECTED_BACKEND_VERSION);
+      else no('Security setup check failed: '+((_sa&&_sa.error)||'no reply'));
+    }catch(e){ no('Security setup check error: '+e.message); }
+  } else wn('Skipped \u2014 only an Admin can review the security setup');
 
   // CLEANUP — remove everything this run created, even if a section above
   // failed midway: test rows, and the throwaway Drive folders (the server
@@ -11175,7 +11354,7 @@ document.getElementById('ov-detail').addEventListener('click',function(e){
     deleteActivityEntry(dlBtn.dataset.rowid||'', dlBtn.dataset.delmob||_detailOpenMobile, dlBtn.dataset.delts||'');
   }
   if(e.target.dataset.revert) revertClientToLead(e.target.dataset.revert);
-  if(e.target.dataset.editclient){editClientOpen(e.target.dataset.editclient);closeOv('ov-detail');}
+  if(e.target.dataset.editclient){var _ecMob=e.target.dataset.editclient;closeOv('ov-detail');editClientOpen(_ecMob);}
   if(e.target.dataset.delclient) deleteClient(e.target.dataset.delclient);
 });
 
@@ -12128,6 +12307,7 @@ var _finIntelIdx=0;      // index of the current topmost (not yet dismissed) car
 var _finIntelLoadedForDate='';
 
 async function loadDashFinIntel(){
+  if(!_coreLoaded){ afterCoreLoad_(loadDashFinIntel); return; }   // the AI news waits until the main data is on screen
   var todayKey=new Date().toDateString();
   if(_finIntelLoadedForDate===todayKey || !hasScript()) return;
   _finIntelLoadedForDate=todayKey;
@@ -12386,10 +12566,10 @@ document.getElementById('pg-dash').addEventListener('click',function(e){
 var _specialDays = [{date:"01-01",speciality:"New Year's Day"},{date:"01-12",speciality:"National Youth Day"},{date:"01-15",speciality:"Army Day"},{date:"01-23",speciality:"Netaji Subhas Chandra Bose Jayanti"},{date:"01-26",speciality:"Republic Day"},{date:"02-04",speciality:"World Cancer Day"},{date:"02-14",speciality:"Valentine's Day"},{date:"02-28",speciality:"National Science Day"},{date:"03-08",speciality:"International Women's Day"},{date:"03-22",speciality:"World Water Day"},{date:"04-07",speciality:"World Health Day"},{date:"04-14",speciality:"Dr. Ambedkar Jayanti / Vishu"},{date:"04-22",speciality:"Earth Day"},{date:"05-01",speciality:"International Labour Day"},{date:"05-12",speciality:"International Nurses Day"},{date:"06-01",speciality:"World Milk Day"},{date:"06-05",speciality:"World Environment Day"},{date:"06-21",speciality:"International Yoga Day"},{date:"07-01",speciality:"Doctors Day (India)"},{date:"07-11",speciality:"World Population Day"},{date:"07-26",speciality:"Kargil Vijay Diwas"},{date:"08-01",speciality:"Chartered Accountants Day"},{date:"08-12",speciality:"International Youth Day"},{date:"08-15",speciality:"Independence Day"},{date:"09-05",speciality:"Teachers Day"},{date:"09-27",speciality:"World Tourism Day"},{date:"10-02",speciality:"Gandhi Jayanti"},{date:"10-31",speciality:"National Unity Day"},{date:"11-01",speciality:"Kerala Piravi"},{date:"11-14",speciality:"Childrens Day"},{date:"12-01",speciality:"World AIDS Day"},{date:"12-10",speciality:"Human Rights Day"},{date:"12-25",speciality:"Christmas Day"}];
 
 // Pull latest Special Days from sheet (merges with built-in list)
-async function pullSpecialDays(){
+async function pullSpecialDays(pre){   // pre = the special-days part of a syncAll reply (when there is one)
   if(!hasScript()) return;
   try{
-    var res=await apiFetch({action:'readSpecialDays'});
+    var res=pre || await apiFetch({action:'readSpecialDays'});
     if(res&&res.rows&&res.rows.length){
       // Sheet rows override built-in for same date
       var sheetDays=res.rows.map(function(r){return {date:r[0],speciality:r[1]};});
@@ -12876,13 +13056,15 @@ function filterTasksForRole(taskList){
 function saveTasks(){
   try{ safeSetItem('wm_tasks', JSON.stringify(tasks)); }catch(e){}
 }
-async function pullTasks(){
+async function pullTasks(pre){   // pre = the TASKS part of a syncAll reply (when there is one)
   if(!hasScript()) return false;
   try{
     // Sheet may be named TASKS (new) or still REMINDERS (never renamed) —
     // try both so existing data is never silently invisible either way.
-    var res = await scriptGet('TASKS', 1);
-    if(!res || !res.rows || res.rows.length<=1){
+    var res = pre || await scriptGet('TASKS', 1);
+    // Only look for the old REMINDERS tab when there is no TASKS tab at all. (It used to run whenever the task list was
+    // empty — one more wasted call on every load for a firm with no tasks yet.)
+    if(!res || !res.rows || (res.rows.length<=1 && res.error)){
       res = await scriptGet('REMINDERS', 1);
     }
     if(res && res.rows && res.rows.length > 1){
@@ -15172,18 +15354,144 @@ function showLogoutConfirm(pendingCount){
   });
 }
 
-// Fires when the SERVER rejects a request because the session token is
-// missing, invalid, or expired (see SESSION_EXPIRED in Code.gs) — distinct
-// from getSession() finding nothing locally. Guarded so several requests
-// failing at once (e.g. a batch of calls right as a session lapses) only
-// shows one toast and reloads once, not several times over each other.
-var _sessionExpiredHandled=false;
+// ═══ SESSION CONTINUITY — a "session expired" reply is a QUESTION, not a verdict ═══
+// This used to be: any single request answered "SESSION_EXPIRED" -> wipe the login and the cached data, then
+// reload to the login screen. So one hiccup anywhere (a request that raced a server restart, Google briefly
+// failing to read the login, a stray reply) logged you out in the middle of work — and the 30-second live
+// refresh made those chances far more frequent.
+// Now: (1) ask the server directly, up to three times, whether THIS login is still valid; (2) only if it says
+// "no" twice do we conclude it is really gone; (3) even then nothing is wiped and the page is not reloaded —
+// an opaque "enter your password to continue" screen covers the app (so client data isn't visible) and, once
+// the right password is entered, work carries on exactly where it was, with any unsaved changes still queued.
+// A check that cannot be completed (offline, server busy) never logs anyone out; it is simply retried.
+var _sessionExpiredHandled=false, _sessChecking=false, _reloginShown=false, _sessRetryTimer=null;
 function handleSessionExpired(){
-  if(_sessionExpiredHandled) return;
-  _sessionExpiredHandled=true;
-  clearSession();
-  toast('Your session has expired — please log in again.', 3000);
-  setTimeout(function(){ location.reload(); }, 1200);
+  _loginNeeded=true; try{ _refreshSyncBadge(); }catch(_b){}
+  if(_sessChecking || _reloginShown) return;
+  _sessChecking=true;
+  _verifyThenReauth_().then(function(){ _sessChecking=false; }, function(e){ _sessChecking=false; console.warn('session check:', e&&e.message); });
+}
+// 'valid' | 'invalid' | 'unknown' (could not be checked)
+async function _checkSessionState_(token){
+  try{
+    var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+    var tm=ctl?setTimeout(function(){ ctl.abort(); }, 10000):null;
+    var r=await fetch(cfg_.scriptUrl+'?action=checkSession&session='+encodeURIComponent(token)+'&t='+Date.now(), {signal:ctl?ctl.signal:undefined});
+    var j=await r.json(); if(tm) clearTimeout(tm);
+    if(j && j.success && (j.state==='valid'||j.state==='invalid')) return j.state;
+    // An older Code.gs doesn't know "checkSession": it answers like any other read — the data itself when the
+    // login is good, SESSION_EXPIRED when it is not. Treat those the same way so the app still behaves
+    // sensibly if crm.html is updated a little before the new Apps Script is deployed.
+    if(j && j.error==='SESSION_EXPIRED') return 'invalid';
+    if(j && j.rows) return 'valid';
+    return 'unknown';
+  }catch(e){ return 'unknown'; }
+}
+async function _verifyThenReauth_(){
+  var sess=getSession();
+  if(!sess || !sess.sessionToken){ _showRelogin_(); return; }
+  var bad=0;
+  for(var i=0;i<3;i++){
+    var st=await _checkSessionState_(sess.sessionToken);
+    if(st==='valid'){ _sessionRecovered_(); return; }
+    if(st==='invalid'){ bad++; if(bad>=2) break; }
+    await new Promise(function(res){ setTimeout(res, i===0?1200:2500); });
+  }
+  if(bad>=2){ _showRelogin_(); return; }
+  // Could not get a straight answer (offline, server busy). Do NOT log out on a maybe — look again shortly.
+  clearTimeout(_sessRetryTimer);
+  _sessRetryTimer=setTimeout(function(){ if(_loginNeeded && !_reloginShown) handleSessionExpired(); }, 20000);
+}
+function _sessionRecovered_(){
+  _loginNeeded=false; _sessionExpiredHandled=false; clearTimeout(_sessRetryTimer);
+  try{ _refreshSyncBadge(); }catch(_b){}
+  try{ if(_wq && _wq.length) flushWriteQueue({force:true}); }catch(_f){}
+  try{ pollForChanges_(true); }catch(_p){}
+}
+function _showRelogin_(){
+  if(_reloginShown) return; _reloginShown=true;
+  var sess=getSession()||{};
+  var who=sess.name||sess.username||'';
+  var ov=document.createElement('div'); ov.id='relogin-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:100002;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:22px';
+  ov.innerHTML='<div style="width:100%;max-width:340px;background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:22px 18px">'
+    +'<div style="font-size:30px;text-align:center;margin-bottom:6px">🔒</div>'
+    +'<div style="font-size:16px;font-weight:800;text-align:center;margin-bottom:6px">Please confirm it\u2019s you</div>'
+    +'<div style="font-size:12px;color:var(--t2);text-align:center;line-height:1.6;margin-bottom:14px">Your login timed out. Enter your password to carry on exactly where you were \u2014 anything not yet saved is kept safe.</div>'
+    +(who?'<div style="font-size:12px;color:var(--t3);text-align:center;margin-bottom:8px">Signed in as <b style="color:var(--text)">'+String(who).replace(/[<>&"]/g,'')+'</b></div>':'')
+    +'<input id="relogin-pw" type="password" class="fi" placeholder="Password" autocomplete="current-password" style="width:100%;margin-bottom:8px">'
+    +'<div id="relogin-err" style="display:none;font-size:12px;color:var(--red);margin-bottom:8px;line-height:1.5"></div>'
+    +'<button id="relogin-btn" class="btn btn-gold btn-full" style="padding:13px;font-size:15px">Continue</button>'
+    +'<button id="relogin-out" style="width:100%;margin-top:10px;background:none;border:none;color:var(--t3);font-size:12px;cursor:pointer;padding:8px">Log out instead</button></div>';
+  document.body.appendChild(ov);
+  var pw=document.getElementById('relogin-pw'), err=document.getElementById('relogin-err'), btn=document.getElementById('relogin-btn');
+  function showErr(m){ err.textContent=m; err.style.display='block'; }
+  async function go(){
+    var typed=pw.value||'';
+    if(!typed){ showErr('Enter your password.'); return; }
+    btn.disabled=true; btn.textContent='Checking\u2026'; err.style.display='none';
+    try{
+      var hash=await sha256Hex(typed);
+      var res=await _doWrite({action:'loginUser', username:sess.username, passwordHash:hash});
+      if(res && res.success && res.userId && res.userType && res.sessionToken){
+        if(sess.userId && String(res.userId)!==String(sess.userId)){ showErr('That password belongs to a different account.'); btn.disabled=false; btn.textContent='Continue'; return; }
+        setSession({name:res.name, username:res.username, userType:res.userType, userId:res.userId, sessionToken:res.sessionToken});
+        pw.value=''; ov.remove(); _reloginShown=false;
+        if(res.passwordNeverChanged){ showForcedPasswordChange(); return; }
+        _sessionRecovered_(); toast('Signed in again \u2014 carrying on', 2500);
+      } else {
+        showErr((res&&res.error)||'Could not sign in \u2014 please try again.'); btn.disabled=false; btn.textContent='Continue';
+      }
+    }catch(e){ showErr('Could not reach the server \u2014 check your connection and try again.'); btn.disabled=false; btn.textContent='Continue'; }
+  }
+  btn.onclick=go;
+  pw.addEventListener('keydown', function(e){ if(e.key==='Enter') go(); });
+  document.getElementById('relogin-out').onclick=function(){ ov.remove(); _reloginShown=false; clearSession(); location.reload(); };
+  setTimeout(function(){ try{ pw.focus(); }catch(e){} }, 150);
+}
+// ═══ SECURITY SETUP CHECK (Admin) — confirms every login/security-related tab, column and setting is in place ═══
+// "Check" is read-only. "Repair what's safe" fixes missing tabs/headings, blank User IDs, plain-text passwords
+// (hashed in place) and stale login rows; anything needing a person's decision is only ever reported.
+function _escSec_(t){ return String(t==null?'':t).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+async function runSecurityCheck(repair){
+  if(!isAdmin()){ toast('Only an Admin can run the security check'); return; }
+  var old=document.getElementById('sec-panel'); if(old) old.remove();
+  var ov=document.createElement('div'); ov.id='sec-panel';
+  ov.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center';
+  ov.innerHTML='<div style="background:var(--s1);border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column">'
+    +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div style="font-size:15px;font-weight:800">🛡️ Security setup</div><button id="sec-x" style="background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer">✕</button></div>'
+    +'<div id="sec-body" style="padding:14px 16px;overflow-y:auto;font-size:12px;line-height:1.55;color:var(--t2)">'+(repair?'Repairing and re-checking…':'Checking…')+'</div>'
+    +'<div id="sec-foot" style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px"></div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('sec-x').onclick=function(){ ov.remove(); };
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  var res=await sheetWrite({action:'securityAudit', repair:!!repair, expectsResponse:true}, 60000);
+  var body=document.getElementById('sec-body'), foot=document.getElementById('sec-foot');
+  if(!body) return;
+  if(!res || res.success!==true || !res.items){
+    body.innerHTML='<div style="color:var(--red)">Could not run the check: '+_escSec_((res&&res.error)||'no reply from the server')+'</div>'
+      +((res&&/bad action/i.test(res.error||''))?'<div style="margin-top:8px">Your Apps Script is older than this app. Deploy the latest <b>Code.gs</b> (Deploy → Manage deployments → pencil → New version) and try again.</div>':'');
+    return;
+  }
+  var icon={ok:'✅',fixed:'🔧',warn:'⚠️',fail:'❌'}, color={ok:'var(--t2)',fixed:'var(--blue)',warn:'var(--orange)',fail:'var(--red)'}, area='', h='';
+  res.items.forEach(function(it){
+    if(it.area!==area){ area=it.area; h+='<div style="margin:12px 0 4px;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--t3)">'+_escSec_(area)+'</div>'; }
+    h+='<div style="margin-bottom:6px;color:'+color[it.status]+'">'+icon[it.status]+' <b>'+_escSec_(it.check)+'</b>'+(it.detail?'<div style="font-size:11px;color:var(--t3);margin-left:20px">'+_escSec_(it.detail)+'</div>':'')+'</div>';
+  });
+  var sm=res.summary||{};
+  body.innerHTML='<div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px">'+(res.repaired?'Repair finished: ':'Result: ')+sm.ok+' ok · '+sm.fixed+' repaired · '+sm.warn+' to review · '+sm.fail+' need attention</div>'
+    +(sm.fail?'<div style="color:var(--red);font-size:11px">\u274C items need a person to decide \u2014 they are never changed automatically.</div>':'')+h;
+  foot.innerHTML='';
+  if(!res.repaired && (sm.warn>0)){ var rb=document.createElement('button'); rb.className='btn btn-gold'; rb.style.cssText='flex:1;font-size:13px'; rb.textContent='🔧 Repair what\u2019s safe'; rb.onclick=function(){ if(confirm('Repair the safe items? This creates missing tabs/headings, assigns missing User IDs, protects plain-text passwords (same password, hashed) and removes stale login rows. It never deletes records or users.')) runSecurityCheck(true); }; foot.appendChild(rb); }
+  var cb=document.createElement('button'); cb.className='btn btn-ghost'; cb.style.cssText='flex:1;font-size:13px'; cb.textContent='Close'; cb.onclick=function(){ ov.remove(); }; foot.appendChild(cb);
+}
+
+// Settings -> Change Password area: end every OTHER login of this user (a lost phone, a shared computer).
+async function signOutOtherDevices(){
+  if(!confirm('Sign out every OTHER phone or computer that is logged in as you? This device stays signed in.')) return;
+  var res=await sheetWrite({action:'destroyOtherSessions', expectsResponse:true}, 20000);
+  if(res && res.success) toast(res.signedOut>0 ? ('Signed out '+res.signedOut+' other device'+(res.signedOut===1?'':'s')) : 'No other devices were signed in', 3500);
+  else toast('Could not do that: '+((res&&res.error)||'please try again'), 4000);
 }
 
 // The app's real boot sequence — only runs once a valid session exists,
@@ -15191,7 +15499,8 @@ function handleSessionExpired(){
 function startAppAfterAuth(){
   if(isLockEnabled()){ showLockScreen(); }
   load();loadActivityLog();loadTasks();bootSequenceV17();
-  checkAiUsageAndWarn(); // fire-and-forget — never blocks boot; shows a popup only if the firm's cumulative AI cost has crossed the alert threshold
+  setTimeout(_coreLoadDone_, 20000);   // safety net
+  afterCoreLoad_(checkAiUsageAndWarn); // deferred until the main data is on screen — and fire-and-forget — never blocks boot; shows a popup only if the firm's cumulative AI cost has crossed the alert threshold
   applyFontSizeMode(cfg_.fontSizeMode||'small');
   initPullToRefresh();
   initGlobalSwipeDismiss();
@@ -15211,7 +15520,7 @@ function startAppAfterAuth(){
   if(setVerEl) setVerEl.textContent='Deep Pocket CRM V '+APP_VERSION;
   var topVerEl=document.getElementById('topbar-version-tag');
   if(topVerEl) topVerEl.textContent='V '+APP_VERSION;
-  loadTopbarFirmName();
+  afterCoreLoad_(loadTopbarFirmName);   // the name is already shown from the last visit; refreshing it can wait
   // Insights is hidden from Maker accounts — they get the AI Voice
   // Assistant only (see wireVoiceLongPress's Dash-button wiring below).
   // Checker/Authorizer/Admin keep seeing it.
