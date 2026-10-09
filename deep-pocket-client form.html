@@ -264,9 +264,9 @@ function blankForm(){
              typographyMode:'default', displayFont:'', bodyFont:'' },
     business: { modelType:'MFD', sebiReg:'', arn:'', gstNumber:'', stagesMode:'default', stages:'', products:'', productList:PRODUCT_OPTIONS.map(function(p){ return p.v; }), otherProducts:'' },
     features: DEFAULT_FEATURES.map(function(f){ return { key:f.key, label:f.label, desc:f.desc, mode:'keep', notes:'' }; }),
-    comms: { tone:'warm', hasOwnApp:true, playStoreLink:'', appStoreLink:'', websiteLink:'', customWelcome:'', prospectIntro:'', voiceLanguage:'en-IN|English' },
+    comms: { tone:'warm', hasOwnApp:true, playStoreLink:'', appStoreLink:'', websiteLink:'', customWelcome:'', prospectIntro:'', contactedMessage:'', inProgressMessage:'', convertedMessage:'', voiceLanguage:'en-IN|English' },
     compliance: { grievanceName:'', grievanceTitle:'', grievanceEmail:'', grievancePhone:'', extraDisclosures:'' },
-    technical: { sheetId:'', calendarId:'', followUpDays:'', sipReminderDays:'', sipBounceDays:'', goalLeads:'', goalConversions:'' }
+    technical: { sheetId:'', appsScriptUrl:'', calendarId:'', followUpDays:'', sipReminderDays:'', sipBounceDays:'', goalLeads:'', goalConversions:'' }
   };
 }
 var form = blankForm();
@@ -363,6 +363,7 @@ var RULES = {
   'comms.websiteLink': function(v){ return !v ? '' : (/^(https?:\/\/)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(v) ? '' : 'Enter a web address like sunrisewealth.com'); },
   'brand.logoUrl': function(v){ return !v ? '' : (/^https:\/\/\S+$/i.test(v) ? '' : 'Must be a full https:// link to the image.'); },
   'technical.sheetId': function(v){ return !v ? '' : (sheetIdFrom(v) ? '' : 'Paste the full Google Sheet link or its ID.'); },
+  'technical.appsScriptUrl': function(v){ return !v ? '' : (/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec(\?.*)?$/.test(trim(v)) ? '' : 'Paste the Web app URL: it starts with https://script.google.com/macros/ and ends in /exec (not /dev).'); },
   'technical.followUpDays': numRule(1,120), 'technical.sipBounceDays': numRule(1,25), 'technical.goalLeads': numRule(1,100000), 'technical.goalConversions': numRule(1,100000),
   'technical.sipReminderDays': function(v){ return !v ? '' : (/^\s*\d{1,2}(\s*,\s*\d{1,2})*\s*$/.test(v) ? '' : 'Numbers separated by commas, e.g. 5, 2'); }
 };
@@ -609,10 +610,10 @@ function render(){
         var dis=(m==='remove'&&def.core);
         return '<button type="button" class="fm-btn'+(f.mode===m?' sel-'+m:'')+'"'+(dis?' disabled title="Core feature — other features depend on it"':'')+' onclick="setFeatureMode('+i+',\''+m+'\')">'+(m==='keep'?'Keep':m==='customize'?'Change':'Remove')+'</button>';
       }).join('')+'</div>'
-      +(f.mode==='customize'?'<textarea class="feature-note" rows="2" aria-label="What should be different" oninput="setFeatureNote('+i+',this.value)" placeholder="What should be different?">'+esc(f.notes)+'</textarea>':'')+'</div>';
+      +(f.mode==='customize'?'<textarea class="feature-note" rows="2" aria-label="What should be different" oninput="setFeatureNote('+i+',this.value)" placeholder="What should be different? We apply whatever our settings allow and tell you about the rest.">'+esc(f.notes)+'</textarea>':'')+'</div>';
   }).join('');
   html+=section(4,'\uD83D\uDCCB','Features','Everything is included — only change what you don\u2019t want',
-    '<div class="callout"><b>Keep</b> works as it does today. <b>Change</b> — tell us what should be different. <b>Remove</b> takes it out. Core features can be changed but not removed.</div>'+featHtml);
+    '<div class="callout"><b>Keep</b> works as it does today. <b>Change</b> — tell us what should be different (wording, colours, steps and similar are quick; something brand new may take longer). <b>Remove</b> takes it out. Core features can be changed but not removed.</div>'+featHtml);
 
   html+=section(5,'\uD83D\uDCC4','Business details','Registration, onboarding steps and products',
     radioHtml('business.modelType',[{value:'MFD',label:'Distributor (MFD)'},{value:'RIA',label:'Adviser (RIA)'},{value:'BOTH',label:'Both'}])
@@ -637,6 +638,9 @@ function render(){
         +fieldHtml('Apple App Store link','comms.appStoreLink',{type:'url', placeholder:'https://apps.apple.com/in/app/...'}) : '')
     +fieldHtml('Firm website','comms.websiteLink',{type:'url', placeholder:'sunrisewealth.com'})
     +fieldHtml('First message to new prospects','comms.prospectIntro',{multiline:true, placeholder:'Blank = \u201cHi {name}, Hope you are doing great. This is '+(d.signOff||'Priya')+' from '+(d.legal||'your firm')+'\u2026\u201d', help:'Write {name} where the prospect\u2019s name should go.'})
+    +fieldHtml('Message after your first conversation','comms.contactedMessage',{multiline:true, placeholder:'Blank = \u201cDear {name}, Thank you for your time earlier. I wanted to follow up on our conversation\u2026\u201d', help:'Optional. Write {name} for the person\u2019s name and {products} for what they are interested in.'})
+    +fieldHtml('Message while discussions are in progress','comms.inProgressMessage',{multiline:true, placeholder:'Blank = \u201cDear {name}, Just checking in on our ongoing discussion regarding {products}\u2026\u201d', help:'Optional. Same {name} and {products} placeholders.'})
+    +fieldHtml('Message when a prospect becomes a client','comms.convertedMessage',{multiline:true, placeholder:'Blank = \u201cDear {name}, Welcome to '+(d.legal||'your firm')+'! We are delighted to have you on board.\u201d', help:'Optional. Write {name} for the client\u2019s name.'})
     +fieldHtml('Welcome message for new clients','comms.customWelcome',{multiline:true, rows:5, placeholder:'Blank = our standard welcome with your name, address, phone and website', help:'Only fill this in if you have exact wording. Write {name} for the client\u2019s name.'})
     +'<div class="field"><label for="f_voice">Main language for the voice assistant</label><select id="f_voice" onchange="setPath(\'comms.voiceLanguage\',this.value)">'
     +VOICE_LANGS.map(function(l){ return '<option value="'+l[0]+'"'+(cm.voiceLanguage===l[0]?' selected':'')+'>'+l[1]+'</option>'; }).join('')+'</select><div class="help">Each advisor can change this on their phone later.</div></div>'
@@ -653,7 +657,8 @@ function render(){
   html+=section(8,'\u2699\uFE0F','App settings','Optional — sensible defaults are already set',
     '<div class="callout">Leave anything blank to keep the default shown.</div>'
     +fieldHtml('Google Sheet link','technical.sheetId',{placeholder:'https://docs.google.com/spreadsheets/d/…', help: form.meta.sheetFromServer && sid===form.meta.sheetFromServer ? '\u2713 Received from your email reply (ID '+esc(sid)+')' : (sid ? 'Sheet ID found: '+esc(sid) : 'The link of the CRM sheet you copied to your Google Drive.'), auto:!!sid})
-    +fieldHtml('Google Calendar ID for client meetings','technical.calendarId',{placeholder:'you@gmail.com', help:'Google Calendar \u2192 Settings \u2192 your calendar \u2192 Integrate calendar \u2192 Calendar ID. You\u2019ll confirm it in the app after install.'})
+    +fieldHtml('Backend Web app URL','technical.appsScriptUrl',{type:'url', placeholder:'https://script.google.com/macros/s/\u2026/exec', help:'Optional. If you have already switched on the backend (Part B of our first email), paste its Web app URL here. Otherwise just reply to that email with it.'})
+     +fieldHtml('Google Calendar ID for client meetings','technical.calendarId',{placeholder:'you@gmail.com', help:'Google Calendar \u2192 Settings \u2192 your calendar \u2192 Integrate calendar \u2192 Calendar ID. You\u2019ll confirm it in the app after install.'})
     +'<div class="row2">'+fieldHtml('Days before a lead needs a follow-up','technical.followUpDays',{type:'number', inputmode:'numeric', placeholder:'14'})
     +fieldHtml('SIP reminders — days before','technical.sipReminderDays',{placeholder:'5, 2'})+'</div>'
     +'<div class="row2">'+fieldHtml('SIP debit check — days after','technical.sipBounceDays',{type:'number', inputmode:'numeric', placeholder:'7'})
@@ -717,6 +722,7 @@ async function handleSubmit(){
   intake.business.stages = intake.business.stagesMode==='custom' ? intake.business.stages : '';
   intake.business.products = intake.business.productList.join(', ')+(trim(intake.business.otherProducts)?', '+trim(intake.business.otherProducts):'');
   intake.technical.sheetId = sheetIdFrom(intake.technical.sheetId) || '';
+  intake.technical.appsScriptUrl = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec/.test(trim(intake.technical.appsScriptUrl)) ? trim(intake.technical.appsScriptUrl).replace(/[?#].*$/,'') : '';
   intake.submittedAt=new Date().toISOString();
   var payload={ action:'submitIntake', formVersion:FORM_VERSION, hp:document.getElementById('hpField').value, intake:intake,
     icons:{ icon192:form.brand.iconBase64||'', icon512:form.brand.icon512Base64||'' } };
@@ -747,8 +753,8 @@ function showDone(info){
     +'<div class="sub">'+esc(info.product||info.firm||'Your CRM')+(info.ref?' \u00b7 Reference '+esc(info.ref):'')+'</div></div>'
     +'<div class="stagebar"><div class="done">1. Your CRM sheet \u2713</div><div class="done">2. About your firm \u2713</div><div class="on">3. Go live</div></div>'
     +'<div class="s2-card"><h2>What happens next</h2><ol class="s2-steps">'
-    +'<li>We prepare your backend file, <b>Code.gs</b>, and email it to you'+(info.email?' at <b>'+esc(info.email)+'</b>':'')+' with simple steps.</li>'
-    +'<li>You paste it into your CRM Google Sheet (<b>Extensions \u2192 Apps Script</b>), deploy it as a <b>Web app</b>, and send us the link that ends in <b>/exec</b>.</li>'
+    +'<li>Your CRM sheet already contains its backend. If you have not switched it on yet, follow <b>Part B</b> of our first email'+(info.email?' (sent to <b>'+esc(info.email)+'</b>)':'')+' \u2014 there is nothing to paste. We send you the key it needs separately.</li>'
+    +'<li>Send us the <b>Web app URL</b> that ends in <b>/exec</b> (reply to that email, or paste it in the form).</li>'
     +'<li>We build and publish your branded app and send you its link.</li></ol>'
     +(info.sheetId?'<div class="kv">Your Google Sheet: <b>'+esc(info.sheetId)+'</b></div>':'<div class="kv">No Google Sheet link was given \u2014 we will contact you about it.</div>')
     +'<p class="help">Need to change an answer? Just reply to our email \u2014 no need to fill the form again.</p></div>'
