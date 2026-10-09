@@ -3255,7 +3255,7 @@ async function saveTaskNow(){
   var ov=document.getElementById('task-form-ov');
 
   if(existingId){
-    var t=tasks.find(function(x){return x.taskId===existingId;});
+    var t=_findTask_(existingId);
     if(!t){ if(ov) ov.remove(); return; }
     t.name=name; t.taskDetails=details; t.dueDate=dueDate; t.taskFor=forType; t.linkedRecordId=window._taskLinkedRecordId||'';
     saveTasks(); renderTasks();
@@ -3263,10 +3263,14 @@ async function saveTaskNow(){
     window._editingTaskId=null;
     toast('✅ Task updated');
     showActivity('saving');
-    durableWrite({action:'updateTask', taskId:existingId,
-      name:name, taskDetails:details, dueDate:dueDate, taskFor:forType, linkedRecordId:window._taskLinkedRecordId||''}).then(function(r){
-      if(r.ok){ flashActivityDone('Saved'); }
-      else { hideActivity(); toast('⚠️ Task edit kept on this phone — it will sync automatically'); }
+    var _editLinked=window._taskLinkedRecordId||'';
+    _taskWhenSaved_(t, function(realId){
+      durableWrite({action:'updateTask', taskId:realId,
+        name:name, taskDetails:details, dueDate:dueDate, taskFor:forType, linkedRecordId:_editLinked}).then(function(r){
+        if(r.ok){ flashActivityDone('Saved'); }
+        else if(r.res && r.res.notFound){ hideActivity(); _dropTaskLocal_(realId); toast('That task had already been removed'); }
+        else { hideActivity(); toast('⚠️ Task edit kept on this phone — it will sync automatically'); }
+      });
     });
   } else {
     var _taskCreatorSession=getSession();
@@ -3285,7 +3289,7 @@ async function saveTaskNow(){
     var _addP=Object.assign({idemKey:newIdemKey()}, {action:'addTask', createdDate:newTask.createdDate, name:newTask.name, taskDetails:newTask.taskDetails, dueDate:newTask.dueDate, status:newTask.status, taskFor:newTask.taskFor, linkedRecordId:newTask.linkedRecordId, createdBy:newTask.createdBy, createdByRole:newTask.createdByRole});
     newTask._idem=_addP.idemKey;
     durableWrite(_addP).then(function(r){
-      if(r.ok){ flashActivityDone('Saved'); newTask.taskId=r.res.taskId; saveTasks(); }
+      if(r.ok){ flashActivityDone('Saved'); _resolveTempTask_(_addP.idemKey, r.res.taskId); }
       else { hideActivity(); saveTasks(); toast('⚠️ Task kept on this phone — it will sync to the sheet automatically'); }
     });
   }
@@ -3312,27 +3316,78 @@ function setTaskButtonsBusy(busy, activeBtn, busyText){
 // than a brief, honest wait. What DOES change here: the overlay closes and
 // the list updates the MOMENT the real answer is known, rather than a
 // separate later step.
+// ═══ TASKS: finish, delete and edit must never be lost, flipped back, or fail on a task that was only just added ═══
+// Before, finishing and deleting sent one plain request with no retry and nothing protecting them from a refresh:
+//  - offline or a dropped reply: the change was lost (or a delete "restored" a task that was already gone);
+//  - a refresh landing mid-send put the old status back, or brought a deleted task back;
+//  - a task you had just added still had a TEMPORARY ID, so finishing it said "Task not found" and deleting it let the
+//    pending "add" land afterwards — the deleted task came back.
+// Now each one is shown at once, sent through the same durable queue as leads and clients (retried, kept across restarts),
+// kept through any refresh until the sheet agrees, and a task that is still being added waits for its real ID first.
+var _taskOps={};       // taskId -> {op:'delete'|'finish', status, at}: requests on the wire right now
+var _afterTaskId={};   // idemKey -> functions to run with the real Task ID once the task's "add" has landed
+var _taskBackfillTried=false;
+function _findTask_(id){ for(var i=0;i<tasks.length;i++){ if(tasks[i].taskId===id || tasks[i]._tempId===id) return tasks[i]; } return null; }
+function _isTempTaskId_(id){ return /^temp_/.test(String(id||'')); }
+function _noteTaskOp_(id, op, status){ _taskOps[id]={op:op, status:status||'', at:Date.now()}; }
+function _canSkipReview_(){ var s=getSession(); return !!(s && /^(CHECKER|AUTHORIZER|ADMIN)$/i.test(String(s.userType||''))); }
+function _taskWhenSaved_(t, fn){
+  if(!_isTempTaskId_(t.taskId) || !t._idem){ fn(t.taskId); return; }
+  (_afterTaskId[t._idem]=_afterTaskId[t._idem]||[]).push(fn);
+}
+function _resolveTempTask_(idemKey, realId){
+  if(!idemKey || !realId) return;
+  for(var i=0;i<tasks.length;i++){
+    if(tasks[i]._idem===idemKey && _isTempTaskId_(tasks[i].taskId)){
+      var old=tasks[i].taskId; tasks[i]._tempId=old; tasks[i].taskId=realId;
+      if(window._editingTaskId===old) window._editingTaskId=realId;
+      saveTasks(); break;
+    }
+  }
+  var cbs=_afterTaskId[idemKey]; delete _afterTaskId[idemKey];
+  (cbs||[]).forEach(function(f){ try{ f(realId); }catch(e){ console.warn('task step after add:', e&&e.message); } });
+}
+// The server has no such task (deleted somewhere else): drop it here rather than keep something that can never be saved.
+function _dropTaskLocal_(id){
+  var n=tasks.length; tasks=tasks.filter(function(x){ return x.taskId!==id && x._tempId!==id; });
+  delete _taskOps[id];
+  if(tasks.length!==n){ saveTasks(); try{ renderTasks(); }catch(e){} }
+}
+function _sendTaskFinish_(realId, expected){
+  _noteTaskOp_(realId,'finish',expected);
+  var sess=getSession(); showActivity('saving');
+  durableWrite({action:'submitTaskDone', taskId:realId, requestingUserId:sess?sess.userId:''}).then(function(r){
+    if(r.ok){
+      var ns=r.res && r.res.newStatus, tt=_findTask_(realId);
+      if(ns && tt && tt.status!==ns){ tt.status=ns; saveTasks(); renderTasks(); }     // the server decides Finished vs Pending Review — show its answer
+      if(_taskOps[realId] && ns) _taskOps[realId].status=ns;
+      flashActivityDone('Saved');
+    } else if(r.res && r.res.notFound){ hideActivity(); _dropTaskLocal_(realId); toast('That task had already been removed'); }
+    else { hideActivity(); toast('⚠️ Kept on this phone — it will sync automatically'); }
+  });
+}
+function _sendTaskDelete_(realId){
+  _noteTaskOp_(realId,'delete');
+  showActivity('deleting');
+  durableWrite({action:'deleteTask', taskId:realId}).then(function(r){
+    hideActivity();
+    if(!r.ok) toast('⚠️ Deleted here — it will be removed from the sheet automatically');
+  });
+}
+
 async function finishTaskNow(){
   var taskId=window._editingTaskId;
   if(!taskId) return;
   if(!hasScript()){ toast('⚠️ No Apps Script connected'); return; }
-  var t=tasks.find(function(x){return x.taskId===taskId;});
-  if(!t) return;
-  var btnFinish=document.getElementById('task-btn-finish');
-  var origText=btnFinish?btnFinish.textContent:'';
-  setTaskButtonsBusy(true, btnFinish, 'Finishing…');
-  var _finishSession=getSession();
-  var res=await sheetWrite({action:'submitTaskDone', expectsResponse:true, taskId:taskId, requestingUserId:_finishSession?_finishSession.userId:''});
-  if(res && res.success){
-    t.status=res.newStatus||'Finished';
-    saveTasks(); renderTasks();
-    var ov=document.getElementById('task-form-ov'); if(ov) ov.remove();
-    window._editingTaskId=null;
-    toast(t.status==='Pending Review' ? '📋 Sent for Checker review' : '✅ Task finished');
-  } else {
-    toast('❌ Could not update: '+(res&&res.error||'unknown error'));
-    setTaskButtonsBusy(false, btnFinish, origText);
-  }
+  var ov=document.getElementById('task-form-ov'), t=_findTask_(taskId);
+  if(!t){ if(ov) ov.remove(); window._editingTaskId=null; return; }
+  // Shown at once. A Maker's finish goes to a Checker for review; anyone else's completes it (the same rule the server
+  // applies — if it ever answers differently, its answer replaces this one as soon as it arrives).
+  var expected=_canSkipReview_() ? 'Finished' : 'Pending Review';
+  t.status=expected; saveTasks(); renderTasks();
+  if(ov) ov.remove(); window._editingTaskId=null;
+  toast(expected==='Pending Review' ? '📋 Sent for Checker review' : '✅ Task finished');
+  _taskWhenSaved_(t, function(realId){ _sendTaskFinish_(realId, expected); });
 }
 
 // deleteTaskNow — same reasoning as saveTaskNow: a delete's outcome is
@@ -3343,28 +3398,22 @@ async function deleteTaskNow(){
   var taskId=window._editingTaskId;
   if(!taskId) return;
   if(!hasScript()){ toast('⚠️ No Apps Script connected'); return; }
-  var delT=tasks.find(function(x){return x.taskId===taskId;});
-  tasks=tasks.filter(function(x){return x.taskId!==taskId;});
+  var ov=document.getElementById('task-form-ov'), t=_findTask_(taskId);
+  if(t) tasks=tasks.filter(function(x){ return x!==t; });
   saveTasks(); renderTasks();
-  var ov=document.getElementById('task-form-ov'); if(ov) ov.remove();
-  window._editingTaskId=null;
+  if(ov) ov.remove(); window._editingTaskId=null;
   toast('Task deleted');
-  showActivity('deleting');
-  sheetWrite({action:'deleteTask', taskId:taskId}).then(function(res){
-    hideActivity();
-    if(!res || !res.success){
-      // Roll back — put the task back locally, since the delete never
-      // actually happened server-side, and say so plainly rather than
-      // leaving it silently missing from the list while still existing
-      // in the sheet.
-      if(delT){ tasks.push(delT); saveTasks(); renderTasks(); }
-      toast('⚠️ Could not delete — restored. '+(res&&res.error||'please try again'));
-    }
-  }).catch(function(e){
-    hideActivity();
-    if(delT){ tasks.push(delT); saveTasks(); renderTasks(); }
-    toast('⚠️ Could not delete — restored. '+e.message);
-  });
+  if(!t) return;
+  if(_isTempTaskId_(t.taskId)){
+    // Not saved to the sheet yet. If its "add" is still waiting in the queue it simply never needs to be sent; if the add is
+    // on the wire right now, delete the task the moment it lands. (Before, the add landed anyway and the task came back.)
+    var qi=-1;
+    for(var i=0;i<_wq.length;i++){ var qp=_wq[i]&&_wq[i].payload; if(qp && qp.action==='addTask' && qp.idemKey===t._idem){ qi=i; break; } }
+    if(qi>=0 && !_flushPromise){ _wq.splice(qi,1); _saveQ(); _refreshSyncBadge(); delete _afterTaskId[t._idem]; return; }
+    _taskWhenSaved_(t, function(realId){ _sendTaskDelete_(realId); });
+    return;
+  }
+  _sendTaskDelete_(t.taskId);
 }
 
 function openAddClient(pre){
@@ -6377,7 +6426,7 @@ function renderFuDetailInner(mob,nameHint){
 //   … → 1.9.10 → 2.0.0, and so on.
 // i.e. each of the last two positions counts 0..10 (eleven steps) before
 // carrying to the next place. Bump this ONE line on every release.
-var APP_VERSION='1.8.7';
+var APP_VERSION='1.8.8';
 
 
 
@@ -7450,6 +7499,7 @@ async function durableWrite(payload, opts){
   var res=await _doWrite(payload);
   if(res && res.success===true){ _markSaved(); return {ok:true, res:res}; }
   if(res && res.notFound){ var up0=_upsertPayloadFor(payload); if(up0){ var r0=await _doWrite(up0); if(r0 && r0.success===true){ _markSaved(); return {ok:true, res:r0}; } } }
+  if(res && res.notFound && /^(submitTaskDone|updateTask)$/.test(payload.action||'')) return {ok:false, queued:false, res:res};   // the task is gone — retrying cannot help
   queueDurable(payload);
   if(res && res.sessionExpired){ _loginNeeded=true; _refreshSyncBadge(); handleSessionExpired(); }
   return {ok:false, queued:true, res:res};
@@ -7525,7 +7575,8 @@ async function _flushWriteQueueInner(opts){
     if((item.attempts||0)>=5){ newlyFailed.push(item); continue; }
     var res=await _doWrite(p);
     if(res && res.notFound){ var up=_upsertPayloadFor(p); if(up) res=await _doWrite(up); }
-    if(res && res.success===true){ anySucceeded=true; transientStreak=0; if(/Task$/.test(p.action||'')) touchedTasks=true; continue; }
+    if(res && res.notFound && /^(submitTaskDone|updateTask)$/.test(p.action||'')){ _dropTaskLocal_(p.taskId); anySucceeded=true; touchedTasks=true; transientStreak=0; continue; }
+    if(res && res.success===true){ anySucceeded=true; transientStreak=0; if(/Task$/.test(p.action||'')) touchedTasks=true; if(p.action==='addTask' && res.taskId) _resolveTempTask_(p.idemKey, res.taskId); continue; }
     if(res && res.sessionExpired){ remaining.push(item); held[k]=true; stopForLogin=true; _loginNeeded=true; handleSessionExpired(); continue; }
     held[k]=true;
     if(res && res.transient){
@@ -7584,7 +7635,10 @@ function overlayPendingClients_(sheetClients, localClients){
   return sheetClients;
 }
 function overlayPendingTasks_(fresh, prev){
-  var local=prev||tasks||[];
+  var local=prev||tasks||[], nowT=Date.now();
+  function idx(list,id){ for(var i=0;i<list.length;i++){ if(list[i].taskId===id) return i; } return -1; }
+  function norm(x){ return String(x||'').toUpperCase(); }
+  // 1) changes waiting in the retry queue (these survive a restart)
   _wq.forEach(function(it){
     var p=it&&it.payload; if(!p) return;
     if(p.action==='addTask' && p.idemKey){
@@ -7592,8 +7646,26 @@ function overlayPendingTasks_(fresh, prev){
       if(lt && !fresh.some(function(x){ return x._idem===p.idemKey || (x.name===lt.name && x.taskDetails===lt.taskDetails && x.dueDate===lt.dueDate && x.createdDate===lt.createdDate); })) fresh.unshift(lt);
     } else if(p.action==='updateTask' && p.taskId){
       var lt2=null; local.some(function(x){ if(x.taskId===p.taskId){ lt2=x; return true; } return false; });
-      var fi=-1; for(var i=0;i<fresh.length;i++){ if(fresh[i].taskId===p.taskId){ fi=i; break; } }
+      var fi=idx(fresh,p.taskId);
       if(lt2 && fi>=0) fresh[fi]=lt2;
+    } else if(p.action==='submitTaskDone' && p.taskId){
+      var lt3=null; local.some(function(x){ if(x.taskId===p.taskId){ lt3=x; return true; } return false; });
+      var fj=idx(fresh,p.taskId);
+      if(lt3 && fj>=0) fresh[fj].status=lt3.status;
+    } else if(p.action==='deleteTask' && p.taskId){
+      var dj=idx(fresh,p.taskId); if(dj>=0) fresh.splice(dj,1);
+    }
+  });
+  // 2) requests on the wire right now: kept for up to 2 minutes, or until the sheet itself agrees
+  Object.keys(_taskOps).forEach(function(id){
+    var op=_taskOps[id];
+    if(nowT-op.at>120000){ delete _taskOps[id]; return; }
+    var fi2=idx(fresh,id);
+    if(op.op==='delete'){ if(fi2<0) delete _taskOps[id]; else fresh.splice(fi2,1); }
+    else if(op.op==='finish'){
+      if(fi2<0) delete _taskOps[id];
+      else if(norm(fresh[fi2].status)===norm(op.status)) delete _taskOps[id];
+      else fresh[fi2].status=op.status;
     }
   });
   return fresh;
@@ -8056,7 +8128,7 @@ async function testActivityLog(){
 // deletes them afterward, so it is safe to run on production data.
 // ═══════════════════════════════════════════════════════════════
 // Keep this in sync with the VERSION constant at the top of Code.gs whenever the backend changes.
-var EXPECTED_BACKEND_VERSION = '2.56.0';
+var EXPECTED_BACKEND_VERSION = '2.60.0';
 // ── Check a client's Drive folder against required document categories.
 // Fires silently in the background when a client is opened (detail or edit);
 // pops up only if something required is actually missing. NRI-only categories
@@ -13067,7 +13139,9 @@ async function pullTasks(pre){   // pre = the TASKS part of a syncAll reply (whe
     if(!res || !res.rows || (res.rows.length<=1 && res.error)){
       res = await scriptGet('REMINDERS', 1);
     }
-    if(res && res.rows && res.rows.length > 1){
+    // A reply with just the heading row is a confident "no tasks". It used to be ignored ("> 1"), so when the last task was
+    // deleted on another device it stayed here as a ghost that could not be finished or deleted.
+    if(res && res.rows && res.rows.length >= 1 && !res.error){
       var rows = res.rows.slice(1); // skip header
       var missingIdCount = 0;
       var _prevTasks = tasks; // the list BEFORE it is replaced — the overlay needs it to find tasks still waiting to save
@@ -13084,11 +13158,15 @@ async function pullTasks(pre){   // pre = the TASKS part of a syncAll reply (whe
       // Rows from before the Task ID system existed won't have one yet —
       // backfill them once in the background, then silently re-pull so they
       // become fully manageable (Delete/Finish/Save) instead of staying stuck.
-      if(missingIdCount>0){
+      if(missingIdCount>0 && !_taskBackfillTried){
+        _taskBackfillTried=true;     // ONE attempt per session. It used to re-run itself — and re-load every task — each time it reported
+                                     // success, with no limit: if the new IDs did not stick, that went on forever.
         try{
           var bfRes=await sheetWrite({action:'backfillTaskIds'});
           if(bfRes && bfRes.success && bfRes.filled>0) await pullTasks();
         }catch(bfErr){ console.warn('Task ID backfill failed:', bfErr.message); }
+      } else if(missingIdCount>0){
+        console.warn(missingIdCount+' task(s) still have no Task ID — they cannot be finished or deleted (see Health Check).');
       }
     }
     return !!res && res.error!=='SESSION_EXPIRED';
