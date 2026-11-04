@@ -1416,16 +1416,20 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           </select>
         </div>
         <div class="fg"><label class="fl">Source</label>
-          <select class="fi fi-sel" id="lf-source" onchange="const rfw=document.getElementById('referral-field-wrap');if(rfw)rfw.style.display=(this.value==='REFERRAL'||this.value==='FRIENDS')?'block':'none'">
-            <option value="">Select</option><option>REFERRAL</option><option>FRIENDS</option>
-            <option>SOCIAL MEDIA</option><option>WALK-IN</option><option>SEMINAR</option>
-            <option>SIB</option><option>COLD CALL</option><option>WEBSITE</option><option>OTHER</option>
+          <select class="fi fi-sel" id="lf-source">
+            <option value="">Select</option><option>NATURAL MARKET</option><option>REFERRAL MARKET</option><option>OPEN MARKET</option>
           </select>
         </div>
       </div>
-      <div class="fg" id="referral-field-wrap" style="display:none">
-        <label class="fl">Referred by</label>
-        <input class="fi" id="lf-referral" placeholder="Client name or mobile" autocomplete="off" oninput="autoCaps(this)">
+      <div class="fg" id="referral-field-wrap">
+        <label class="fl">Source by</label>
+        <select class="fi fi-sel" id="lf-referral-sel" onchange="lfSourceBySel(this.value)">
+          <option value="">Select</option><option value="SIB">SIB</option><option value="FRIENDS">Friends</option><option value="RELATIVES">Relatives</option>
+          <option value="WEBINAR">Webinar</option><option value="IAP">IAP</option><option value="YOUTUBE">Youtube</option><option value="FB">FB</option>
+          <option value="INSTAGRAM">Instagram</option><option value="LINKEDIN">Linkedin</option><option value="OTHERS">Others</option>
+          <option value="__NAME__">✍️ A person's name (type it)…</option>
+        </select>
+        <input class="fi" id="lf-referral" placeholder="Type the name (e.g. who referred this lead)" autocomplete="off" oninput="autoCaps(this)" style="display:none;margin-top:6px">
       </div>
       <div class="frow">
         <div class="fg"><label class="fl">Potential SIP (₹ Lakh)</label>
@@ -1829,7 +1833,7 @@ var LEAD_COLS = ['name','mobile','email','age','country','status','source',
                  'remarks','modifiedDate','createdDate','geoTag','potentialAum','recordId','familyName',
                  'folderId','uploadToken','userId'];
 var LEAD_HDRS = ['Name','Mobile','Email','Age','Country','Status','Source',
-                 'Referred By','Potential SIP','Next Follow-up',
+                 'Source By','Potential SIP','Next Follow-up',
                  'Investment Products','Mode of Contact','Remarks',
                  'Modified Date','Created Date','Geo Tag','Potential AUM','Record ID','Family Name',
                  'Folder ID','Upload Token','User ID'];
@@ -6820,6 +6824,36 @@ async function handleLeadCameraCapture(inputEl){
   }
 }
 
+// ── Lead form: "Source" (3 fixed choices) and "Source by" (a dropdown choice OR a typed name) ──
+// The text box lf-referral always holds the final value that gets saved.
+var LF_SOURCE_BY=['SIB','FRIENDS','RELATIVES','WEBINAR','IAP','YOUTUBE','FB','INSTAGRAM','LINKEDIN','OTHERS'];
+function lfSourceBySel(v){
+  var inp=document.getElementById('lf-referral'); if(!inp) return;
+  if(v==='__NAME__'){
+    inp.style.display='block';
+    if(LF_SOURCE_BY.indexOf(inp.value)>=0||inp.value==='SELF') inp.value='';
+    inp.focus();
+  } else { inp.style.display='none'; inp.value=v; }
+}
+// Show a stored value. Anything that is not a standard choice (a person's name, or an
+// older value such as SELF) is kept exactly as it was — editing a lead never alters it.
+function lfSetSourceBy(val){
+  var sel=document.getElementById('lf-referral-sel'), inp=document.getElementById('lf-referral'); if(!sel||!inp) return;
+  val=String(val||'').trim(); inp.value=val;
+  if(!val||val==='SELF'){ sel.value=''; inp.style.display='none'; }
+  else if(LF_SOURCE_BY.indexOf(val.toUpperCase())>=0){ inp.value=val.toUpperCase(); sel.value=inp.value; inp.style.display='none'; }
+  else { sel.value='__NAME__'; inp.style.display='block'; }
+}
+function lfSetSource(val){
+  var sel=document.getElementById('lf-source'); if(!sel) return;
+  Array.prototype.slice.call(sel.querySelectorAll('option[data-legacy]')).forEach(function(o){ o.parentNode.removeChild(o); });
+  val=String(val||'').trim();
+  if(val && !Array.prototype.some.call(sel.options,function(o){ return o.value===val; })){
+    var o=document.createElement('option'); o.value=val; o.textContent=val+' (earlier value)'; o.setAttribute('data-legacy','1'); sel.appendChild(o);
+  }
+  sel.value=val;
+}
+
 function openAddLead(pre){
   editLead=null;
   populateGeoTagSuggestions();
@@ -6828,8 +6862,8 @@ function openAddLead(pre){
   ['name','mob','email','age','rem'].forEach(function(f){var el=document.getElementById('lf-'+f);if(el)el.value=(pre&&pre[f])||'';});
   var gEl=document.getElementById('lf-gender');if(gEl)gEl.value='';
   var sEl=document.getElementById('lf-status');if(sEl)sEl.value=(pre&&pre.status)||'PROSPECT';
-  var srcEl=document.getElementById('lf-source');if(srcEl)srcEl.value='';
-  var refEl=document.getElementById('lf-referral');if(refEl)refEl.value='SELF';
+  lfSetSource('');
+  lfSetSourceBy('SELF'); // unchanged default for a new lead: shows "Select", stores SELF unless a choice is made
   var aumEl=document.getElementById('lf-potentialsip');if(aumEl)aumEl.value='';
   var potaumEl=document.getElementById('lf-potaum');if(potaumEl)potaumEl.value='';
   var ulWrap=document.getElementById('lf-uploadlink-wrap');if(ulWrap)ulWrap.style.display='none';
@@ -6864,8 +6898,8 @@ function editLeadOpen(mob){
   var aEl=document.getElementById('lf-age');if(aEl)aEl.value=l.age||'';
   var gEl=document.getElementById('lf-gender');if(gEl)gEl.value=l.gender||'';
   var sEl=document.getElementById('lf-status');if(sEl)sEl.value=l.status||'PROSPECT';
-  var srcEl=document.getElementById('lf-source');if(srcEl)srcEl.value=l.source||'';
-  var refEl=document.getElementById('lf-referral');if(refEl)refEl.value=l.referral||'SELF';
+  lfSetSource(l.source||'');
+  lfSetSourceBy(l.referral||'SELF');
   var aumEl=document.getElementById('lf-potentialsip');if(aumEl)aumEl.value=l.potentialSip||'';
   var potaumEl=document.getElementById('lf-potaum');if(potaumEl)potaumEl.value=l.potentialAum||'';
   var ulWrap=document.getElementById('lf-uploadlink-wrap');if(ulWrap)ulWrap.style.display='block';
@@ -12600,7 +12634,7 @@ function parseLeadsFromRows(rows){
   if(!rows||rows.length<2) return null;
   var hdr=rows[0].map(function(h){return (h||'').toLowerCase().trim();});
   var ci=function(keys){for(var ki=0;ki<keys.length;ki++)for(var hi=0;hi<hdr.length;hi++)if(hdr[hi].includes(keys[ki]))return hi;return -1;};
-  var C={name:ci(['name']),mob:ci(['mobile','phone']),email:ci(['email']),age:ci(['age']),country:ci(['country']),contactMode:ci(['mode','contact']),status:ci(['status']),source:ci(['source']),ref:ci(['referred','referral']),aum:ci(['sip']),fu:ci(['follow']),prod:ci(['product','investment']),rem:ci(['remark','note']),mod:ci(['modified']),created:ci(['created']),geo:ci(['geo']),potAum:ci(['aum']),recordId:ci(['record id']),familyName:ci(['family']),folderId:ci(['folder']),token:ci(['upload token','token']),userId:ci(['user id','user'])};
+  var C={name:ci(['name']),mob:ci(['mobile','phone']),email:ci(['email']),age:ci(['age']),country:ci(['country']),contactMode:ci(['mode','contact']),status:ci(['status']),source:ci(['source']),ref:ci(['source by','referred','referral']),aum:ci(['sip']),fu:ci(['follow']),prod:ci(['product','investment']),rem:ci(['remark','note']),mod:ci(['modified']),created:ci(['created']),geo:ci(['geo']),potAum:ci(['aum']),recordId:ci(['record id']),familyName:ci(['family']),folderId:ci(['folder']),token:ci(['upload token','token']),userId:ci(['user id','user'])};
   function g(r,k,fb){var i=C[k]>=0?C[k]:fb;return i>=0&&i<r.length?String(r[i]||''):'';}
   var out=[];
   rows.slice(1).forEach(function(r){
