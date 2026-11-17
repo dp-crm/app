@@ -840,6 +840,29 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div id="dash-funnel" style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px"></div>
   </div>
 
+  <!-- Business summary — Total Clients / AUM / SIP / Families, read from the
+       CLIENTS tab (Name rows, AUM, Potential SIP and Family Name columns).
+       Sits directly above Today's Activity. -->
+  <div class="sec" style="grid-column:1/-1">
+    <div style="background:var(--s1);border-radius:var(--r);padding:12px 8px 10px">
+      <div class="lbl" style="color:var(--coral);margin:0 4px 8px">📊 Business Summary</div>
+      <table id="dash-summary-table" style="width:100%;border-collapse:collapse;table-layout:fixed;text-align:center">
+        <thead><tr>
+          <th style="font-size:9.5px;font-weight:700;color:var(--t2);padding:0 2px 6px;border-bottom:1px solid var(--border)">Total Clients</th>
+          <th style="font-size:9.5px;font-weight:700;color:var(--t2);padding:0 2px 6px;border-bottom:1px solid var(--border);border-left:1px solid var(--border)">Total AUM</th>
+          <th style="font-size:9.5px;font-weight:700;color:var(--t2);padding:0 2px 6px;border-bottom:1px solid var(--border);border-left:1px solid var(--border)">Total SIP</th>
+          <th style="font-size:9.5px;font-weight:700;color:var(--t2);padding:0 2px 6px;border-bottom:1px solid var(--border);border-left:1px solid var(--border)">Total Family</th>
+        </tr></thead>
+        <tbody><tr>
+          <td id="dash-sum-clients" style="font-size:15px;font-weight:800;color:var(--text);padding:9px 2px 2px">—</td>
+          <td id="dash-sum-aum" style="font-size:15px;font-weight:800;color:var(--text);padding:9px 2px 2px;border-left:1px solid var(--border)">—</td>
+          <td id="dash-sum-sip" style="font-size:15px;font-weight:800;color:var(--text);padding:9px 2px 2px;border-left:1px solid var(--border)">—</td>
+          <td id="dash-sum-family" style="font-size:15px;font-weight:800;color:var(--text);padding:9px 2px 2px;border-left:1px solid var(--border)">—</td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Today's Activity — merged with the former "Planning Nudges" into one
        swipeable capsule feed (see renderDashboardActivityFeed): follow-ups,
        events, SIP/review/anniversary/birthdays due today, tasks due/
@@ -856,23 +879,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   </div>
   </div>
 
-  <!-- Daily Financial Intelligence — swipeable news-card feed, generated
-       once daily (around 8am) and cached; the Dashboard never triggers
-       its own Gemini call on open/refresh, it only reads whatever's
-       already cached for today (see getOrGenerateDailyFinIntel in
-       Code.gs — same "generate once, reuse everywhere" cache the 8am
-       email reads from). Gracefully hidden if the feature is off,
-       nothing's cached yet, or every card's already been swiped away for
-       today — same graceful-hide convention as the AI "Today's Insights"
-       card (loadDashboardPracticePulse). -->
-  <div class="sec" id="dash-fin-intel-wrap" style="display:none">
-    <div style="background:var(--s1);border-radius:var(--r);padding:14px 12px">
-      <div class="lbl" style="color:var(--coral);margin-bottom:2px">📰 Daily Financial Intelligence</div>
-      <div style="font-size:11px;color:var(--t3);margin-bottom:12px">The 10 developments that matter today</div>
-      <div id="dash-fin-intel-stack" style="display:grid"></div>
-      <div id="dash-fin-intel-pos" style="text-align:center;font-size:11px;color:var(--t3);margin-top:10px"></div>
-    </div>
-  </div>
 </div>
 
   
@@ -1018,23 +1024,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           <div class="si" style="font-size:10px" id="daily-insights-status"></div>
         </div>
 
-        <!-- Daily Financial Intelligence mail id + testing -->
-        <div class="sg" style="margin-top:10px">
-          <div style="font-size:11px;color:var(--t2);margin:0 12px 8px;font-weight:700">📰 Daily Financial Intelligence Email &amp; Testing</div>
-          <div class="si" style="font-size:10px;color:var(--t3)"><span><b>Daily Financial Intelligence</b> — the day's most important regulatory, market and economic developments, ranked for a financial advisor. Powers both the Dashboard's swipeable card feed and this daily email — turning this off hides the Dashboard card too, not just the email.</span></div>
-          <div style="padding:0 12px 6px;display:flex;align-items:center;gap:10px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);cursor:pointer">
-              <input type="checkbox" id="fi-enabled" style="width:18px;height:18px">
-              Enable Daily Financial Intelligence
-            </label>
-          </div>
-          <div style="padding:0 12px 6px"><label class="fl">Recipient Email</label><input class="fi" id="fi-recipient" type="email" placeholder="you@example.com" style="font-size:12px"></div>
-          <div class="si" style="font-size:10px;color:var(--t3);margin:0 12px 8px"><span>Sends once a day, automatically, around 8am (script project timezone) — this isn't currently adjustable.</span></div>
-          <div class="syc"><button class="btn btn-gold btn-full" style="font-size:11px" onclick="saveDailyFinIntelSettings()">💾 Save Daily Financial Intelligence Settings</button></div>
-          <div class="syc"><button class="btn btn-ghost btn-full" style="font-size:11px" onclick="sendTestFinIntelEmail()">📧 Send Test Daily Financial Intelligence Email</button></div>
-          <div class="si" style="font-size:10px" id="daily-fin-intel-status"></div>
-        </div>
-
         <!-- AI usage cost — lifetime running total, plain read-only figures.
              Admin-only — hidden entirely for non-admins, not just gated on
              click, since the data itself (not just the save action) is
@@ -1042,7 +1031,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
              section above it. -->
         <div class="sg" style="margin-top:10px" id="ai-usage-settings-block">
           <div style="font-size:11px;color:var(--t2);margin:0 12px 8px;font-weight:700">💳 AI Usage</div>
-          <div class="si" style="font-size:10px;color:var(--t3)"><span>Cumulative token usage and estimated cost across every AI feature (Insights, chat, Daily Financial Intelligence, voice, message drafts) since this firm started using the app. Rates are fixed (gemini-3.5-flash-lite: $0.30 / $2.50 per 1M input/output tokens, ₹97/$).</span></div>
+          <div class="si" style="font-size:10px;color:var(--t3)"><span>Cumulative token usage and estimated cost across every AI feature (Insights, chat, voice, message drafts) since this firm started using the app. Rates are fixed (gemini-3.5-flash-lite: $0.30 / $2.50 per 1M input/output tokens, ₹97/$).</span></div>
           <div class="si" style="font-size:11px" id="ai-usage-status">Loading…</div>
         </div>
       </div>
@@ -1438,6 +1427,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
         <div class="fg"><label class="fl">Potential AUM (₹ Lakh)</label><input class="fi" id="lf-potaum" placeholder="e.g. 25 or 1.25" inputmode="decimal" oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1').replace(/(\.\d{2}).+/g,'$1')"></div>
       </div>
       <div id="lf-uploadlink-wrap" style="display:none;margin-bottom:10px">
+        <button type="button" class="btn btn-ghost btn-full" style="border-color:rgba(37,211,102,.45);color:#25D366;margin-bottom:8px" onclick="openPlainWhatsApp(document.getElementById('lf-mob').value)">💬 WhatsApp</button>
         <button type="button" class="btn btn-ghost btn-full" style="border-color:color-mix(in srgb, var(--orange) 30%, transparent);color:var(--orange);margin-bottom:8px" onclick="sendLeadUploadLinkWA(document.getElementById('lf-mob').value)">📤 Send Document Upload Link via WhatsApp</button>
         <button type="button" class="btn btn-ghost btn-full" style="border-color:rgba(52,152,219,.3);color:var(--blue)" onclick="(function(){var d=(document.getElementById('lf-mob').value||'').replace(/\D/g,'');var n=d.length===10?'91'+d:d;sendWAQuick(n,'cas',document.getElementById('lf-mob').value);})()">📊 Send CAMS CAS Report via WhatsApp</button>
       </div>
@@ -2283,6 +2273,7 @@ function setupAutocomplete(inputId,listId,type){
 // FOLLOW-UP DETAIL POPUP
 // ═══════════════════════════════════════════════
 function openFuDetail(mob,nameHint){
+  window._dashListReturn=null; // only the dashboard list sets this (right after calling here)
   var wantName2 = nameHint ? decodeURIComponent(nameHint) : null;
   var l = leads.find(function(x){ return x.recordId===mob || (x.mobile===mob && (!wantName2 || x.name===wantName2)); });
   if(!l && wantName2) l = leads.find(function(x){ return x.recordId===mob||x.mobile===mob; });
@@ -2474,6 +2465,9 @@ function closeFuDetail(){
   }
   renderFU();updateFUBadge();renderLeads();
   _detailOpenMobile=null;_detailOpenType=null;_detailModified=false;
+  // Opened from a dashboard list? Go back to that list (rebuilt from the latest data, e.g. a
+  // lead moved out of Prospects no longer shows).
+  if(window._dashListReturn){ var _dlr=window._dashListReturn; window._dashListReturn=null; setTimeout(function(){ showDashList(_dlr.type,_dlr); },80); }
 }
 
 // ═══════════════════════════════════════════════
@@ -6065,11 +6059,12 @@ function renderFuDetailInner(mob,nameHint){
   // AI WhatsApp message — same size tiles, brand icons where available (WhatsApp, phone).
   var actionIconsHtml='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:10px 14px;border-bottom:1px solid var(--border)">'
     +'<a href="tel:'+l.mobile+'" class="qwa-btn qwa-blue"><span class="qwa-ico">'+callIcon()+'</span><span class="qwa-lbl">Call</span></a>'
+    // Plain WhatsApp chat — opens the conversation so you type your own message (no AI draft)
+    +'<a href="https://wa.me/'+waNum+'?text='+encodeURIComponent('Hi')+'" target="_blank" rel="noopener" class="qwa-btn qwa-green"><span class="qwa-ico">'+waIcon().replace('width="14" height="14"','width="24" height="24"')+'</span><span class="qwa-lbl">WhatsApp</span></a>'
     +'<a href="botim://call/'+digits+'" class="qwa-btn qwa-blue"><span class="qwa-ico">📱</span><span class="qwa-lbl">Botim</span></a>'
     +'<a href="'+meetUrl+'" target="_blank" class="qwa-btn qwa-blue"><span class="qwa-ico">📹</span><span class="qwa-lbl">Meet</span></a>'
     +'<button data-action="fu-waq" data-waqtype="cas" data-wanum="'+waNum+'" data-mob="'+mob+'" class="qwa-btn qwa-green"><span class="qwa-ico">📊</span><span class="qwa-lbl">CAS Report</span></button>'
     +'<button data-action="fu-uploadlink" data-mob="'+mob+'" class="qwa-btn qwa-amber"><span class="qwa-ico">📤</span><span class="qwa-lbl">Upload Docs</span></button>'
-    +'<button onclick="draftLeadWAMessage(\''+mob+'\')" class="qwa-btn qwa-purple"><span class="qwa-ico">'+waIcon()+'</span><span class="qwa-lbl">AI Message</span></button>'
     +'</div>';
 
   var html=
@@ -6107,7 +6102,7 @@ function renderFuDetailInner(mob,nameHint){
     +'<input class="fi" id="fu-note-input-'+mob+'" placeholder="Custom note…" style="flex:1;padding:7px 10px;font-size:13px;background:var(--bg)">'
     +'<button class="btn btn-gold" style="padding:7px 11px;font-size:12px;flex-shrink:0" data-action="fu-save-note" data-mob="'+mob+'">Log →</button>'
     +'</div></div>'
-    // Unified action icons: Call, Botim, Meet, CAS Report, Upload Docs, AI Message
+    // Unified action icons: Call, WhatsApp (plain chat, draft "Hi"), Botim, Meet, CAS Report, Upload Docs
     +actionIconsHtml
     // Bottom actions: Edit + Delete
     +'<div style="display:flex;gap:8px;padding:10px 14px 20px">'
@@ -6491,8 +6486,8 @@ function renderDash(){
   var elC=document.getElementById('dash-total-clients');if(elC)elC.textContent=totalClients;
   var elD=document.getElementById('dash-count-dropped');if(elD)elD.textContent=droppedCount;
   updateFUBadge();
+  renderDashSummary();
   renderDashboardActivityFeed(); // merged Today's Activity + Planning Nudges, swipeable capsules
-  loadDashFinIntel(); // Daily Financial Intelligence card — async, fire-and-forget; own per-day cache guard, never blocks the rest of this render (see loadDashboardPracticePulse for why that matters)
   renderPipelineFunnel(); // desktop-only lead pipeline funnel (no-op cost on mobile, just hidden)
   // Show popup for leads/clients not physically met in 1+ year
   checkPhysicalMeetReminder();
@@ -8165,88 +8160,6 @@ async function sendTestInsightsEmail(){
       // today. Resetting this forces the next Dashboard visit to re-fetch
       // instead of reusing today's already-loaded (now stale) result.
       _practicePulseLoadedForDate='';
-    }
-    else toast('❌ Could not send: '+(res&&res.error||'unknown error'));
-  }catch(e){
-    toast('❌ Could not reach the server: '+e.message);
-  }
-}
-
-// ═══════════════════════════════════════════════
-// DAILY FINANCIAL INTELLIGENCE — Settings: enable/disable + recipient,
-// same shape and conventions as Daily AI Insights above. Delivery hour is
-// fixed at 8am (script project timezone) for the same reason that one is —
-// see setupFinIntelTrigger in Code.gs.
-// ═══════════════════════════════════════════════
-async function loadDailyFinIntelSettings(){
-  var statusEl=document.getElementById('daily-fin-intel-status');
-  try{
-    var res=await sheetWrite({action:'getDailyFinIntelSettings', expectsResponse:true}, 15000);
-    if(!res || !res.success){
-      if(statusEl) statusEl.textContent='⚠️ Could not load: '+(res&&res.error||'unknown error');
-      return;
-    }
-    var enEl=document.getElementById('fi-enabled');
-    var recEl=document.getElementById('fi-recipient');
-    if(enEl) enEl.checked=!!res.enabled;
-    if(recEl) recEl.value=res.recipientEmail||'';
-    if(statusEl){
-      var lines=[];
-      if(res.enabled){
-        lines.push('✅ Enabled — sends daily, once a day, around 8am (script project timezone: '+res.scriptTimeZone+')');
-        lines.push(res.triggerExists
-          ? '✅ Trigger is registered and active'
-          : '❌ No trigger found — click Save below to (re)create it');
-      } else {
-        lines.push('❌ Disabled — the Dashboard card stays hidden and the automatic daily email will NOT run until you check "Enable Daily Financial Intelligence" above and tap Save. "Send Test" always works regardless of this setting, so a successful test does not mean this is on.');
-      }
-      if(res.lastSentStamp) lines.push('Last attempt: '+res.lastSentStamp);
-      if(res.lastSentDate) lines.push('Last real (non-test) send counted for: '+res.lastSentDate+' — won\'t send again automatically until the next calendar day');
-      statusEl.innerHTML=lines.map(function(l){return '<div>'+esc(l)+'</div>';}).join('');
-      statusEl.style.color=res.enabled?'var(--green)':'var(--t3)';
-    }
-  }catch(e){
-    if(statusEl) statusEl.textContent='⚠️ Could not reach the server: '+e.message;
-  }
-}
-async function saveDailyFinIntelSettings(){
-  var session=getSession();
-  if(!session){ toast('Please log in again'); return; }
-  if(!isAdmin()){ toast('Only an Admin can change this'); return; }
-  var statusEl=document.getElementById('daily-fin-intel-status');
-  var enabled=document.getElementById('fi-enabled').checked;
-  var recipient=document.getElementById('fi-recipient').value.trim();
-  if(enabled && !recipient){ toast('Enter a recipient email first'); return; }
-  if(statusEl){ statusEl.textContent='Saving…'; statusEl.style.color='var(--t3)'; }
-  try{
-    var res=await sheetWrite({
-      action:'saveDailyFinIntelSettings', requestingUserId:session.userId,
-      enabled:enabled, recipientEmail:recipient
-    }, 15000);
-    if(res && res.success){
-      toast(res.warning ? '⚠️ Saved, but see the warning below' : '✅ Saved');
-      if(res.warning && statusEl){ statusEl.textContent=res.warning; statusEl.style.color='var(--orange)'; }
-      loadDailyFinIntelSettings();
-      _finIntelLoadedForDate=''; // enabling/disabling changes what the Dashboard card should show — force a re-check on next visit rather than trusting today's earlier (possibly hidden) load
-    } else {
-      if(statusEl){ statusEl.textContent='⚠️ '+(res&&res.error||'Could not save'); statusEl.style.color='var(--red)'; }
-    }
-  }catch(e){
-    if(statusEl){ statusEl.textContent='⚠️ Could not reach the server: '+e.message; statusEl.style.color='var(--red)'; }
-  }
-}
-async function sendTestFinIntelEmail(){
-  var session=getSession();
-  if(!session){ toast('Please log in again'); return; }
-  if(!isAdmin()){ toast('Only an Admin can do this'); return; }
-  var recipient=document.getElementById('fi-recipient').value.trim();
-  if(!recipient){ toast('Enter and save a recipient email first'); return; }
-  toast('Sending test email — this can take up to 30 seconds…', 4000);
-  try{
-    var res=await sheetWrite({action:'sendTestFinIntelEmail', requestingUserId:session.userId}, 40000);
-    if(res && res.success){
-      toast('✅ Test email sent to '+recipient);
-      _finIntelLoadedForDate=''; // same reasoning as the insights test-send: don't keep showing a possibly-stale earlier load
     }
     else toast('❌ Could not send: '+(res&&res.error||'unknown error'));
   }catch(e){
@@ -10627,7 +10540,6 @@ function loadSettings(){
   renderFailedWritesBanner();
   loadConnectedCalendarsInfo();
   loadDailyInsightsSettings();
-  loadDailyFinIntelSettings();
   loadAiUsageStatus();
   loadClientEmailMonitoringStatus();
 }
@@ -11766,225 +11678,31 @@ function renderDashboardActivityFeed(){
   wireDashCapsuleSwipe(el, renderEmptyState);
 }
 
-// ═══════════════════════════════════════════════
-// DAILY FINANCIAL INTELLIGENCE — Dashboard card feed. Loads once per
-// calendar day (same guard pattern as loadDashboardPracticePulse), reads
-// only the cached-for-today result from Code.gs — never triggers Gemini
-// generation itself on open/refresh, that only happens server-side inside
-// getOrGenerateDailyFinIntel on a genuine cache miss. Cards are a real
-// single-item-at-a-time swipeable stack (Tinder-style), distinct from the
-// shrinking-list capsule pattern used by Today's Activity / Practice
-// Pulse above — a deliberately different, richer interaction for this
-// specific feed, not a redesign of those. Dismissed cards are tracked
-// through the exact same per-day localStorage mechanism as those capsules
-// (getDismissedCapsuleIds/dismissCapsuleId), just with a distinct
-// 'finintel_' id prefix so the two never collide — dismissing a card here
-// only ever hides it from THIS view; the underlying story stays fully
-// intact for the 8am email regardless of what's been swiped.
-// ═══════════════════════════════════════════════
-var _finIntelStories=[]; // today's stories, in rank order, already filtered of anything dismissed earlier today
-var _finIntelIdx=0;      // index of the current topmost (not yet dismissed) card
-var _finIntelLoadedForDate='';
-
-async function loadDashFinIntel(){
-  var todayKey=new Date().toDateString();
-  if(_finIntelLoadedForDate===todayKey || !hasScript()) return;
-  _finIntelLoadedForDate=todayKey;
-  var wrap=document.getElementById('dash-fin-intel-wrap');
-  try{
-    var res=await sheetWrite({action:'getDailyFinIntel', expectsResponse:true}, 45000);
-    if(!res || !res.success || res.error || res.disabled || !res.stories || !res.stories.length){
-      if(wrap) wrap.style.display='none';
-      return;
-    }
-    var dismissed=getDismissedCapsuleIds();
-    _finIntelStories=res.stories.map(function(s,i){
-      var c={}; for(var k in s) c[k]=s[k];
-      c._dismissId='finintel_'+simpleStrHash((c.headline||'')+'|'+i);
-      return c;
-    }).filter(function(s){ return dismissed.indexOf(s._dismissId)===-1; });
-    _finIntelIdx=0;
-    if(!_finIntelStories.length){ if(wrap) wrap.style.display='none'; return; }
-    if(wrap) wrap.style.display='block';
-    renderFinIntelStack();
-  }catch(e){
-    // Never let a failed fetch clutter the Dashboard — same convention as
-    // Practice Pulse: the card just stays hidden, exactly as if nothing
-    // had been generated yet today.
-    if(wrap) wrap.style.display='none';
-  }
+// ── Dashboard "Business Summary": Total Clients / AUM / SIP / Family, straight
+// from the CLIENTS tab columns. AUM column is a ₹ amount (may carry Cr/L/K);
+// Potential SIP column holds ₹ Lakh (plain number or the old category text).
+// Family = number of distinct Family Name values (case/space-insensitive).
+function dpFmtInr(n){
+  n=Math.round(n||0);
+  if(n>=10000000) return '₹'+(n/10000000).toFixed(2).replace(/\.?0+$/,'')+' Cr';
+  if(n>=100000)   return '₹'+(n/100000).toFixed(2).replace(/\.?0+$/,'')+' L';
+  return '₹'+n.toLocaleString('en-IN');
 }
-
-function finIntelCatMeta(cat){
-  if(cat==='REGULATORY') return {icon:'🔴', color:'var(--red)'};
-  if(cat==='MARKETS') return {icon:'🟠', color:'var(--orange)'};
-  return {icon:'🟢', color:'var(--green)'};
-}
-function finIntelImpactColor(imp){
-  if(imp==='HIGH') return 'var(--red)';
-  if(imp==='MEDIUM') return 'var(--orange)';
-  return 'var(--t3)';
-}
-// A short heading only — category icon, headline, one muted meta line
-// (impact · source). The full body (what happened / why it matters / tags
-// / source link) lives in openFinIntelDetail() below, reached by tapping
-// this capsule. Kept visually consistent with the Today's Activity
-// capsules (icon circle, title, muted sub-line, chevron) even though the
-// stack/swipe mechanics underneath are their own thing (see
-// renderFinIntelStack).
-function finIntelCapsuleHTML(s){
-  var cm=finIntelCatMeta(s.category);
-  return '<div style="display:flex;align-items:center;gap:13px">'
-    +'<span style="font-size:19px;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:color-mix(in srgb, '+cm.color+' 18%, transparent);display:flex;align-items:center;justify-content:center">'+cm.icon+'</span>'
-    +'<div style="flex:1;min-width:0">'
-    +'<div style="font-size:14px;font-weight:800;color:var(--text);line-height:1.35">'+esc(s.headline)+'</div>'
-    +'<div style="font-size:11px;color:var(--t3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.impact)+' impact · '+esc(s.sourceName)+'</div>'
-    +'</div>'
-    +'<span style="font-size:16px;color:var(--t3);flex-shrink:0">›</span>'
-    +'</div>';
-}
-
-// Full detail — a bottom-sheet overlay, same structural pattern as
-// showReminderList: fixed inset, slide-up panel, header with a close
-// button, scrollable body. _finIntelStories only ever holds the lightweight
-// headline-only fields (see loadDashFinIntel) — the full body text is
-// fetched here, on demand, the moment this is actually opened, not before.
-// Opens immediately with a brief loading state rather than waiting on the
-// network first, so the tap always feels instant even though the real
-// content arrives a beat later.
-async function openFinIntelDetail(idx){
-  var light=_finIntelStories[idx];
-  if(!light) return;
-  var cm=finIntelCatMeta(light.category);
-  var ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
-  ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;max-height:82vh;display:flex;flex-direction:column">'
-    +'<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
-    +'<span style="font-size:10px;font-weight:800;letter-spacing:.04em;color:'+cm.color+'">'+cm.icon+' '+esc(light.category)+'</span>'
-    +'<span class="fid-close-btn" style="font-size:20px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
-    +'<div id="fid-body" style="overflow-y:auto;flex:1;padding:16px">'
-    +'<div style="font-size:16px;font-weight:800;color:var(--text);line-height:1.35;margin-bottom:16px">'+esc(light.headline)+'</div>'
-    +'<div style="font-size:12.5px;color:var(--t3);text-align:center;padding:12px 0">Loading full story…</div>'
-    +'</div></div>';
-  document.body.appendChild(ov);
-  ov.addEventListener('click',function(e){
-    if(e.target===ov || e.target.closest('.fid-close-btn')) ov.remove();
+function computeDashSummary(list){
+  var aum=0,sip=0,fam={};
+  (list||[]).forEach(function(c){
+    aum+=parseAumValue(c.aum);
+    sip+=aumSipLakh(c.potentialSip)*100000;
+    var f=(c.familyName||'').toString().trim().toUpperCase().replace(/\s+/g,' ');
+    if(f) fam[f]=1;
   });
-
-  try{
-    var res=await sheetWrite({action:'getFinIntelStoryDetail', rank:light.rank, expectsResponse:true}, 15000);
-    var body=document.getElementById('fid-body');
-    if(!body || !ov.isConnected) return; // closed before the fetch finished
-    if(!res || !res.success || !res.story){
-      body.innerHTML='<div style="font-size:16px;font-weight:800;color:var(--text);line-height:1.35;margin-bottom:12px">'+esc(light.headline)+'</div>'
-        +'<div style="font-size:12.5px;color:var(--t3);text-align:center;padding:12px 0">⚠️ '+esc((res&&res.error)||'Could not load the full story.')+'</div>';
-      return;
-    }
-    var s=res.story;
-    var tags=(s.relevantTo||[]).map(function(t){
-      return '<span style="display:inline-block;font-size:9px;font-weight:700;color:var(--t2);background:var(--s3);padding:2px 7px;border-radius:5px;margin:0 4px 4px 0">'+esc(t)+'</span>';
-    }).join('');
-    body.innerHTML='<div style="font-size:16px;font-weight:800;color:var(--text);line-height:1.35;margin-bottom:12px">'+esc(s.headline)+'</div>'
-      +'<div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:3px">WHAT HAPPENED</div>'
-      +'<div style="font-size:13px;color:var(--t2);line-height:1.55;margin-bottom:12px">'+esc(s.whatHappened)+'</div>'
-      +'<div style="font-size:10px;font-weight:700;color:var(--t3);margin-bottom:3px">WHY IT MATTERS</div>'
-      +'<div style="font-size:13px;color:var(--t2);line-height:1.55;margin-bottom:12px">'+esc(s.whyItMatters)+'</div>'
-      +(tags?'<div style="margin-bottom:12px">'+tags+'</div>':'')
-      +'<div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border);gap:10px">'
-      +'<span style="font-size:9.5px;font-weight:800;color:'+finIntelImpactColor(s.impact)+';flex-shrink:0">'+esc(s.impact)+' IMPACT</span>'
-      +'<a href="'+esc(s.sourceUrl)+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent);text-decoration:none;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(s.sourceName)+(s.publishedAt?' · '+esc(s.publishedAt):'')+' →</a>'
-      +'</div>';
-  }catch(e){
-    var body2=document.getElementById('fid-body');
-    if(body2 && ov.isConnected) body2.innerHTML='<div style="font-size:12.5px;color:var(--t3);text-align:center;padding:12px 0">⚠️ Could not reach the server.</div>';
-  }
+  return {clients:(list||[]).length, aum:aum, sip:sip, families:Object.keys(fam).length};
 }
-
-// Renders the top 1-2 capsules stacked in the SAME CSS grid cell (grid-
-// row:1; grid-column:1 on both) so the next one naturally peeks out behind
-// the current one regardless of exact height — no fragile absolute-
-// positioning or height math needed for the "next card underneath" effect.
-function renderFinIntelStack(){
-  var stack=document.getElementById('dash-fin-intel-stack');
-  var pos=document.getElementById('dash-fin-intel-pos');
-  if(!stack) return;
-  if(_finIntelIdx>=_finIntelStories.length){
-    stack.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:16px 14px;background:var(--s2);border-radius:14px;border:1px solid var(--border)">'
-      +'<div style="font-size:18px">🎉</div><div style="font-size:12px;color:var(--t2)">All caught up on today\'s intelligence!</div></div>';
-    if(pos) pos.textContent='';
-    return;
-  }
-  var top=_finIntelStories[_finIntelIdx];
-  var next=_finIntelStories[_finIntelIdx+1];
-  var html='';
-  if(next){
-    html+='<div style="grid-row:1;grid-column:1;background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:15px 14px;transform:scale(.95) translateY(10px);opacity:.55;z-index:1;pointer-events:none">'+finIntelCapsuleHTML(next)+'</div>';
-  }
-  html+='<div class="fi-card-top" data-dismissid="'+top._dismissId+'" data-idx="'+_finIntelIdx+'" style="grid-row:1;grid-column:1;position:relative;background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:15px 14px;box-shadow:0 8px 24px -8px rgba(0,0,0,.5);touch-action:pan-y;cursor:grab;z-index:2">'+finIntelCapsuleHTML(top)+'</div>';
-  stack.innerHTML=html;
-  if(pos) pos.textContent=(_finIntelIdx+1)+' of '+_finIntelStories.length;
-  wireFinIntelSwipe(stack);
-}
-
-// Pointer Events (not separate touch/mouse handlers) — one implementation
-// natively covers touch, mouse AND pen, satisfying both the mobile swipe
-// requirement and "mouse/touch dragging may be supported" on desktop
-// without duplicating gesture logic. Also distinguishes a plain TAP (open
-// the detail overlay) from a SWIPE (dismiss) from a vertical drag (let the
-// page scroll) — three distinct outcomes off the same gesture. Wired fresh
-// on every render since renderFinIntelStack() always creates a brand-new
-// top-card element (the old one, and its listeners, are discarded with
-// it) — unlike wireDashCapsuleSwipe, which wires once onto a long-lived
-// container, there is nothing here that needs a double-wiring guard.
-function wireFinIntelSwipe(stack){
-  var card=stack.querySelector('.fi-card-top');
-  if(!card) return;
-  var startX=0, startY=0, dx=0, dragging=false, decided=null; // decided: true=horizontal swipe, false=vertical scroll (bail), null=undecided (could still be a tap)
-
-  function onDown(e){
-    if(e.button!==undefined && e.button!==0) return; // left mouse button only
-    startX=e.clientX; startY=e.clientY; dx=0; dragging=true; decided=null;
-    card.style.transition='';
-    card.style.cursor='grabbing';
-    if(e.pointerId!==undefined && card.setPointerCapture){ try{ card.setPointerCapture(e.pointerId); }catch(err){} }
-  }
-  function onMove(e){
-    if(!dragging) return;
-    var curDx=e.clientX-startX, curDy=e.clientY-startY;
-    if(decided===null && (Math.abs(curDx)>6 || Math.abs(curDy)>6)){ decided = Math.abs(curDx)>Math.abs(curDy); }
-    if(decided===false) return; // vertical drag — let the page scroll normally, don't fight it
-    if(e.cancelable) e.preventDefault();
-    dx=curDx;
-    var rot=dx/14;
-    card.style.transform='translateX('+dx+'px) rotate('+rot+'deg)';
-    card.style.opacity=String(Math.max(0.25, 1-Math.abs(dx)/280));
-  }
-  function onUp(){
-    if(!dragging) return;
-    dragging=false;
-    card.style.cursor='grab';
-    if(decided===null){
-      // Never moved past the decision threshold in either direction — a plain tap.
-      openFinIntelDetail(parseInt(card.dataset.idx,10));
-      return;
-    }
-    if(decided===false){ decided=null; return; } // was a vertical scroll — nothing further to do
-    decided=null;
-    if(Math.abs(dx)>90){
-      card.style.transition='transform .28s ease, opacity .28s ease';
-      card.style.transform='translateX('+(dx>0?'140%':'-140%')+') rotate('+(dx>0?24:-24)+'deg)';
-      card.style.opacity='0';
-      dismissCapsuleId(card.dataset.dismissid);
-      setTimeout(function(){ _finIntelIdx++; renderFinIntelStack(); }, 220);
-    } else {
-      card.style.transition='transform .2s ease, opacity .2s ease';
-      card.style.transform=''; card.style.opacity='';
-    }
-  }
-  card.addEventListener('pointerdown', onDown);
-  card.addEventListener('pointermove', onMove);
-  card.addEventListener('pointerup', onUp);
-  card.addEventListener('pointercancel', onUp);
+function renderDashSummary(){
+  var m=computeDashSummary(typeof clients!=='undefined'?clients:[]);
+  var set=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+  set('dash-sum-clients',m.clients); set('dash-sum-aum',dpFmtInr(m.aum));
+  set('dash-sum-sip',dpFmtInr(m.sip)); set('dash-sum-family',m.families);
 }
 
 // Show clickable list popup for a reminder group
@@ -12197,7 +11915,110 @@ function renderPipelineFunnel(){
     + '</div></div>';
 }
 
-function showDashList(type){
+// ── Plain WhatsApp chat (no AI draft): opens the person's chat so you can type and send your own message ──
+function openPlainWhatsApp(mobile){
+  var d=String(mobile||'').replace(/\D/g,'');
+  if(!d){ toast('No mobile number'); return; }
+  window.open('https://wa.me/'+(d.length===10?'91'+d:d)+'?text='+encodeURIComponent('Hi'),'_blank');
+}
+
+// ── Dashboard lead lists (Prospects / Active / Dropped): search, sort, richer rows ──
+// Tapping a lead opens its lead window; closing that window brings you back to this
+// same list (same search, sort and scroll position) so you can work down the list.
+function _dlLeadSort(items,sort){
+  var arr=items.map(function(l,i){ return {l:l,i:i}; });
+  function nm(x){ return (x.l.name||'').toLowerCase(); }
+  if(sort==='az') arr.sort(function(a,b){ return nm(a).localeCompare(nm(b)); });
+  else if(sort==='fu') arr.sort(function(a,b){ return (daysUntil(a.l.nextFollowUp)-daysUntil(b.l.nextFollowUp)) || nm(a).localeCompare(nm(b)); });
+  else arr.sort(function(a,b){ return String(b.l.createdDate||'').slice(0,10).localeCompare(String(a.l.createdDate||'').slice(0,10)) || (b.i-a.i); });
+  return arr.map(function(x){ return x.l; });
+}
+function _dlLeadRow(l,color,showStatus){
+  var nm=toTitle(l.name||''), init=(nm.trim().charAt(0)||'?').toUpperCase(), bits=[];
+  if(l.country) bits.push(esc(l.country));
+  var sip=String(l.potentialSip||'').trim(); if(sip&&sip!=='0'&&sip!=='-') bits.push('SIP ₹'+esc(sip)+'L');
+  var aum=String(l.potentialAum||'').trim(); if(aum&&aum!=='0'&&aum!=='-') bits.push('AUM ₹'+esc(aum)+'L');
+  var added=daysAgo(l.createdDate);
+  var addedTxt=added>=999?'':(added<=0?'Added today':added===1?'Added yesterday':'Added '+added+'d ago');
+  var chip='', fu=(l.nextFollowUp&&/^\d{4}-\d{2}-\d{2}/.test(l.nextFollowUp))?daysUntil(l.nextFollowUp):999;
+  if(fu!==999){
+    var ft=fu<0?'Overdue '+Math.abs(fu)+'d':fu===0?'Follow-up today':'Follow-up in '+fu+'d';
+    var fc=fu<0?'var(--red)':fu===0?'var(--orange)':'var(--t3)';
+    chip='<span style="font-size:9.5px;font-weight:700;color:'+fc+';white-space:nowrap">📅 '+ft+'</span>';
+  }
+  var meta=[addedTxt].filter(Boolean).map(esc).join('');
+  return '<div class="dl-row" data-dlmob="'+esc(l.mobile)+'" data-dlname="'+encodeURIComponent(l.name||'')+'" style="display:flex;align-items:center;gap:11px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer">'
+    +'<div style="width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:'+color+';background:color-mix(in srgb, '+color+' 16%, transparent)">'+esc(init)+'</div>'
+    +'<div style="flex:1;min-width:0">'
+      +'<div style="font-size:13.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(nm)+'</div>'
+      +'<div style="font-size:10.5px;color:var(--t2);margin-top:2px">'+esc(l.mobile||'')+(bits.length?' · '+bits.join(' · '):'')+'</div>'
+      +'<div style="font-size:10px;color:var(--t3);margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+        +(showStatus?'<span style="font-weight:700;color:'+color+'">'+esc(toTitle(l.status||''))+'</span>':'')+(meta?'<span>'+meta+'</span>':'')+chip
+      +'</div>'
+    +'</div>'
+    +'<span style="font-size:16px;color:'+color+';flex-shrink:0">›</span></div>';
+}
+function showDashList(type,st){
+  var CFG={prospect:{title:'🟡 Prospects',color:'var(--orange)',sort:'new',none:'No prospects'},
+           active:{title:'🔴 Active Leads',color:'var(--accent)',sort:'fu',none:'No active leads'},
+           dropped:{title:'⚫ Dropped Leads',color:'#888',sort:'az',none:'No dropped leads'}};
+  var cfg=CFG[type];
+  if(!cfg){ return showDashListLegacy_(type); } // Clients keep their existing list
+  var all=leads.filter(function(l){
+    var s=(l.status||'').toUpperCase();
+    return type==='prospect'?s==='PROSPECT':type==='active'?(s==='CONTACTED'||s==='IN PROGRESS'):s==='DROPPED';
+  });
+  var state={q:(st&&st.q)||'', sort:(st&&st.sort)||cfg.sort};
+  var old=document.getElementById('_dashListOv'); if(old) old.remove();
+  var ov=document.createElement('div');
+  ov.id='_dashListOv';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
+  ov.innerHTML='<div style="background:var(--s1);border-radius:14px 14px 0 0;width:100%;max-width:420px;height:86vh;display:flex;flex-direction:column">'
+    +'<div style="padding:14px 16px 8px;display:flex;justify-content:space-between;align-items:center">'
+    +'<span id="_dlTitle" style="font-size:15px;font-weight:800;color:'+cfg.color+'"></span>'
+    +'<span id="_dListX" class="dl-close-btn" style="font-size:22px;color:var(--t2);cursor:pointer;padding:12px;margin:-12px;line-height:1;display:inline-flex;align-items:center;justify-content:center" role="button" aria-label="Close">✕</span></div>'
+    +'<div style="padding:0 14px 8px">'
+      +'<input id="_dlSearch" type="search" inputmode="search" autocomplete="off" placeholder="🔍 Search name or mobile" style="width:100%;box-sizing:border-box;padding:10px 12px;font-size:14px;color:var(--text);background:var(--bg);border:1.5px solid var(--border);border-radius:10px;outline:none">'
+      +'<div id="_dlChips" style="display:flex;gap:6px;margin-top:8px"></div>'
+    +'</div>'
+    +'<div id="_dlBody" style="overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;border-top:1px solid var(--border)"></div></div>';
+  document.body.appendChild(ov);
+  var inp=ov.querySelector('#_dlSearch'); inp.value=state.q;
+  function render(){
+    var q=state.q.trim().toLowerCase(), qd=q.replace(/\D/g,'');
+    if(qd.length===12 && qd.indexOf('91')===0) qd=qd.slice(2); // typed as +91 …
+    var list=all.filter(function(l){
+      if(!q) return true;
+      return (l.name||'').toLowerCase().indexOf(q)>=0 || (l.country||'').toLowerCase().indexOf(q)>=0 || (qd && String(l.mobile||'').replace(/\D/g,'').indexOf(qd)>=0);
+    });
+    list=_dlLeadSort(list,state.sort);
+    ov.querySelector('#_dlTitle').textContent=cfg.title+' ('+(q?list.length+' of '+all.length:all.length)+')';
+    ov.querySelector('#_dlChips').innerHTML=[['new','Newest'],['az','A–Z'],['fu','Follow-up']].map(function(c){
+      var on=state.sort===c[0];
+      return '<button type="button" data-dlsort="'+c[0]+'" style="border:1.5px solid '+(on?cfg.color:'var(--border)')+';background:'+(on?'color-mix(in srgb, '+cfg.color+' 14%, transparent)':'transparent')+';color:'+(on?cfg.color:'var(--t2)')+';border-radius:16px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">'+c[1]+'</button>';
+    }).join('');
+    ov.querySelector('#_dlBody').innerHTML=list.length
+      ? list.map(function(l){ return _dlLeadRow(l,cfg.color,type==='active'); }).join('')
+      : '<div style="padding:28px 16px;text-align:center;color:var(--t3);font-size:12px">'+(q?'No match for “'+esc(state.q.trim())+'”':cfg.none)+'</div>';
+  }
+  render();
+  if(st&&st.scroll){ ov.querySelector('#_dlBody').scrollTop=st.scroll; }
+  inp.addEventListener('input',function(){ state.q=inp.value; render(); });
+  ov.addEventListener('click',function(e){
+    if(e.target===ov || e.target.closest('.dl-close-btn')){ ov.remove(); return; }
+    var chip=e.target.closest('[data-dlsort]');
+    if(chip){ state.sort=chip.dataset.dlsort; render(); return; }
+    var row=e.target.closest('.dl-row');
+    if(row && row.dataset.dlmob){
+      var keep={type:type,q:state.q,sort:state.sort,scroll:ov.querySelector('#_dlBody').scrollTop};
+      ov.remove();
+      openFuDetail(row.dataset.dlmob,row.dataset.dlname);
+      window._dashListReturn=keep; // set AFTER opening (opening clears any older value)
+    }
+  });
+}
+
+function showDashListLegacy_(type){
   var title,items=[],color='var(--accent)';
   if(type==='prospect'){
     title='🟡 Prospects';color='var(--orange)';

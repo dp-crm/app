@@ -18,7 +18,7 @@
 'use strict';
 const fs=require('fs'), path=require('path');
 const DIR=__dirname, OUT=path.join(DIR,'out');
-const BUILDER_VERSION='4.0.0';
+const BUILDER_VERSION='4.1.0';
 const CLIENT_PAGES=['upload.html','gatherinfo.html','review.html','findoc.html','feedback.html','privacy-policy.html'];
 const RESIDUE_CHECKS=['Arjun','9745014475','Alappat','Ernakulam','wealthmatrix','wealthmetrics','wealth-matrix','Deep Pocket Fintech Pvt. Ltd.','Partner, Deep Pocket'];
 const EXEC_RE=/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/;
@@ -215,7 +215,7 @@ function buildRebrandPlan_(intake, icons, masters){
   add(G,'ai-advisor-at','Firm name inside AI system prompts', 'advisor at Deep Pocket Fintech', 'advisor at '+jsSq_(v.brand), 6);
   add(G,'docs-folder','Client documents parent Drive folder', "'Deep Pocket Client Documents'", "'"+jsSq_(v.legal)+" Client Documents'", 1);
   add(G,'backup-fallback','Backup folder fallback name', "(fn || 'Deep Pocket Fintech Pvt Ltd')+' CRM Backup Folder'", "(fn || '"+jsSq_(v.legal)+"')+' CRM Backup Folder'", 1);
-  add(G,'firmname-default','Default firm name (client pages, insight mails, backups) — its Settings UI was removed', "getSettingValue('firmName','')", "getSettingValue('firmName','"+jsSq_(v.legal)+"')", 6);
+  add(G,'firmname-default','Default firm name (client pages, insight mails, backups) — its Settings UI was removed', "getSettingValue('firmName','')", "getSettingValue('firmName','"+jsSq_(v.legal)+"')", 6); // 6 = 5 original (news mail removed) + the review-reminder mail in Code.gs
   if(/^ARN-?\d+$/i.test(v.arn)) add(G,'arn-default','Default ARN code (skips first-use popup)', "getProperty('OUR_ARN_CODE')||''", "getProperty('OUR_ARN_CODE')||'"+jsSq_(v.arn)+"'", 1);
   
   if(icons && icons.icon192) add(G,'logo-default','Default firm logo for client pages (logo upload UI was removed)', "getSettingValue('logoDataUrl','')", "getSettingValue('logoDataUrl','data:image/png;base64,"+icons.icon192+"')", 3);
@@ -399,13 +399,24 @@ function dpConfigBlock_(intake, v, icons){
     + 'window.DP_CONFIG = '+JSON.stringify(cfg,null,2)+';\n/*DP_CONFIG_END*/';
 }
 
-function buildConfigJs_(v){
+var DEFAULT_DROP_REASONS=['Not interested','Will see later','No response despite follow ups','Wrong prospect','Risky investments'];
+function crmSettings_(intake){
+  var c=(intake&&intake.crmSettings)||{};
+  var dr=Array.isArray(c.dropReasons)?c.dropReasons.map(function(x){ return String(x||'').trim(); }).filter(Boolean):[];
+  var lead=parseInt(c.reviewLeadDays,10);
+  return { dropReasons: dr.length?dr:DEFAULT_DROP_REASONS.slice(), reviewLeadDays: (lead>=1&&lead<=60)?lead:14 };
+}
+function buildConfigJs_(v, intake){
   return '// '+v.product+' — backend address for '+v.legal+'\n'
     + '// Read by crm.html and all six client pages. Keep this file in the SAME folder.\n'
     + '// If the Apps Script is ever deployed as a NEW deployment (new URL), change\n'
     + '// SCRIPT_URL here — no other file needs editing.\n'
     + (v.sheetId?'// Google Sheet ID: '+v.sheetId+'\n':'')
-    + "var SCRIPT_URL = '"+v.scriptUrl+"';\n";
+    + "var SCRIPT_URL = '"+v.scriptUrl+"';\n"
+    + '\n// Optional CRM behaviour for this firm — read by crm.html. Keep it on ONE line (JSON).\n'
+    + '// dropReasons: choices shown when a lead is dropped. reviewLeadDays: how many days before a\n'
+    + '// client review the dashboard reminder appears (1-60). Delete the line to use the built-in defaults.\n'
+    + 'var DP_CRM = '+JSON.stringify(crmSettings_(intake))+';\n';
 }
 
 // ── CLI ──
@@ -433,7 +444,7 @@ function main(){
   var written=[];
   function put(n,t){ fs.writeFileSync(path.join(OUT,n), t); written.push(n); }
   if(stage==='code') put('Code.gs', r.gs);
-  if(stage==='app'){ put('config.js', buildConfigJs_(v)); put('crm.html', r.html); Object.keys(r.pages).forEach(function(n){ put(n, r.pages[n]); }); }
+  if(stage==='app'){ put('config.js', buildConfigJs_(v, intake)); put('crm.html', r.html); Object.keys(r.pages).forEach(function(n){ put(n, r.pages[n]); }); }
   if(stage!=='check') fs.writeFileSync(path.join(OUT,'BUILD-REPORT-'+stage+'.md'), r.report);
   // Short summary (keeps Claude's context small).
   var scope = stage==='code' ? r.gsResults.map(function(x){ return ['Code.gs',x]; })
