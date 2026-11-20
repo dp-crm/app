@@ -5384,11 +5384,31 @@ function fillFormFromRecord(rec,type){
 
 
 // ── OVERRIDE updateFUBadge for due-only count ──
+// Prospects are not chased through Follow-ups — they have no "Next Follow-up" date.
+// Clears it locally (instantly) and, once per device for an Admin, in the LEADS sheet.
+function dpClearProspectFollowUps(syncSheet){
+  var n=0;
+  (leads||[]).forEach(function(l){
+    if((l.status||'').toUpperCase()==='PROSPECT' && l.nextFollowUp){ l.nextFollowUp=''; n++; }
+  });
+  if(syncSheet) dpClearProspectFollowUpsSheet();
+  return n;
+}
+async function dpClearProspectFollowUpsSheet(){
+  try{
+    if(!hasScript()) return;
+    var session=getSession(); if(!session || !isAdmin()) return;
+    if(localStorage.getItem('wm_prospect_fu_cleared')==='1') return;
+    var res=await sheetWrite({action:'bulkClearProspectFollowUpDates', requestingUserId:session.userId}, 30000);
+    if(res && res.success) localStorage.setItem('wm_prospect_fu_cleared','1');
+  }catch(e){}
+}
+
 function updateFUBadge(){
   var fd = parseInt(cfg_.followUpDays)||14;
   // Count overdue leads
   var count = leads.filter(function(l){
-    if(!['PROSPECT','CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase())) return false;
+    if(!['CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase())) return false;
     if(l.nextFollowUp && /^\d{4}-\d{2}-\d{2}$/.test(l.nextFollowUp)) return daysUntil(l.nextFollowUp)<=0;
     return daysAgo(l.modifiedDate||l.createdDate)>=fd;
   }).length;
@@ -5558,7 +5578,7 @@ function renderLeads(){
   var subEl=document.getElementById('leads-sub');
   if(subEl)subEl.textContent=arr.length+' '+(filterStatus==='Active'?'active leads':filterStatus==='All'?'leads':filterStatus.toLowerCase()+' leads')+(clientResults.length?', '+clientResults.length+' clients':'');
   var html=arr.length?arr.map(function(l){
-    var d=daysAgo(l.modifiedDate||l.createdDate);var fd=parseInt(cfg_.followUpDays)||14;var hot=['PROSPECT','CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase())&&d>=fd;
+    var d=daysAgo(l.modifiedDate||l.createdDate);var fd=parseInt(cfg_.followUpDays)||14;var hot=['CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase())&&d>=fd;
     var sel=selectedLeads.has(l.mobile);var lastRem=lastRemarkSummary(l.remarks);
     var badge=heatBadge(l);var aumTag=l.potentialSip?'<span style="font-size:9px;color:var(--accent);background:var(--accent2);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:1px 6px;margin-left:4px">'+aumDisplay(l.potentialSip)+'</span>':'';
     var potAumTag=l.potentialAum?'<span style="font-size:9px;color:var(--green);background:color-mix(in srgb, var(--green) 10%, transparent);border:1px solid color-mix(in srgb, var(--green) 30%, transparent);border-radius:999px;padding:1px 6px;margin-left:4px">\uD83D\uDCB0'+aumDisplay(l.potentialAum)+'</span>':'';
@@ -5742,7 +5762,7 @@ async function pullFromSheet(manual){
         var existing=leads.find(function(l){return (obj.recordId&&l.recordId===obj.recordId)||l.mobile===obj.mobile;});
         if(existing&&existing.notes) obj.notes=existing.notes; else obj.notes=[];
       });
-      leads=filterRecordsForRole(sheetLeads); saveL();
+      leads=filterRecordsForRole(sheetLeads); dpClearProspectFollowUps(false); saveL();
     }
 
     // Pull CLIENTS — never destructively clear local data on an empty-looking
@@ -6454,7 +6474,7 @@ function renderDash(){
   // Follow-up due banner
   var fd=parseInt(cfg_.followUpDays)||14;
   var overdue=leads.filter(function(l){
-    if(!['PROSPECT','CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase()))return false;
+    if(!['CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase()))return false;
     if(l.nextFollowUp&&/^\d{4}-\d{2}-\d{2}$/.test(l.nextFollowUp)) return daysUntil(l.nextFollowUp)<=0;
     return daysAgo(l.modifiedDate||l.createdDate)>=fd;
   }).length;
@@ -6486,6 +6506,8 @@ function renderDash(){
   var elC=document.getElementById('dash-total-clients');if(elC)elC.textContent=totalClients;
   var elD=document.getElementById('dash-count-dropped');if(elD)elD.textContent=droppedCount;
   updateFUBadge();
+  if(dpClearProspectFollowUps(false)) saveL();
+  dpClearProspectFollowUpsSheet();
   renderDashSummary();
   renderDashboardActivityFeed(); // merged Today's Activity + Planning Nudges, swipeable capsules
   renderPipelineFunnel(); // desktop-only lead pipeline funnel (no-op cost on mobile, just hidden)
@@ -6621,7 +6643,7 @@ var _v17_fuListWired=false;
 function renderFU(){
   var fd = parseInt(cfg_.followUpDays)||14;
   var active = leads.filter(function(l){
-    return ['PROSPECT','CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase());
+    return ['CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase());
   });
   // Due = nextFollowUp is today or past; or no date and inactive fd+ days
   var due = active.filter(function(l){
@@ -6930,6 +6952,7 @@ async function saveLead(){
   var modeEl=document.getElementById('lf-mode');var contactMode=modeEl?modeEl.value:'';
   var nextFU=document.getElementById('lf-followup')?document.getElementById('lf-followup').value:'';
   var status=document.getElementById('lf-status')?document.getElementById('lf-status').value:'PROSPECT';
+  if((status||'').toUpperCase()==='PROSPECT') nextFU=''; // prospects have no follow-up date — they only enter follow-ups once Contacted / In Progress
   var source=document.getElementById('lf-source')?caps(document.getElementById('lf-source').value):'';
   var referral=document.getElementById('lf-referral')?document.getElementById('lf-referral').value.trim():'';
   var prodGrid=document.getElementById('lf-products-grid');
@@ -7513,7 +7536,7 @@ function openFuOverlay(){
 function renderFuInElement(container, subEl){
   if(!container)return;
   var fd=parseInt(cfg_.followUpDays)||14;
-  var active=leads.filter(function(l){return ['PROSPECT','CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase());});
+  var active=leads.filter(function(l){return ['CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase());});
   var dueLeads=active.filter(function(l){
     if(l.nextFollowUp&&/^\d{4}-\d{2}-\d{2}$/.test(l.nextFollowUp)) return daysUntil(l.nextFollowUp)<=0;
     return daysAgo(l.modifiedDate||l.createdDate)>=fd;
@@ -13723,7 +13746,7 @@ function renderTodaysActivity(){
   try{
     var fd=parseInt(cfg_.followUpDays)||14;
     var dueLeads=leads.filter(function(l){
-      if(!['PROSPECT','CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase()))return false;
+      if(!['CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase()))return false;
       if(l.nextFollowUp&&/^\d{4}-\d{2}-\d{2}$/.test(l.nextFollowUp)) return daysUntil(l.nextFollowUp)<=0;
       return daysAgo(l.modifiedDate||l.createdDate)>=fd;
     });
