@@ -37,7 +37,7 @@ const MASTER_REF = {
   storagePrefix: 'wm_',
   stages: ['KYC PENDING','DOCUMENT PENDING','PROFILE CREATION PENDING','MANDATE PENDING','INVESTMENT PENDING','GRATITUDE CALL PENDING'],
   products: ['INVESTMENT','LIFE INSURANCE','HEALTH INSURANCE','WILL','AIF','PMS'],
-  theme: { bg:'#1B1512', s1:'#2A211D', s2:'#332924', s3:'#3C312B', border:'#3A2F2A', accent:'#F2E8DE', coral:'#E8734A', text:'#F2E8DE', t2:'#A99A8F', t3:'#786A60', green:'#4C9A6A', blue:'#4A8FC7', orange:'#C08A3E', red:'#C1553D' }
+  theme: { bg:'#F2F4F7', s1:'#FFFFFF', s2:'#EEF1F5', s3:'#E3E7EC', border:'#E3E7EC', accent:'#06132A', coral:'#06132A', text:'#06132A', t2:'#55607A', t3:'#7A8499', green:'#1E7B4B', blue:'#1F5FA8', orange:'#A66A10', red:'#B3321A' }
 };
 
 function jsSq_(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,'\\n'); }
@@ -166,7 +166,7 @@ function buildRebrandPlan_(intake, icons, masters){
   if(v.sheetId) add(H,'sheet-prefill','Settings → Google Sheet link pre-filled', 'id="sheet-url-input" placeholder=', 'id="sheet-url-input" value="https://docs.google.com/spreadsheets/d/'+htmlEsc_(v.sheetId)+'/edit" placeholder=', 1);
 
   // ---------- crm.html : master bug — white text on the cream --accent ----------
-  H.push({id:'contrast-fix', label:'Readable text on accent-coloured buttons (master bug: white on cream)', expect:3, fn:fixAccentContrast_});
+  H.push({id:'contrast-fix', label:'Readable text on accent-coloured buttons (master bug: white on cream)', expect:16, fn:fixAccentContrast_});
 
   // ---------- crm.html : per-firm storage namespace ----------
   add(H,'storage-ns','localStorage namespace (per-firm isolation on the shared dp-crm.github.io origin)', "'"+R.storagePrefix, "'"+v.ns, null);
@@ -195,7 +195,7 @@ function buildRebrandPlan_(intake, icons, masters){
     H.push({id:'theme-root', label:'Theme colours in :root ('+Object.keys(changed).join(', ')+')', expect:null, fn:function(text){ return applyThemeToRoot_(text, changed); }});
     if(changed.bg){
       add(H,'theme-bg-outside','Background colour (:root, theme-color meta, manifest ×2)', R.theme.bg, changed.bg, 4);
-      add(H,'nav-bg','Bottom nav background (was a hard-coded navy leftover)', 'rgba(12,20,32,.97)', rgba_(changed.bg,.97), 1);
+      add(H,'nav-bg','Bottom nav background (was a hard-coded navy leftover)', 'rgba(255,255,255,.97)', rgba_(changed.bg,.97), 1);
     }
   }
 
@@ -384,7 +384,7 @@ function dpConfigBlock_(intake, v, icons){
       address:v.address, city:v.city, phone:v.welcomePhone||v.phone, email:v.email, website:v.website,
       modelType:bz.modelType||'MFD', arn:v.arn, sebiReg:trim_(bz.sebiReg).toUpperCase() },
     theme:theme,
-    fonts:{ display:(custom&&trim_(br.displayFont))||'Fraunces', body:(custom&&trim_(br.bodyFont))||'Inter' },
+    fonts:{ display:(custom&&trim_(br.displayFont))||'Lato', body:(custom&&trim_(br.bodyFont))||'Lato' },
     logo:(icons&&icons.icon192)?'data:image/png;base64,'+icons.icon192:'',
     app:{ hasOwnApp:v.hasOwnApp, android:v.hasOwnApp?v.android:'', ios:v.hasOwnApp?v.ios:'' },
     products:products, features:features,
