@@ -812,6 +812,7 @@ h1,h2,h3{font-family:var(--font-display)}
     <button id="lsort-score-btn" onclick="setLeadSort('score')" style="flex:1;padding:6px 3px;font-size:10px;font-weight:700;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer">🔥 Score</button>
     <button id="lsort-potaum-btn" onclick="setLeadSort('potentialAum')" style="flex:1;padding:6px 3px;font-size:10px;font-weight:700;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--t2);cursor:pointer">💰 Pot. AUM ↓</button>
     <button id="lsort-sip-btn" onclick="setLeadSort('aum')" style="flex:1;padding:6px 3px;font-size:10px;font-weight:700;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--t2);cursor:pointer">📈 Pot. SIP ↓</button>
+    <button id="lsort-star-btn" onclick="setLeadSort('star')" style="flex:1;padding:6px 3px;font-size:10px;font-weight:700;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--t2);cursor:pointer">⭐ Starred</button>
   </div>
   <div class="chips" id="status-chips"></div>
   <div id="product-chips" style="display:flex;gap:6px;padding:4px 12px 8px;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch"></div>
@@ -2607,7 +2608,7 @@ var AUM_SIP_LEGACY_LAKH = {
 function aumSipLakh(v){
   v=(v||'').toString().trim();
   if(!v) return 0;
-  if(/^\d+(\.\d+)?$/.test(v)) return parseFloat(v); // new format: plain number = ₹ Lakh
+  if(/^(\d+(\.\d*)?|\.\d+)$/.test(v)) return parseFloat(v); // new format: plain number = ₹ Lakh
   return AUM_SIP_LEGACY_LAKH[v] || 0;                  // old dropdown category — fallback estimate
 }
 function rankAumSip(v){ return aumSipLakh(v); } // kept as an alias for the Leads sort toggle
@@ -2615,7 +2616,7 @@ function rankAumSip(v){ return aumSipLakh(v); } // kept as an alias for the Lead
 function aumDisplay(v){
   v=(v||'').toString().trim();
   if(!v) return '';
-  return /^\d+(\.\d+)?$/.test(v) ? v+'L' : v;
+  return /^(\d+(\.\d*)?|\.\d+)$/.test(v) ? v+'L' : v;
 }
 
 function renderClients(){
@@ -5588,6 +5589,7 @@ function renderLeads(){
     {key:'IN PROGRESS',label:'In Progress',n:leads.filter(function(l){return (l.status||'').toUpperCase()==='IN PROGRESS';}).length},
     {key:'CONVERTED',label:'Converted',n:leads.filter(function(l){return (l.status||'').toUpperCase()==='CONVERTED';}).length},
     {key:'DROPPED',label:'Dropped',n:leads.filter(function(l){return (l.status||'').toUpperCase()==='DROPPED';}).length},
+    {key:'STARRED',label:'⭐ Starred',n:leads.filter(isLeadStarred).length},
     {key:'All',label:'All',n:leads.length}
   ];
   var chipsEl=document.getElementById('status-chips');
@@ -5638,10 +5640,14 @@ function renderLeads(){
     // Family filter
     if(filterFamily!=='All' && (l.familyName||'').trim()!==filterFamily) return false;
     var st=(l.status||'').toUpperCase();
-    var ok=filterStatus==='Active'?!['CONVERTED','DROPPED'].includes(st):filterStatus==='All'||(st===filterStatus);
+    var ok=filterStatus==='Active'?!['CONVERTED','DROPPED'].includes(st):filterStatus==='All'?true:filterStatus==='STARRED'?isLeadStarred(l):(st===filterStatus);
     var sq=!q||l.name.toLowerCase().includes(q);
     return ok&&sq;
   }).sort(function(a,b){
+    if(leadSortBy==='star'){
+      var stD=(isLeadStarred(b)?1:0)-(isLeadStarred(a)?1:0);
+      if(stD!==0) return stD;
+    }
     if(leadSortBy==='potentialAum'){
       var pd=parseAumValue(b.potentialAum)-parseAumValue(a.potentialAum);
       if(pd!==0) return pd;
@@ -5654,7 +5660,7 @@ function renderLeads(){
   });
   var clientResults=q?clients.filter(function(c){return c.name.toLowerCase().includes(q)||(c.mobile||'').includes(q);}):[];
   var subEl=document.getElementById('leads-sub');
-  if(subEl)subEl.textContent=arr.length+' '+(filterStatus==='Active'?'active leads':filterStatus==='All'?'leads':filterStatus.toLowerCase()+' leads')+(clientResults.length?', '+clientResults.length+' clients':'');
+  if(subEl)subEl.textContent=arr.length+' '+(filterStatus==='Active'?'active leads':filterStatus==='All'?'leads':filterStatus==='STARRED'?'starred leads':filterStatus.toLowerCase()+' leads')+(clientResults.length?', '+clientResults.length+' clients':'');
   var html=arr.length?arr.map(function(l){
     var d=daysAgo(l.modifiedDate||l.createdDate);var fd=parseInt(cfg_.followUpDays)||14;var hot=['CONTACTED','IN PROGRESS'].includes((l.status||'').toUpperCase())&&d>=fd;
     var sel=selectedLeads.has(l.mobile);var lastRem=lastRemarkSummary(l.remarks);
@@ -5669,7 +5675,7 @@ function renderLeads(){
       +((l.products||l.nextFollowUp)?'<div class="li-prod" style="display:flex;gap:6px;flex-wrap:wrap">'+(l.products?'<span>'+l.products+'</span>':'')+(l.nextFollowUp&&/^\d{4}-\d{2}-\d{2}$/.test(l.nextFollowUp)?'<span style="color:var(--accent)">📅 '+fmt(l.nextFollowUp)+'</span>':'')+'</div>':'')
       +(lastRem?'<div style="font-size:10px;color:var(--t3);margin-top:2px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">📝 '+lastRem+'</div>':'')
       +'</div>'
-      +'<div class="li-right"><span class="pill '+scls(l.status)+'">'+(l.status||'').charAt(0)+(l.status||'').slice(1).toLowerCase()+'</span><span class="days'+(hot?' hot':'')+'">'+(d===0?'Today':d+'d ago')+'</span></div>'
+      +'<div class="li-right"><span onclick="event.stopPropagation();toggleLeadStar(\''+String(lId).replace(/'/g,"")+'\')" title="Star" style="font-size:20px;line-height:1;cursor:pointer;padding:0 2px 4px;color:'+(isLeadStarred(l)?'#F5A623':'var(--t3)')+'">'+(isLeadStarred(l)?'\u2605':'\u2606')+'</span><span class="pill '+scls(l.status)+'">'+(l.status||'').charAt(0)+(l.status||'').slice(1).toLowerCase()+'</span><span class="days'+(hot?' hot':'')+'">'+(d===0?'Today':d+'d ago')+'</span></div>'
       +'</div>';
   }).join(''):'<div class="empty"><div class="empty-ico">🔍</div><div class="empty-t">No leads found</div></div>';
   if(clientResults.length){html+='<div style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;background:var(--s2)">Clients ('+clientResults.length+')</div>';html+=clientResults.map(function(c){var cId=c.recordId||c.mobile;return '<div class="ci" onclick="openDetail(\''+cId+'\',\'client\',\''+encodeURIComponent(c.name||'')+'\')"><div class="ci-av">'+ini(c.name)+'</div><div class="li-info"><div class="li-name">'+toTitle(c.name)+(c.familyName?' <span style="font-size:9px;color:var(--t2)">👪 '+c.familyName+'</span>':'')+(c.userId?' <span style="font-size:9px;color:var(--t2)">👤 '+esc(c.userId)+'</span>':'')+'</div><div class="li-meta">'+c.mobile+'</div></div><div class="li-right"><span style="font-size:9px;color:var(--green);font-weight:700">CLIENT</span></div></div>';}).join('');}
@@ -11598,13 +11604,44 @@ async function syncClient(client, action){
 }
 
 
+
+// ── Starred prospects: kept on the server per user (Settings tab) so they follow the user to any
+// device; localStorage is only an instant-load cache. ──
+var leadStarSet={};
+try{ (JSON.parse(localStorage.getItem('wm_lead_stars')||'[]')||[]).forEach(function(i){leadStarSet[i]=1;}); }catch(e){}
+function isLeadStarred(l){ return !!(l && (leadStarSet[l.recordId||''] || leadStarSet[l.mobile||''])); }
+function _saveStarCache(){ try{ localStorage.setItem('wm_lead_stars', JSON.stringify(Object.keys(leadStarSet))); }catch(e){} }
+async function loadLeadStars(){
+  try{
+    var r=await sheetWrite({action:'getLeadStars', expectsResponse:true}, 15000);
+    if(r && r.success && Array.isArray(r.stars)){
+      leadStarSet={}; r.stars.forEach(function(i){leadStarSet[i]=1;}); _saveStarCache(); renderLeads();
+    }
+  }catch(e){}
+}
+async function toggleLeadStar(id){
+  var l=leads.find(function(x){return (x.recordId||x.mobile)===id;});
+  var key=id, on=!leadStarSet[key];
+  if(l && !on){ delete leadStarSet[l.recordId||'']; delete leadStarSet[l.mobile||'']; }
+  if(on) leadStarSet[key]=1; else delete leadStarSet[key];
+  _saveStarCache(); renderLeads();
+  var payload={action:'toggleLeadStar', id:key, starred:on};
+  try{
+    var r=await sheetWrite(payload, 20000);
+    if(!(r && r.success)) throw new Error('fail');
+    if(Array.isArray(r.stars)){ leadStarSet={}; r.stars.forEach(function(i){leadStarSet[i]=1;}); _saveStarCache(); renderLeads(); }
+  }catch(e){
+    _wq.push({payload:payload, ts:Date.now(), attempts:0}); _saveQ(); toast('Saved locally — star will sync');
+  }
+}
+
 // ── Toggle client sort between AUM and Potential AUM ──
 function setLeadSort(field){
   leadSortBy = field;
   var sBtn=document.getElementById('lsort-score-btn');
   var pBtn=document.getElementById('lsort-potaum-btn');
   var sipBtn=document.getElementById('lsort-sip-btn');
-  [[sBtn,'score'],[pBtn,'potentialAum'],[sipBtn,'aum']].forEach(function(pair){
+  [[sBtn,'score'],[pBtn,'potentialAum'],[sipBtn,'aum'],[document.getElementById('lsort-star-btn'),'star']].forEach(function(pair){
     var btn=pair[0]; if(!btn) return;
     if(field===pair[1]){ btn.style.background='var(--accent)'; btn.style.color='#fff'; btn.style.borderColor='var(--accent)'; }
     else { btn.style.background='transparent'; btn.style.color='var(--t2)'; btn.style.borderColor='var(--border)'; }
@@ -11792,13 +11829,22 @@ function dpFmtInr(n){
   if(n>=100000)   return '₹'+(n/100000).toFixed(2).replace(/\.?0+$/,'')+' L';
   return '₹'+n.toLocaleString('en-IN');
 }
+// Dashboard AUM: a plain number is ₹ Lakh (same convention as Potential AUM/SIP);
+// a plain number of 1,00,000 or more is treated as full rupees; Cr/L/K suffixes work as before.
+function dpDashAumRupees(v){
+  var t=(v||'').toString().toUpperCase().replace(/[₹,\s]/g,'');
+  if(/^(\d+(\.\d*)?|\.\d+)$/.test(t)){ var n=parseFloat(t); return n>=100000 ? n : n*100000; }
+  return parseAumValue(v);
+}
 function computeDashSummary(list){
   var aum=0,sip=0,fam={};
   (list||[]).forEach(function(c){
-    aum+=parseAumValue(c.aum);
+    aum+=dpDashAumRupees(c.aum);
     sip+=aumSipLakh(c.potentialSip)*100000;
     var f=(c.familyName||'').toString().trim().toUpperCase().replace(/\s+/g,' ');
-    if(f) fam[f]=1;
+    // No Family Name = a family of one, counted once under the client's own name.
+    if(!f) f='~'+(c.name||c.mobile||'').toString().trim().toUpperCase().replace(/\s+/g,' ');
+    if(f!=='~') fam[f]=1;
   });
   return {clients:(list||[]).length, aum:aum, sip:sip, families:Object.keys(fam).length};
 }
@@ -14725,7 +14771,7 @@ function handleSessionExpired(){
 // either from a returning login or right after a fresh one completes.
 function startAppAfterAuth(){
   if(isLockEnabled()){ showLockScreen(); }
-  load();loadActivityLog();loadTasks();bootSequenceV17();
+  load();loadActivityLog();loadTasks();bootSequenceV17();loadLeadStars();
   checkAiUsageAndWarn(); // fire-and-forget — never blocks boot; shows a popup only if the firm's cumulative AI cost has crossed the alert threshold
   applyFontSizeMode(cfg_.fontSizeMode||'small');
   initPullToRefresh();
